@@ -481,9 +481,15 @@ export default function ReservationsPage() {
               }
               className="glass-input w-full bg-slate-900 border border-white/10 rounded-md p-2 text-white"
             >
-              <option value="Regular">Regular</option>
-              <option value="Jain">Jain</option>
-              <option value="Swaminarayan">Swaminarayan</option>
+              <option className="bg-slate-900 text-white" value="Regular">
+                Regular
+              </option>
+              <option className="bg-slate-900 text-white" value="Jain">
+                Jain
+              </option>
+              <option className="bg-slate-900 text-white" value="Swaminarayan">
+                Swaminarayan
+              </option>
             </select>
           </div>
           <div className="space-y-2">
@@ -581,9 +587,15 @@ export default function ReservationsPage() {
               }
               className="glass-input w-full bg-slate-900 border border-white/10 rounded-md p-2 text-white"
             >
-              <option value="Regular">Regular</option>
-              <option value="Jain">Jain</option>
-              <option value="Swaminarayan">Swaminarayan</option>
+              <option className="bg-slate-900 text-white" value="Regular">
+                Regular
+              </option>
+              <option className="bg-slate-900 text-white" value="Jain">
+                Jain
+              </option>
+              <option className="bg-slate-900 text-white" value="Swaminarayan">
+                Swaminarayan
+              </option>
             </select>
           </div>
           <div className="space-y-2">
