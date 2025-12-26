@@ -33,16 +33,25 @@ export default function DashboardLayout({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/");
+      return;
+    }
+
     const fetchProfile = async () => {
       try {
         const res = await api.get("/restaurants/me");
         setProfile(res.data);
       } catch (err) {
         console.error("Failed to fetch profile for header", err);
+        // If error (likely 401/403 or network), redirect to login
+        localStorage.removeItem("token");
+        router.push("/");
       }
     };
     fetchProfile();
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
