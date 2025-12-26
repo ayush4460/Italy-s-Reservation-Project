@@ -106,11 +106,12 @@ export default function DashboardPage() {
                   <div
                     key={res.id}
                     className="p-4 flex items-center justify-between hover:bg-white/5 cursor-pointer transition-colors"
-                    onClick={() =>
-                      (window.location.href = `/dashboard/reservations?date=${
-                        res.date.split("T")[0]
-                      }&slotId=${res.slotId}`)
-                    }
+                    onClick={() => {
+                      const dateStr = res.date
+                        ? res.date.toString().split("T")[0]
+                        : new Date().toISOString().split("T")[0];
+                      window.location.href = `/dashboard/reservations?date=${dateStr}&slotId=${res.slotId}`;
+                    }}
                   >
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-300 font-bold">

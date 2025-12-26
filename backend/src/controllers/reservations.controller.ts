@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import redis from '../lib/redis';
 
 const prisma = new PrismaClient();
 
@@ -194,6 +195,14 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
             }
         });
 
+        // Invalidate Dashboard Stats Cache
+        // We need to invalidate for the specific date of the reservation
+        const dateKey = new Date(date).toISOString().split('T')[0];
+        const cacheKey = `dashboard:stats:v4:${restaurantId}:${dateKey}`;
+        try {
+            await redis.del(cacheKey);
+        } catch (e) { console.warn("Redis Invalidate Error (Ignored):", e); }
+
         res.status(201).json(reservation);
 
     } catch (error) {
@@ -227,6 +236,13 @@ export const updateReservation = async (req: AuthRequest, res: Response) => {
             }
         });
 
+        // Invalidate Cache
+        const dateKey = new Date(reservation.date).toISOString().split('T')[0];
+        const cacheKey = `dashboard:stats:${restaurantId}:${dateKey}`;
+        try {
+            await redis.del(cacheKey);
+        } catch (e) { console.warn("Redis Invalidate Error (Ignored):", e); }
+
         res.json(updated);
 
     } catch (error) {
@@ -257,6 +273,13 @@ export const cancelReservation = async (req: AuthRequest, res: Response) => {
             where: { id: parseInt(id) },
             data: { status: 'CANCELLED' }
         });
+
+        // Invalidate Cache
+        const dateKey = new Date(reservation.date).toISOString().split('T')[0];
+        const cacheKey = `dashboard:stats:${restaurantId}:${dateKey}`;
+        try {
+            await redis.del(cacheKey);
+        } catch (e) { console.warn("Redis Invalidate Error (Ignored):", e); }
 
         res.json({ message: 'Reservation cancelled successfully' });
 
