@@ -1,27 +1,45 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
+import api from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Armchair, CalendarCheck, Users } from "lucide-react";
 
 export default function DashboardPage() {
-  // These would be fetched from API in a real app
-  const stats = [
+  const [stats, setStats] = useState({
+    totalTables: 0,
+    todayBookings: 0,
+    guestsExpected: 0,
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await api.get("/dashboard/stats");
+        setStats(res.data);
+      } catch (err) {
+        console.error("Failed to fetch stats", err);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  const statItems = [
     {
       label: "Total Tables",
-      value: "12",
+      value: stats.totalTables.toString(),
       icon: Armchair,
       color: "text-blue-400",
     },
     {
       label: "Today's Bookings",
-      value: "8",
+      value: stats.todayBookings.toString(),
       icon: CalendarCheck,
       color: "text-green-400",
     },
     {
       label: "Guests Expected",
-      value: "24",
+      value: stats.guestsExpected.toString(),
       icon: Users,
       color: "text-purple-400",
     },
@@ -32,7 +50,7 @@ export default function DashboardPage() {
       <h2 className="text-3xl font-bold text-white">Dashboard Overview</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {stats.map((stat, i) => {
+        {statItems.map((stat, i) => {
           const Icon = stat.icon;
           return (
             <Card key={i} className="glass-panel border-none text-white">

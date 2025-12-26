@@ -3,13 +3,9 @@ import { getTables, createTable, deleteTable } from '../controllers/tables.contr
 import { authenticateToken } from '../middleware/auth.middleware';
 
 const router = Router();
-console.log('Tables routes loaded!');
 
-// router.use(authenticateToken); // Protect all table routes
-router.use((req, res, next) => {
-    console.log('Tables route accessed:', req.method, req.path);
-    next();
-});
+// Debug log removed
+router.use(authenticateToken);
 
 router.get('/', getTables);
 router.post('/', createTable);
