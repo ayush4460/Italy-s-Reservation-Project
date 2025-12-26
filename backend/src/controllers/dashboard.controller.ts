@@ -27,10 +27,39 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         endOfDay = new Date(startOfDay);
         endOfDay.setDate(endOfDay.getDate() + 1);
 
-        const [totalTables, todayReservations] = await Promise.all([
+        // Efficiently aggregate data
+        const [totalTables, bookingsCount, guestsAggregation, recentReservations] = await Promise.all([
+            // 1. Total Tables
             prisma.table.count({
                 where: { restaurantId }
             }),
+            // 2. Total Bookings for date
+            prisma.reservation.count({
+                where: {
+                    table: { restaurantId },
+                    date: {
+                        gte: startOfDay,
+                        lt: endOfDay
+                    },
+                    status: { not: 'CANCELLED' }
+                }
+            }),
+            // 3. Aggregate Guests
+            prisma.reservation.aggregate({
+                where: {
+                    table: { restaurantId },
+                    date: {
+                        gte: startOfDay,
+                        lt: endOfDay
+                    },
+                    status: { not: 'CANCELLED' }
+                },
+                _sum: {
+                    adults: true,
+                    kids: true
+                }
+            }),
+            // 4. Recent Reservations (Fetching only necessary fields, limited to 50 for performance)
             prisma.reservation.findMany({
                 where: {
                     table: { restaurantId },
@@ -40,24 +69,35 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
                     },
                     status: { not: 'CANCELLED' }
                 },
-                include: {
-                    table: true,
-                    slot: true
+                select: {
+                    id: true,
+                    customerName: true,
+                    adults: true,
+                    kids: true,
+                    foodPref: true,
+                    specialReq: true,
+                    status: true,
+                    table: {
+                        select: { tableNumber: true }
+                    },
+                    slot: {
+                        select: { startTime: true, endTime: true }
+                    }
                 },
                 orderBy: {
                     slot: { startTime: 'asc' }
-                }
+                },
+                take: 50 
             })
         ]);
 
-        const bookingsCount = todayReservations.length;
-        const guestsCount = todayReservations.reduce((acc, curr) => acc + curr.adults + curr.kids, 0);
+        const guestsCount = (guestsAggregation._sum.adults || 0) + (guestsAggregation._sum.kids || 0);
 
         res.json({
             totalTables,
             todayBookings: bookingsCount,
             guestsExpected: guestsCount,
-            recentReservations: todayReservations
+            recentReservations
         });
 
     } catch (error) {
