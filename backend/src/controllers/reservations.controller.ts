@@ -200,3 +200,68 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ message: 'Error creating reservation', error });
     }
 }
+// Update Reservation
+export const updateReservation = async (req: AuthRequest, res: Response) => {
+    try {
+        const restaurantId = req.user?.userId;
+        if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        const { id } = req.params;
+        const { customerName, contact, adults, kids, foodPref, specialReq } = req.body;
+
+        const reservation = await prisma.reservation.findFirst({
+            where: { id: parseInt(id), table: { restaurantId } }
+        });
+
+        if (!reservation) return res.status(404).json({ message: 'Reservation not found' });
+
+        const updated = await prisma.reservation.update({
+            where: { id: parseInt(id) },
+            data: {
+                customerName,
+                contact,
+                adults: parseInt(adults),
+                kids: parseInt(kids),
+                foodPref, 
+                specialReq
+            }
+        });
+
+        res.json(updated);
+
+    } catch (error) {
+        console.error('Error updating reservation:', error);
+        res.status(500).json({ message: 'Error updating reservation', error });
+    }
+}
+
+// Cancel Reservation
+export const cancelReservation = async (req: AuthRequest, res: Response) => {
+     try {
+        const restaurantId = req.user?.userId;
+        if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        const { id } = req.params;
+
+        const reservation = await prisma.reservation.findFirst({
+            where: { id: parseInt(id), table: { restaurantId } }
+        });
+
+        if (!reservation) return res.status(404).json({ message: 'Reservation not found' });
+
+        // Option 1: Hard Delete
+        // await prisma.reservation.delete({ where: { id: parseInt(id) } });
+
+        // Option 2: Soft Delete (Status = CANCELLED) -> Better for records
+        await prisma.reservation.update({
+            where: { id: parseInt(id) },
+            data: { status: 'CANCELLED' }
+        });
+
+        res.json({ message: 'Reservation cancelled successfully' });
+
+    } catch (error) {
+        console.error('Error cancelling reservation:', error);
+        res.status(500).json({ message: 'Error cancelling reservation', error });
+    }
+}

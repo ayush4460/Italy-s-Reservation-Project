@@ -16,6 +16,8 @@ import {
   Plus,
   Trash2,
   Settings,
+  Edit2,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +38,11 @@ interface Reservation {
   id: number;
   tableId: number;
   customerName: string;
+  contact: string;
+  adults: number;
+  kids: number;
+  foodPref: string;
+  specialReq?: string;
   date: string;
 }
 
@@ -72,6 +79,19 @@ export default function ReservationsPage() {
     specialReq: "",
   });
   const [bookingLoading, setBookingLoading] = useState(false);
+
+  // Edit Reservation State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingReservation, setEditingReservation] =
+    useState<Reservation | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    customerName: "",
+    contact: "",
+    adults: "",
+    kids: "0",
+    foodPref: "",
+    specialReq: "",
+  });
 
   // Manage Slots Modal State
   const [isManageSlotsOpen, setIsManageSlotsOpen] = useState(false);
@@ -129,14 +149,31 @@ export default function ReservationsPage() {
 
   const handleTableClick = (table: Table) => {
     if (!selectedSlot) return alert("Please select a time slot first.");
-    const isBooked = reservations.some((r) => r.tableId === table.id);
-    if (isBooked) {
-      alert("This table is already booked!");
-      return;
+
+    // Check if booked
+    const reservation = reservations.find((r) => r.tableId === table.id);
+
+    if (reservation) {
+      // Open Edit Modal
+      setEditingReservation(reservation);
+      setEditFormData({
+        customerName: reservation.customerName,
+        contact: reservation.contact,
+        adults: reservation.adults.toString(),
+        kids: reservation.kids.toString(),
+        foodPref: reservation.foodPref,
+        specialReq: reservation.specialReq || "",
+      });
+      setIsEditModalOpen(true);
+    } else {
+      // Open Create Modal
+      setSelectedTable(table);
+      setBookingData((prev) => ({
+        ...prev,
+        adults: table.capacity.toString(),
+      }));
+      setIsBookingModalOpen(true);
     }
-    setSelectedTable(table);
-    setBookingData((prev) => ({ ...prev, adults: table.capacity.toString() }));
-    setIsBookingModalOpen(true);
   };
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
@@ -164,6 +201,47 @@ export default function ReservationsPage() {
     } catch (err) {
       console.error("Booking failed", err);
       alert("Failed to create reservation");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReservation) return;
+
+    setBookingLoading(true);
+    try {
+      await api.put(`/reservations/${editingReservation.id}`, {
+        ...editFormData,
+      });
+      setIsEditModalOpen(false);
+      setEditingReservation(null);
+      fetchReservations();
+    } catch (err) {
+      console.error("Update failed", err);
+      alert("Failed to update reservation");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  const handleCancelReservation = async () => {
+    if (
+      !editingReservation ||
+      !confirm("Are you sure you want to cancel this reservation?")
+    )
+      return;
+
+    setBookingLoading(true); // Reuse loading state
+    try {
+      await api.delete(`/reservations/${editingReservation.id}`);
+      setIsEditModalOpen(false);
+      setEditingReservation(null);
+      fetchReservations();
+    } catch (err) {
+      console.error("Cancel failed", err);
+      alert("Failed to cancel reservation");
     } finally {
       setBookingLoading(false);
     }
@@ -333,7 +411,7 @@ export default function ReservationsPage() {
         </CardContent>
       </Card>
 
-      {/* Booking Modal */}
+      {/* Create Booking Modal */}
       <Modal
         isOpen={isBookingModalOpen}
         onClose={() => setIsBookingModalOpen(false)}
@@ -429,6 +507,118 @@ export default function ReservationsPage() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
               Confirm Booking
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Reservation Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Reservation"
+      >
+        <form
+          onSubmit={handleEditSubmit}
+          className="space-y-4 max-h-[70vh] overflow-y-auto pr-2"
+        >
+          <div className="space-y-2">
+            <Label>Customer Name</Label>
+            <Input
+              value={editFormData.customerName}
+              onChange={(e) =>
+                setEditFormData({
+                  ...editFormData,
+                  customerName: e.target.value,
+                })
+              }
+              required
+              className="glass-input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Contact</Label>
+            <Input
+              value={editFormData.contact}
+              onChange={(e) =>
+                setEditFormData({ ...editFormData, contact: e.target.value })
+              }
+              required
+              className="glass-input"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Adults</Label>
+              <Input
+                type="number"
+                value={editFormData.adults}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, adults: e.target.value })
+                }
+                required
+                className="glass-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Kids</Label>
+              <Input
+                type="number"
+                value={editFormData.kids}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, kids: e.target.value })
+                }
+                className="glass-input"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Food Preference</Label>
+            <select
+              value={editFormData.foodPref}
+              onChange={(e) =>
+                setEditFormData({ ...editFormData, foodPref: e.target.value })
+              }
+              className="glass-input w-full bg-slate-900 border border-white/10 rounded-md p-2 text-white"
+            >
+              <option value="Regular">Regular</option>
+              <option value="Jain">Jain</option>
+              <option value="Swaminarayan">Swaminarayan</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label>Special Requests</Label>
+            <Input
+              value={editFormData.specialReq}
+              onChange={(e) =>
+                setEditFormData({ ...editFormData, specialReq: e.target.value })
+              }
+              className="glass-input"
+            />
+          </div>
+
+          <div className="flex gap-4 pt-4">
+            <Button
+              type="button"
+              variant="destructive"
+              className="flex-1 bg-red-500/20 text-red-400 hover:bg-red-500/30"
+              onClick={handleCancelReservation}
+              disabled={bookingLoading}
+            >
+              {bookingLoading && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Cancel Reservation
+            </Button>
+            <Button
+              type="submit"
+              className="glass-button flex-1"
+              disabled={bookingLoading}
+            >
+              {bookingLoading && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Save Changes
             </Button>
           </div>
         </form>

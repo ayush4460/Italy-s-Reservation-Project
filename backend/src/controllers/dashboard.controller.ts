@@ -12,11 +12,19 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         const restaurantId = req.user?.userId;
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
 
-        // Get start and end of today in UTC or server time (simplified for now)
-        // Ideally should respect restaurant timezone if we had that stored
-        const now = new Date();
-        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const endOfDay = new Date(startOfDay);
+        // Get date from query or default to today
+        const { date } = req.query;
+        let startOfDay: Date, endOfDay: Date;
+
+        if (date) {
+             const selectedDate = new Date(date as string);
+             startOfDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+        } else {
+             const now = new Date();
+             startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        }
+        
+        endOfDay = new Date(startOfDay);
         endOfDay.setDate(endOfDay.getDate() + 1);
 
         const [totalTables, todayReservations] = await Promise.all([
@@ -32,9 +40,12 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
                     },
                     status: { not: 'CANCELLED' }
                 },
-                select: {
-                    adults: true,
-                    kids: true
+                include: {
+                    table: true,
+                    slot: true
+                },
+                orderBy: {
+                    slot: { startTime: 'asc' }
                 }
             })
         ]);
@@ -45,7 +56,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         res.json({
             totalTables,
             todayBookings: bookingsCount,
-            guestsExpected: guestsCount
+            guestsExpected: guestsCount,
+            recentReservations: todayReservations
         });
 
     } catch (error) {

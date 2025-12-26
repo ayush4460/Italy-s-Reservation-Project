@@ -126,13 +126,13 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="bannerUrl">Banner Image URL</Label>
+                <Label htmlFor="bannerUrl">User Photo URL</Label>
                 <Input
                   id="bannerUrl"
                   name="bannerUrl"
                   value={formData.bannerUrl || ""}
                   onChange={handleChange}
-                  placeholder="https://example.com/banner.jpg"
+                  placeholder="https://example.com/user-photo.jpg"
                   className="glass-input"
                 />
               </div>
