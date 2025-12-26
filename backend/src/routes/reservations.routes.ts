@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getSlots, getReservations, createReservation } from '../controllers/reservations.controller';
+import { getSlots, getReservations, createReservation, createSlots, deleteSlot } from '../controllers/reservations.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -7,6 +7,9 @@ const router = Router();
 router.use(authenticateToken);
 
 router.get('/slots', getSlots);
+router.post('/slots', createSlots); // Manage slots
+router.delete('/slots/:id', deleteSlot); // Delete slot
+
 router.get('/', getReservations); // ?date=...&slotId=...
 router.post('/', createReservation);
 

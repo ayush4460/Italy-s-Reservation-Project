@@ -7,13 +7,23 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
-import { Calendar, Clock, Armchair, Users, Loader2 } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  Armchair,
+  Users,
+  Loader2,
+  Plus,
+  Trash2,
+  Settings,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Slot {
   id: number;
   startTime: string;
   endTime: string;
+  dayOfWeek?: number;
 }
 
 interface Table {
@@ -29,6 +39,16 @@ interface Reservation {
   date: string;
 }
 
+const DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
 export default function ReservationsPage() {
   const [date, setDate] = useState<string>(
     new Date().toISOString().split("T")[0]
@@ -39,10 +59,10 @@ export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
 
   const [loading, setLoading] = useState(true);
+
+  // Booking Modal State
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
-
-  // Booking Form Data
   const [bookingData, setBookingData] = useState({
     customerName: "",
     contact: "",
@@ -53,9 +73,19 @@ export default function ReservationsPage() {
   });
   const [bookingLoading, setBookingLoading] = useState(false);
 
+  // Manage Slots Modal State
+  const [isManageSlotsOpen, setIsManageSlotsOpen] = useState(false);
+  const [allSlots, setAllSlots] = useState<Slot[]>([]);
+  const [newSlot, setNewSlot] = useState({
+    startTime: "",
+    endTime: "",
+    days: [] as number[],
+  });
+  const [slotLoading, setSlotLoading] = useState(false);
+
   useEffect(() => {
     fetchInitialData();
-  }, []);
+  }, [date]); // Refetch slots when date changes to get day-specific slots
 
   useEffect(() => {
     if (selectedSlot && date) {
@@ -66,13 +96,15 @@ export default function ReservationsPage() {
   const fetchInitialData = async () => {
     try {
       const [slotsRes, tablesRes] = await Promise.all([
-        api.get("/reservations/slots"),
+        api.get("/reservations/slots", { params: { date } }),
         api.get("/tables"),
       ]);
       setSlots(slotsRes.data);
       setTables(tablesRes.data);
       if (slotsRes.data.length > 0) {
         setSelectedSlot(slotsRes.data[0]);
+      } else {
+        setSelectedSlot(null);
       }
     } catch (err) {
       console.error("Failed to load initial data", err);
@@ -90,17 +122,20 @@ export default function ReservationsPage() {
       setReservations(res.data);
     } catch (err) {
       console.error("Failed to fetch reservations", err);
+      // If 404/error, maybe clear reservations
+      setReservations([]);
     }
   };
 
   const handleTableClick = (table: Table) => {
+    if (!selectedSlot) return alert("Please select a time slot first.");
     const isBooked = reservations.some((r) => r.tableId === table.id);
     if (isBooked) {
       alert("This table is already booked!");
       return;
     }
     setSelectedTable(table);
-    setBookingData((prev) => ({ ...prev, adults: table.capacity.toString() })); // Default to capacity
+    setBookingData((prev) => ({ ...prev, adults: table.capacity.toString() }));
     setIsBookingModalOpen(true);
   };
 
@@ -125,12 +160,64 @@ export default function ReservationsPage() {
         foodPref: "Regular",
         specialReq: "",
       });
-      fetchReservations(); // Refresh grid
+      fetchReservations();
     } catch (err) {
       console.error("Booking failed", err);
       alert("Failed to create reservation");
     } finally {
       setBookingLoading(false);
+    }
+  };
+
+  // --- Manage Slots Logic ---
+
+  const openManageSlots = async () => {
+    setIsManageSlotsOpen(true);
+    fetchAllSlots();
+  };
+
+  const fetchAllSlots = async () => {
+    try {
+      const res = await api.get("/reservations/slots?all=true");
+      setAllSlots(res.data);
+    } catch (err) {
+      console.error("Failed to fetch all slots", err);
+    }
+  };
+
+  const toggleDay = (dayIndex: number) => {
+    setNewSlot((prev) => {
+      const days = prev.days.includes(dayIndex)
+        ? prev.days.filter((d) => d !== dayIndex)
+        : [...prev.days, dayIndex];
+      return { ...prev, days };
+    });
+  };
+
+  const handleAddSlot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSlotLoading(true);
+    try {
+      await api.post("/reservations/slots", newSlot);
+      setNewSlot({ startTime: "", endTime: "", days: [] });
+      fetchAllSlots();
+      fetchInitialData(); // Refresh main view if affected
+    } catch (err) {
+      console.error("Failed to add slot", err);
+      alert("Failed to add slot");
+    } finally {
+      setSlotLoading(false);
+    }
+  };
+
+  const handleDeleteSlot = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this slot?")) return;
+    try {
+      await api.delete(`/reservations/slots/${id}`);
+      fetchAllSlots();
+      fetchInitialData();
+    } catch (err) {
+      console.error("Failed to delete slot", err);
     }
   };
 
@@ -140,7 +227,17 @@ export default function ReservationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h2 className="text-3xl font-bold text-white">Reservations</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-3xl font-bold text-white">Reservations</h2>
+          <Button
+            onClick={openManageSlots}
+            size="sm"
+            variant="outline"
+            className="glass-button text-xs gap-2"
+          >
+            <Settings className="h-4 w-4" /> Manage Slots
+          </Button>
+        </div>
 
         {/* Date Picker */}
         <div className="flex items-center space-x-2 bg-white/10 rounded-lg p-2 border border-white/20">
@@ -155,7 +252,12 @@ export default function ReservationsPage() {
       </div>
 
       {/* Slots Selection */}
-      <div className="flex overflow-x-auto pb-2 gap-3 no-scrollbar">
+      <div className="flex overflow-x-auto pb-2 gap-3 no-scrollbar min-h-[50px]">
+        {slots.length === 0 && (
+          <div className="text-gray-400 text-sm py-2">
+            No slots available for this day.
+          </div>
+        )}
         {slots.map((slot) => (
           <button
             key={slot.id}
@@ -241,6 +343,7 @@ export default function ReservationsPage() {
           onSubmit={handleBookingSubmit}
           className="space-y-4 max-h-[70vh] overflow-y-auto pr-2"
         >
+          {/* ... existing form fields ... */}
           <div className="space-y-2">
             <Label htmlFor="customerName">Customer Name</Label>
             <Input
@@ -269,20 +372,18 @@ export default function ReservationsPage() {
             <div className="space-y-2">
               <Label htmlFor="adults">Adults</Label>
               <Input
-                id="adults"
                 type="number"
                 value={bookingData.adults}
                 onChange={(e) =>
                   setBookingData({ ...bookingData, adults: e.target.value })
                 }
-                required
                 className="glass-input"
+                required
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="kids">Kids</Label>
               <Input
-                id="kids"
                 type="number"
                 value={bookingData.kids}
                 onChange={(e) =>
@@ -300,7 +401,7 @@ export default function ReservationsPage() {
               onChange={(e) =>
                 setBookingData({ ...bookingData, foodPref: e.target.value })
               }
-              className="w-full h-10 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>option]:bg-slate-900"
+              className="glass-input w-full bg-slate-900 border border-white/10 rounded-md p-2 text-white"
             >
               <option value="Regular">Regular</option>
               <option value="Jain">Jain</option>
@@ -310,12 +411,10 @@ export default function ReservationsPage() {
           <div className="space-y-2">
             <Label htmlFor="specialReq">Special Requirements</Label>
             <Input
-              id="specialReq"
               value={bookingData.specialReq}
               onChange={(e) =>
                 setBookingData({ ...bookingData, specialReq: e.target.value })
               }
-              placeholder="e.g. High chair, Anniversary"
               className="glass-input"
             />
           </div>
@@ -333,6 +432,132 @@ export default function ReservationsPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Manage Slots Modal */}
+      <Modal
+        isOpen={isManageSlotsOpen}
+        onClose={() => setIsManageSlotsOpen(false)}
+        title="Manage Reservation Slots"
+      >
+        <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+          {/* Add New Slot */}
+          <div className="bg-white/5 p-4 rounded-lg border border-white/10 space-y-4">
+            <h3 className="font-semibold text-lg">Add New Slot</h3>
+            <form onSubmit={handleAddSlot} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Start Time</Label>
+                  <Input
+                    type="time"
+                    value={newSlot.startTime}
+                    onChange={(e) =>
+                      setNewSlot({ ...newSlot, startTime: e.target.value })
+                    }
+                    required
+                    className="glass-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>End Time</Label>
+                  <Input
+                    type="time"
+                    value={newSlot.endTime}
+                    onChange={(e) =>
+                      setNewSlot({ ...newSlot, endTime: e.target.value })
+                    }
+                    required
+                    className="glass-input"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Repeat for Days</Label>
+                <div className="flex flex-wrap gap-2">
+                  {DAYS.map((day, idx) => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => toggleDay(idx)}
+                      className={cn(
+                        "px-3 py-1 text-xs rounded-full border transition-all",
+                        newSlot.days.includes(idx)
+                          ? "bg-blue-500 text-white border-blue-500"
+                          : "bg-transparent text-gray-400 border-white/20 hover:bg-white/10"
+                      )}
+                    >
+                      {day.slice(0, 3)}
+                    </button>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setNewSlot((prev) => ({
+                      ...prev,
+                      days: [0, 1, 2, 3, 4, 5, 6],
+                    }))
+                  }
+                  className="text-xs text-blue-300 h-auto p-0 hover:bg-transparent hover:text-blue-200"
+                >
+                  Select All Days
+                </Button>
+              </div>
+              <Button
+                type="submit"
+                className="w-full glass-button"
+                disabled={slotLoading}
+              >
+                {slotLoading && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Add Slot
+              </Button>
+            </form>
+          </div>
+
+          {/* Existing Slots List */}
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg">Existing Slots</h3>
+            <div className="space-y-2">
+              {allSlots.length === 0 && (
+                <p className="text-gray-400 text-sm">No slots configured.</p>
+              )}
+              {/* Group slots by day? Or just list? Let's group for readability */}
+              {DAYS.map((day, dayIdx) => {
+                const daySlots = allSlots.filter((s) => s.dayOfWeek === dayIdx);
+                if (daySlots.length === 0) return null;
+                return (
+                  <div key={day} className="space-y-1">
+                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-2 mb-1">
+                      {day}
+                    </h4>
+                    {daySlots.map((slot) => (
+                      <div
+                        key={slot.id}
+                        className="flex items-center justify-between bg-white/5 p-2 rounded-md border border-white/5"
+                      >
+                        <span className="text-sm">
+                          {slot.startTime} - {slot.endTime}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                          onClick={() => handleDeleteSlot(slot.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </Modal>
     </div>
   );

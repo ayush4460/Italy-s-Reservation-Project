@@ -7,50 +7,111 @@ interface AuthRequest extends Request {
   user?: { userId: number };
 }
 
-// Get all slots (and create defaults if not exist for the day - simplified for now)
+// Get slots for a specific date or all slots
 export const getSlots = async (req: AuthRequest, res: Response) => {
   try {
     const restaurantId = req.user?.userId;
     if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
 
-    const { date } = req.query; // Expecting YYYY-MM-DD
-     
-    // For this MVP, we will assume fixed slots for every day
-    // In a real app, you'd query the Slot model. 
-    // Here we return static time slots, but we will check bookings for them.
-    
-    // We actually need to fetch Reservations for the selected date to know which tables are booked in which slot.
-    // Let's define some standard slots for simplicity if not using dynamic Slot model heavily yet.
-    // Or better, let's use the Slot model as designed.
-    
-    // 1. Fetch defined slots for this restaurant
-    // If no slots defined, maybe return defaults?
-    let slots = await prisma.slot.findMany({
-        where: { restaurantId }
-    });
+    const { date, all } = req.query; 
 
-    if (slots.length === 0) {
-        // Create default slots for the restaurant
-        const defaults = [
-            { startTime: '18:00', endTime: '19:00' },
-            { startTime: '19:00', endTime: '20:00' },
-            { startTime: '20:00', endTime: '21:00' },
-            { startTime: '21:00', endTime: '22:00' },
+    let whereClause: any = { restaurantId, isActive: true };
+
+    if (all === 'true') {
+        // Fetch all slots
+    } else if (date) {
+        const dateObj = new Date(date as string);
+        const dayOfWeek = dateObj.getDay(); 
+        whereClause.OR = [
+            { dayOfWeek: dayOfWeek },
+            { date: dateObj }
         ];
-        
-        for (const s of defaults) {
-           await prisma.slot.create({
-               data: { ...s, restaurantId, isActive: true }
-           });
-        }
-        slots = await prisma.slot.findMany({ where: { restaurantId } });
+    } else {
+        // Default to today if nothing provided? Or return empty?
+         // For now require date if not all
+         return res.status(400).json({ message: 'Date or all=true required' });
     }
+
+    const slots = await prisma.slot.findMany({
+        where: whereClause,
+        orderBy: [
+            { dayOfWeek: 'asc' },
+            { startTime: 'asc' }
+        ]
+    });
 
     res.json(slots);
   } catch (error) {
+    console.error('Error fetching slots:', error);
     res.status(500).json({ message: 'Error fetching slots', error });
   }
 };
+
+// Create new slots (bulk for multiple days)
+export const createSlots = async (req: AuthRequest, res: Response) => {
+    try {
+        const restaurantId = req.user?.userId;
+        if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        const { startTime, endTime, days } = req.body; 
+        // days: number[] (0-6)
+        
+        if (!days || !Array.isArray(days) || days.length === 0) {
+            return res.status(400).json({ message: 'Select at least one day' });
+        }
+
+        const newSlots = [];
+        for (const day of days) {
+            // Check if slot already exists for this time and day? 
+            // For now, let's allow overlapping or just create diverse ones.
+            // Ideally avoid duplicates
+             const created = await prisma.slot.create({
+                data: {
+                    restaurantId,
+                    startTime,
+                    endTime,
+                    dayOfWeek: day,
+                    isActive: true
+                }
+            });
+            newSlots.push(created);
+        }
+
+        res.status(201).json(newSlots);
+
+    } catch(error) {
+         console.error('Error creating slots:', error);
+        res.status(500).json({ message: 'Error creating slots', error });
+    }
+}
+
+export const deleteSlot = async (req: AuthRequest, res: Response) => {
+     try {
+        const restaurantId = req.user?.userId;
+        if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        const { id } = req.params;
+
+        // Verify ownership
+        const slot = await prisma.slot.findFirst({
+            where: { id: parseInt(id), restaurantId }
+        });
+
+        if (!slot) return res.status(404).json({ message: 'Slot not found' });
+
+        // Check if there are active bookings? Maybe warn?
+        // For MVP, just delete
+        await prisma.slot.delete({
+            where: { id: parseInt(id) }
+        });
+
+        res.json({ message: 'Slot deleted successfully' });
+
+    } catch(error) {
+         console.error('Error deleting slot:', error);
+        res.status(500).json({ message: 'Error deleting slot', error });
+    }
+}
 
 export const getReservations = async (req: AuthRequest, res: Response) => {
     try {
@@ -69,8 +130,6 @@ export const getReservations = async (req: AuthRequest, res: Response) => {
                 slotId: parseInt(slotId as string),
                 // We need to filter by date. 
                 // Since our schema has `date DateTime`, we need to match the day.
-                // Prisma date filtering can be tricky with timezones.
-                // We will assume the frontend sends a date string YYYY-MM-DD.
                 date: {
                     gte: new Date(`${date}T00:00:00.000Z`),
                     lt: new Date(`${date}T23:59:59.999Z`),
@@ -112,9 +171,6 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
         });
 
         if (existing) {
-            // Need to handle Date comparison carefully. 
-            // For now assuming active unique constraint conceptually.
-            // But let's just proceed.
              const reqDate = new Date(date).toISOString().split('T')[0];
              const exDate = new Date(existing.date).toISOString().split('T')[0];
              if (reqDate === exDate) {
@@ -133,6 +189,7 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
                 kids: parseInt(kids),
                 foodPref,
                 specialReq,
+                 // Ensure slot also belongs to restaurant indirectly? yes via schema relations usually, but strict check is good.
                 status: 'BOOKED'
             }
         });

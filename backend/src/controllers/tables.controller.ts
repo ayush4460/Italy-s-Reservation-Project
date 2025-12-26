@@ -15,8 +15,15 @@ export const getTables = async (req: AuthRequest, res: Response) => {
 
     const tables = await prisma.table.findMany({
       where: { restaurantId },
-      orderBy: { tableNumber: 'asc' }
+      // Remove DB-level sorting as it's string-based (1, 10, 2)
+      // orderBy: { tableNumber: 'asc' } 
     });
+
+    // Sort numerically in JavaScript
+    tables.sort((a, b) => {
+        return a.tableNumber.localeCompare(b.tableNumber, undefined, { numeric: true, sensitivity: 'base' });
+    });
+
     res.json(tables);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching tables', error });
