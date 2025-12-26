@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import redis from '../lib/redis';
+import { sendWhatsAppMessage, sendReservationTemplate } from '../lib/whatsapp';
 
 const prisma = new PrismaClient();
 
@@ -202,6 +203,45 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
         try {
             await redis.del(cacheKey);
         } catch (e) { console.warn("Redis Invalidate Error (Ignored):", e); }
+
+        // Send WhatsApp Notification
+        console.log(`[CreateReservation] Contact: ${contact}, SlotId: ${slotId}`);
+        if (contact) {
+            try {
+                // Fetch slot time for message
+                const slotObj = await prisma.slot.findUnique({
+                    where: { id: parseInt(slotId) }
+                });
+                
+                if (slotObj) {
+                    // Use Template: Variable 1 = Date, Variable 2 = Time
+                    // dateKey is typically YYYY-MM-DD. Let's format nicely if possible, or pass as is.
+                    // The template example showed "12/1", so maybe MM/DD format is desired?
+                    // Let's rely on dateKey (YYYY-MM-DD) for clarity first, or format it.
+                    // Formatting YYYY-MM-DD to DD/MM
+                    const [year, month, day] = dateKey.split('-');
+                    const formattedDate = `${day}/${month}`;
+                    
+                    // Auto-format phone number: assume +91 if 10 digits provided
+                    let formattedContact = contact.trim();
+                    if (/^\d{10}$/.test(formattedContact)) {
+                        formattedContact = '+91' + formattedContact;
+                    }
+                    
+                    const textBody = `Hello ${customerName}, your table reservation is confirmed for ${formattedDate} at ${slotObj.startTime}. Please arrive 15 min early.`;
+                    
+                    const testTarget = 'whatsapp:+917878065085';
+                    console.log(`[CreateReservation] Sending Text to HARDCODED ${testTarget}: ${textBody}`);
+                    await sendWhatsAppMessage(testTarget, textBody);
+                } else {
+                     console.warn("[CreateReservation] Slot object not found for WhatsApp message");
+                }
+            } catch (err) {
+               console.error("Failed to send WhatsApp:", err);
+            }
+        } else {
+             console.log("[CreateReservation] No contact number provided, skipping WhatsApp");
+        }
 
         res.status(201).json(reservation);
 
