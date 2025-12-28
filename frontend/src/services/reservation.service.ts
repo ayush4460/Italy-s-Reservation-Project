@@ -26,6 +26,7 @@ export interface Reservation {
   date: string;
   slotId: number;
   status: string;
+  groupId?: string;
 }
 
 export interface CreateReservationDto {
@@ -38,6 +39,7 @@ export interface CreateReservationDto {
   kids: string;
   foodPref: string;
   specialReq: string;
+  mergeTableIds?: number[];
 }
 
 export interface UpdateReservationDto {

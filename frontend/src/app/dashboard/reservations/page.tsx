@@ -60,6 +60,9 @@ export default function ReservationsPage() {
     specialReq: "",
   });
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [mergeOptions, setMergeOptions] = useState<Table[]>([]);
+  const [selectedMergeTables, setSelectedMergeTables] = useState<number[]>([]);
+  const [isMergingMode, setIsMergingMode] = useState(false);
 
   // Edit Reservation State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -168,8 +171,28 @@ export default function ReservationsPage() {
         ...prev,
         adults: table.capacity.toString(),
       }));
+      setMergeOptions([]); // Reset merge
+      setSelectedMergeTables([]); // Reset merge
+      setIsMergingMode(false); // Reset mode
       setIsBookingModalOpen(true);
     }
+  };
+
+  const toggleMergeTable = (table: Table) => {
+    setSelectedMergeTables((prev) => {
+      if (prev.includes(table.id)) {
+        // Remove
+        const newSelection = prev.filter((id) => id !== table.id);
+        // Also update mergeOptions for display calculation
+        setMergeOptions((current) => current.filter((t) => t.id !== table.id));
+        if (newSelection.length === 0) setIsMergingMode(false); // Optional: exit mode if empty? No, keep it.
+        return newSelection;
+      } else {
+        // Add
+        setMergeOptions((current) => [...current, table]);
+        return [...prev, table.id];
+      }
+    });
   };
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
@@ -183,6 +206,8 @@ export default function ReservationsPage() {
         slotId: selectedSlot.id,
         date,
         ...bookingData,
+        mergeTableIds:
+          selectedMergeTables.length > 0 ? selectedMergeTables : undefined,
       });
       setIsBookingModalOpen(false);
       setBookingData({
@@ -450,6 +475,11 @@ export default function ReservationsPage() {
                   {isBooked && (
                     <div className="absolute bottom-2 text-xs font-semibold truncate max-w-[90%]">
                       {reservation.customerName}
+                      {reservation.groupId && (
+                        <span className="text-[10px] ml-1 opacity-70">
+                          (Linked)
+                        </span>
+                      )}
                     </div>
                   )}
                   {/* Desktop Move Icon */}
@@ -533,6 +563,100 @@ export default function ReservationsPage() {
               />
             </div>
           </div>
+
+          {/* Merge Logic UI */}
+          {selectedTable &&
+            (() => {
+              const total =
+                (parseInt(bookingData.adults) || 0) +
+                (parseInt(bookingData.kids) || 0);
+              if (total > selectedTable.capacity) {
+                return (
+                  <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-md space-y-2">
+                    <div className="text-yellow-200 text-sm font-semibold">
+                      Capacity Exceeded ({total} / {selectedTable.capacity})
+                    </div>
+
+                    {!isMergingMode ? (
+                      <Button
+                        type="button"
+                        onClick={() => setIsMergingMode(true)}
+                        variant="secondary"
+                        className="w-full text-xs"
+                      >
+                        Select Tables to Merge
+                      </Button>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-300">
+                          Select Available Tables:
+                        </p>
+                        <div className="grid grid-cols-3 gap-2 max-h-[150px] overflow-y-auto">
+                          {tables
+                            .filter((t) => {
+                              if (t.id === selectedTable.id) return false;
+                              return !reservations.some(
+                                (r) => r.tableId === t.id
+                              );
+                            })
+                            .map((t) => {
+                              const isSelected = selectedMergeTables.includes(
+                                t.id
+                              );
+                              return (
+                                <div
+                                  key={t.id}
+                                  onClick={() => toggleMergeTable(t)}
+                                  className={cn(
+                                    "p-2 rounded text-xs border cursor-pointer transition-all text-center",
+                                    isSelected
+                                      ? "bg-blue-500/30 border-blue-500"
+                                      : "bg-white/5 border-white/10 hover:bg-white/10"
+                                  )}
+                                >
+                                  T{t.tableNumber} ({t.capacity})
+                                </div>
+                              );
+                            })}
+                        </div>
+
+                        <div className="pt-2 border-t border-white/10">
+                          <p className="text-xs text-gray-400">
+                            Merged Capacity:{" "}
+                            {mergeOptions.reduce((s, t) => s + t.capacity, 0)}
+                          </p>
+                          <p
+                            className={cn(
+                              "text-xs font-bold",
+                              selectedTable.capacity +
+                                mergeOptions.reduce(
+                                  (s, t) => s + t.capacity,
+                                  0
+                                ) >=
+                                total
+                                ? "text-green-400"
+                                : "text-red-400"
+                            )}
+                          >
+                            Total Capacity:{" "}
+                            {selectedTable.capacity +
+                              mergeOptions.reduce(
+                                (s, t) => s + t.capacity,
+                                0
+                              )}{" "}
+                            / {total} Required
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              } else {
+                // Reset if no longer needed (e.g. user decreased guests)
+                if (isMergingMode) setIsMergingMode(false);
+              }
+              return null;
+            })()}
           <div className="space-y-2">
             <Label htmlFor="foodPref">Food Preference</Label>
             <select

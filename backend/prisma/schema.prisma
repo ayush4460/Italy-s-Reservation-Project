@@ -57,6 +57,7 @@ model Reservation {
   kids        Int
   foodPref    String   
   specialReq  String?
+  groupId     String?  // For merged tables
   date        DateTime 
   status      String   
   table       Table    @relation(fields: [tableId], references: [id])

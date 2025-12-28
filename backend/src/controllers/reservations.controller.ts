@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+// Controller responsible for reservation management
 import { PrismaClient } from '@prisma/client';
 import redis from '../lib/redis';
 import { sendWhatsAppMessage, sendReservationTemplate } from '../lib/whatsapp';
@@ -154,98 +155,120 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
         const restaurantId = req.user?.userId;
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
 
-        const { tableId, slotId, date, customerName, contact, adults, kids, foodPref, specialReq } = req.body;
+        const { tableId, slotId, date, customerName, contact, adults, kids, foodPref, specialReq, mergeTableIds } = req.body;
 
-        // Verify table belongs to restaurant
-        const table = await prisma.table.findFirst({
-            where: { id: parseInt(tableId), restaurantId }
+        // Combine all table IDs (main + merged)
+        const allTableIds = [parseInt(tableId)];
+        if (mergeTableIds && Array.isArray(mergeTableIds)) {
+            mergeTableIds.forEach((id: any) => allTableIds.push(parseInt(id)));
+        }
+
+        // 1. Verify all tables belong to restaurant
+        const tables = await prisma.table.findMany({
+            where: {
+                id: { in: allTableIds },
+                restaurantId
+            }
         });
-        if (!table) return res.status(404).json({ message: 'Table not found' });
 
-        // Check availability
+        if (tables.length !== allTableIds.length) {
+            return res.status(404).json({ message: 'One or more tables not found' });
+        }
+
+        // 2. Check Capacity (Combined)
+        const totalCapacity = tables.reduce((sum, t) => sum + t.capacity, 0);
+        const totalGuests = parseInt(adults) + parseInt(kids);
+
+        if (totalGuests > totalCapacity) {
+             return res.status(400).json({ message: `Total guests (${totalGuests}) exceeds combined capacity (${totalCapacity})` });
+        }
+
+        // 3. Check Availability for ALL tables
+        const dateObj = new Date(date);
         const existing = await prisma.reservation.findFirst({
             where: {
-                tableId: parseInt(tableId),
+                tableId: { in: allTableIds },
                 slotId: parseInt(slotId),
-                date: new Date(date), // Exact match or range? Ideally range but simplified here
+                date: dateObj,
                 status: { not: 'CANCELLED' }
             }
         });
 
         if (existing) {
-             const reqDate = new Date(date).toISOString().split('T')[0];
-             const exDate = new Date(existing.date).toISOString().split('T')[0];
-             if (reqDate === exDate) {
-                 return res.status(400).json({ message: 'Table already booked for this slot' });
-             }
+             return res.status(400).json({ message: 'One or more tables already booked for this slot' });
         }
 
-        const reservation = await prisma.reservation.create({
-            data: {
-                tableId: parseInt(tableId),
-                slotId: parseInt(slotId),
-                date: new Date(date),
-                customerName,
-                contact,
-                adults: parseInt(adults),
-                kids: parseInt(kids),
-                foodPref,
-                specialReq,
-                 // Ensure slot also belongs to restaurant indirectly? yes via schema relations usually, but strict check is good.
-                status: 'BOOKED'
-            }
-        });
+        // 4. Generate Group ID if merging
+        const groupId = allTableIds.length > 1 ? `GRP-${Date.now()}-${Math.floor(Math.random() * 1000)}` : null;
+
+        // 5. Create Reservations (Transaction ideally, but loop is okay for MVP)
+        const createdReservations = [];
+        
+        // We'll optimize with a transaction if possible, but let's just loop for now or use createMany if data identical?
+        // Data is identical except tableId. createMany doesn't support relation connections easily in all cases, but here it's simple fields.
+        // However, we need 'slot' relation? No, slotId is just an int field usually.
+        // Let's use loop to be safe with individual record creation or Promise.all
+
+        await prisma.$transaction(
+            allTableIds.map(tid => 
+                prisma.reservation.create({
+                    data: {
+                        tableId: tid,
+                        slotId: parseInt(slotId),
+                        date: dateObj,
+                        customerName,
+                        contact,
+                        adults: parseInt(adults), // We store full count on all? Or split? User said "same member details". Usually full count implies redundant info, but fine for display.
+                        // Or should we split guests? "4 members to table 2 and 2 members to table 3".
+                        // The user said "in dashboard... show table 1+2+3 are merged with same member details".
+                        // So arguably we just duplicate the reservation info.
+                        kids: parseInt(kids), 
+                        foodPref,
+                        specialReq,
+                        groupId,
+                        status: 'BOOKED'
+                    }
+                })
+            )
+        );
 
         // Invalidate Dashboard Stats Cache
         // We need to invalidate for the specific date of the reservation
         const dateKey = new Date(date).toISOString().split('T')[0];
-        const cacheKey = `dashboard:stats:v4:${restaurantId}:${dateKey}`;
+        const cacheKey = `dashboard:stats:v5:${restaurantId}:${dateKey}`;
         try {
             await redis.del(cacheKey);
         } catch (e) { console.warn("Redis Invalidate Error (Ignored):", e); }
 
-        // Send WhatsApp Notification
+        // Send WhatsApp Notification (Only once)
         console.log(`[CreateReservation] Contact: ${contact}, SlotId: ${slotId}`);
         if (contact) {
             try {
-                // Fetch slot time for message
-                const slotObj = await prisma.slot.findUnique({
-                    where: { id: parseInt(slotId) }
-                });
+                const slotObj = await prisma.slot.findUnique({ where: { id: parseInt(slotId) } });
                 
                 if (slotObj) {
-                    // Use Template: Variable 1 = Date, Variable 2 = Time
-                    // dateKey is typically YYYY-MM-DD. Let's format nicely if possible, or pass as is.
-                    // The template example showed "12/1", so maybe MM/DD format is desired?
-                    // Let's rely on dateKey (YYYY-MM-DD) for clarity first, or format it.
-                    // Formatting YYYY-MM-DD to DD/MM
                     const [year, month, day] = dateKey.split('-');
                     const formattedDate = `${day}/${month}`;
-                    
-                    // Auto-format phone number: assume +91 if 10 digits provided
                     let formattedContact = contact.trim();
                     if (/^\d{10}$/.test(formattedContact)) {
                         formattedContact = '+91' + formattedContact;
                     }
                     
-                    const textBody = `Hello ${customerName}, your table reservation is confirmed for ${formattedDate} at ${slotObj.startTime}. Please arrive 15 min early.`;
+                    const tableNumbers = tables.map(t => t.tableNumber).join(', ');
+                    const textBody = `Hello ${customerName}, your reservation for tables ${tableNumbers} is confirmed for ${formattedDate} at ${slotObj.startTime}.`;
                     
-                    const testTarget = 'whatsapp:+917878065085';
-                    console.log(`[CreateReservation] Sending Text to HARDCODED ${testTarget}: ${textBody}`);
+                    const testTarget = 'whatsapp:+917878065085'; // Keep validation number for now
                     await sendWhatsAppMessage(testTarget, textBody);
-                } else {
-                     console.warn("[CreateReservation] Slot object not found for WhatsApp message");
                 }
             } catch (err) {
                console.error("Failed to send WhatsApp:", err);
             }
-        } else {
-             console.log("[CreateReservation] No contact number provided, skipping WhatsApp");
         }
 
-        res.status(201).json(reservation);
+        res.status(201).json({ message: 'Reservation created', groupId });
 
     } catch (error) {
+        console.error('Error creating reservation:', error);
         res.status(500).json({ message: 'Error creating reservation', error });
     }
 }
@@ -300,7 +323,7 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
 
         // 5. Invalidate Cache
         const dateKey = new Date(reservation.date).toISOString().split('T')[0];
-        const cacheKey = `dashboard:stats:v4:${restaurantId}:${dateKey}`;
+        const cacheKey = `dashboard:stats:v5:${restaurantId}:${dateKey}`;
         try {
             await redis.del(cacheKey);
         } catch (e) { console.warn("Redis Invalidate Error (Ignored):", e); }
@@ -328,21 +351,44 @@ export const updateReservation = async (req: AuthRequest, res: Response) => {
 
         if (!reservation) return res.status(404).json({ message: 'Reservation not found' });
 
-        const updated = await prisma.reservation.update({
-            where: { id: parseInt(id) },
-            data: {
-                customerName,
-                contact,
-                adults: parseInt(adults),
-                kids: parseInt(kids),
-                foodPref, 
-                specialReq
-            }
-        });
+        let updated;
+        if (reservation.groupId) {
+             updated = await prisma.reservation.updateMany({
+                where: { groupId: reservation.groupId },
+                data: {
+                    customerName,
+                    contact,
+                    adults: parseInt(adults),
+                    kids: parseInt(kids),
+                    foodPref,
+                    specialReq
+                }
+            });
+            // updateMany returns { count: n }
+            // To return a full object we might need to fetch one, but 'updated' usually expects the object.
+            // However, the frontend just checks response 200 usually. 
+            // Let's refetch one to return proper object or just return { count: n } if frontend handles it?
+            // Existing frontend expects 'updated' object structure usually? 
+            // Checking frontend 'reservationService': just returns response.data.
+            // Let's just return { message: 'Updated', count: updated.count } or similar.
+            // Or to be safe and compatible with single update return, let's just return the first one updated.
+        } else {
+             updated = await prisma.reservation.update({
+                where: { id: parseInt(id) },
+                data: {
+                    customerName,
+                    contact,
+                    adults: parseInt(adults),
+                    kids: parseInt(kids),
+                    foodPref, 
+                    specialReq
+                }
+            });
+        }
 
         // Invalidate Cache
         const dateKey = new Date(reservation.date).toISOString().split('T')[0];
-        const cacheKey = `dashboard:stats:${restaurantId}:${dateKey}`;
+        const cacheKey = `dashboard:stats:v5:${restaurantId}:${dateKey}`;
         try {
             await redis.del(cacheKey);
         } catch (e) { console.warn("Redis Invalidate Error (Ignored):", e); }
