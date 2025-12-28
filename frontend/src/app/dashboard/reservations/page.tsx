@@ -1,7 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import api from "@/lib/api";
+import {
+  reservationService,
+  Slot,
+  Table,
+  Reservation,
+} from "@/services/reservation.service";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,33 +23,9 @@ import {
   Settings,
   Edit2,
   X,
+  ArrowLeftRight, // New icon for move
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface Slot {
-  id: number;
-  startTime: string;
-  endTime: string;
-  dayOfWeek?: number;
-}
-
-interface Table {
-  id: number;
-  tableNumber: string;
-  capacity: number;
-}
-
-interface Reservation {
-  id: number;
-  tableId: number;
-  customerName: string;
-  contact: string;
-  adults: number;
-  kids: number;
-  foodPref: string;
-  specialReq?: string;
-  date: string;
-}
 
 const DAYS = [
   "Sunday",
@@ -103,6 +84,20 @@ export default function ReservationsPage() {
   });
   const [slotLoading, setSlotLoading] = useState(false);
 
+  // Move Reservation State
+  const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const [movingReservation, setMovingReservation] =
+    useState<Reservation | null>(null);
+  const [moveTargetTable, setMoveTargetTable] = useState<Table | null>(null);
+  const [moveLoading, setMoveLoading] = useState(false);
+
+  // Long Press State
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(
+    null
+  );
+  const [isLongPressModalOpen, setIsLongPressModalOpen] = useState(false);
+  const [longPressedTable, setLongPressedTable] = useState<Table | null>(null);
+
   useEffect(() => {
     fetchInitialData();
   }, [date]); // Refetch slots when date changes to get day-specific slots
@@ -115,14 +110,14 @@ export default function ReservationsPage() {
 
   const fetchInitialData = async () => {
     try {
-      const [slotsRes, tablesRes] = await Promise.all([
-        api.get("/reservations/slots", { params: { date } }),
-        api.get("/tables"),
+      const [slotsData, tablesData] = await Promise.all([
+        reservationService.getSlots(date),
+        reservationService.getTables(),
       ]);
-      setSlots(slotsRes.data);
-      setTables(tablesRes.data);
-      if (slotsRes.data.length > 0) {
-        setSelectedSlot(slotsRes.data[0]);
+      setSlots(slotsData);
+      setTables(tablesData);
+      if (slotsData.length > 0) {
+        setSelectedSlot(slotsData[0]);
       } else {
         setSelectedSlot(null);
       }
@@ -136,10 +131,11 @@ export default function ReservationsPage() {
   const fetchReservations = async () => {
     if (!selectedSlot) return;
     try {
-      const res = await api.get("/reservations", {
-        params: { date, slotId: selectedSlot.id },
-      });
-      setReservations(res.data);
+      const data = await reservationService.getReservations(
+        date,
+        selectedSlot.id
+      );
+      setReservations(data);
     } catch (err) {
       console.error("Failed to fetch reservations", err);
       // If 404/error, maybe clear reservations
@@ -182,7 +178,7 @@ export default function ReservationsPage() {
 
     setBookingLoading(true);
     try {
-      await api.post("/reservations", {
+      await reservationService.createReservation({
         tableId: selectedTable.id,
         slotId: selectedSlot.id,
         date,
@@ -212,9 +208,10 @@ export default function ReservationsPage() {
 
     setBookingLoading(true);
     try {
-      await api.put(`/reservations/${editingReservation.id}`, {
-        ...editFormData,
-      });
+      await reservationService.updateReservation(
+        editingReservation.id,
+        editFormData
+      );
       setIsEditModalOpen(false);
       setEditingReservation(null);
       fetchReservations();
@@ -235,7 +232,7 @@ export default function ReservationsPage() {
 
     setBookingLoading(true); // Reuse loading state
     try {
-      await api.delete(`/reservations/${editingReservation.id}`);
+      await reservationService.cancelReservation(editingReservation.id);
       setIsEditModalOpen(false);
       setEditingReservation(null);
       fetchReservations();
@@ -244,6 +241,58 @@ export default function ReservationsPage() {
       alert("Failed to cancel reservation");
     } finally {
       setBookingLoading(false);
+    }
+  };
+
+  // --- Move Reservation Logic ---
+
+  const handleMoveClick = (reservation: Reservation, e?: React.MouseEvent) => {
+    e?.stopPropagation(); // Prevent opening table details
+    setMovingReservation(reservation);
+    setMoveTargetTable(null);
+    setIsMoveModalOpen(true);
+    setIsLongPressModalOpen(false); // Close long press modal if open
+  };
+
+  const handleMoveSubmit = async () => {
+    if (!movingReservation || !moveTargetTable) return;
+
+    setMoveLoading(true);
+    try {
+      await reservationService.moveReservation(
+        movingReservation.id,
+        moveTargetTable.id
+      );
+      setIsMoveModalOpen(false);
+      setMovingReservation(null);
+      setMoveTargetTable(null);
+      fetchReservations();
+    } catch (err) {
+      console.error("Move failed", err);
+      alert("Failed to move reservation. Target might be taken.");
+    } finally {
+      setMoveLoading(false);
+    }
+  };
+
+  // --- Long Press Logic (Mobile) ---
+  const handleTouchStart = (table: Table) => {
+    const timer = setTimeout(() => {
+      // Trigger long press
+      const reservation = reservations.find((r) => r.tableId === table.id);
+      if (reservation) {
+        setLongPressedTable(table);
+        setMovingReservation(reservation);
+        setIsLongPressModalOpen(true);
+      }
+    }, 800); // 800ms for long press
+    setLongPressTimer(timer);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
     }
   };
 
@@ -256,8 +305,8 @@ export default function ReservationsPage() {
 
   const fetchAllSlots = async () => {
     try {
-      const res = await api.get("/reservations/slots?all=true");
-      setAllSlots(res.data);
+      const data = await reservationService.getAllSlots();
+      setAllSlots(data);
     } catch (err) {
       console.error("Failed to fetch all slots", err);
     }
@@ -276,7 +325,7 @@ export default function ReservationsPage() {
     e.preventDefault();
     setSlotLoading(true);
     try {
-      await api.post("/reservations/slots", newSlot);
+      await reservationService.createSlot(newSlot);
       setNewSlot({ startTime: "", endTime: "", days: [] });
       fetchAllSlots();
       fetchInitialData(); // Refresh main view if affected
@@ -291,7 +340,7 @@ export default function ReservationsPage() {
   const handleDeleteSlot = async (id: number) => {
     if (!confirm("Are you sure you want to delete this slot?")) return;
     try {
-      await api.delete(`/reservations/slots/${id}`);
+      await reservationService.deleteSlot(id);
       fetchAllSlots();
       fetchInitialData();
     } catch (err) {
@@ -378,8 +427,12 @@ export default function ReservationsPage() {
                 <div
                   key={table.id}
                   onClick={() => handleTableClick(table)}
+                  onTouchStart={() => handleTouchStart(table)}
+                  onTouchEnd={handleTouchEnd}
+                  // Prevent default context menu on mobile long press
+                  onContextMenu={(e) => isBooked && e.preventDefault()}
                   className={cn(
-                    "relative aspect-square rounded-xl flex flex-col items-center justify-center p-4 border-2 transition-all cursor-pointer shadow-lg",
+                    "relative aspect-square rounded-xl flex flex-col items-center justify-center p-4 border-2 transition-all cursor-pointer shadow-lg group select-none",
                     isBooked
                       ? "bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/30"
                       : "bg-green-500/20 border-green-500/50 text-green-300 hover:bg-green-500/30"
@@ -397,6 +450,15 @@ export default function ReservationsPage() {
                   {isBooked && (
                     <div className="absolute bottom-2 text-xs font-semibold truncate max-w-[90%]">
                       {reservation.customerName}
+                    </div>
+                  )}
+                  {/* Desktop Move Icon */}
+                  {isBooked && (
+                    <div
+                      className="absolute top-2 right-2 hidden group-hover:block z-10 p-1 bg-white/10 rounded-full hover:bg-white/20 transition-all"
+                      onClick={(e) => handleMoveClick(reservation, e)}
+                    >
+                      <ArrowLeftRight className="h-4 w-4 text-white" />
                     </div>
                   )}
                 </div>
@@ -758,6 +820,119 @@ export default function ReservationsPage() {
                 );
               })}
             </div>
+          </div>
+        </div>
+      </Modal>
+      {/* Move Reservation Modal */}
+      <Modal
+        isOpen={isMoveModalOpen}
+        onClose={() => setIsMoveModalOpen(false)}
+        title="Move Reservation"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-400">
+            Moving reservation for{" "}
+            <span className="text-white font-bold">
+              {movingReservation?.customerName}
+            </span>{" "}
+            from current table. Select a new table below:
+          </p>
+
+          <div className="grid grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto p-1">
+            {tables
+              .filter(
+                (t) => !reservations.find((r) => r.tableId === t.id) // Only available tables (simplified check)
+              )
+              .map((table) => (
+                <button
+                  key={table.id}
+                  onClick={() => setMoveTargetTable(table)}
+                  className={cn(
+                    "flex flex-col items-center justify-center p-3 rounded-lg border transition-all",
+                    moveTargetTable?.id === table.id
+                      ? "bg-blue-500/20 border-blue-400 text-blue-300"
+                      : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+                  )}
+                >
+                  <Armchair className="h-6 w-6 mb-1" />
+                  <span className="font-bold">{table.tableNumber}</span>
+                  <span className="text-xs opacity-70">
+                    Cap: {table.capacity}
+                  </span>
+                </button>
+              ))}
+            {tables.filter((t) => !reservations.find((r) => r.tableId === t.id))
+              .length === 0 && (
+              <div className="col-span-3 text-center text-gray-500 py-4">
+                No available tables for this slot.
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <Button
+              className="glass-button w-full"
+              disabled={!moveTargetTable || moveLoading}
+              onClick={handleMoveSubmit}
+            >
+              {moveLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm Move to {moveTargetTable?.tableNumber}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Long Press Action Modal (Mobile) */}
+      <Modal
+        isOpen={isLongPressModalOpen}
+        onClose={() => setIsLongPressModalOpen(false)}
+        title={`Table ${longPressedTable?.tableNumber} Actions`}
+      >
+        <div className="space-y-4">
+          <div className="bg-white/5 p-4 rounded-lg">
+            <p className="text-sm text-gray-400">Guest</p>
+            <p className="font-bold text-lg">
+              {movingReservation?.customerName}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Button
+              className="glass-button bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 flex-col py-8"
+              onClick={() => {
+                // Trigger move modal
+                handleMoveClick(movingReservation!);
+              }}
+            >
+              <ArrowLeftRight className="h-6 w-6 mb-2" />
+              Move Table
+            </Button>
+
+            <Button
+              variant="destructive"
+              className="bg-red-500/20 text-red-300 hover:bg-red-500/30 flex-col py-8"
+              onClick={() => {
+                // Open edit/cancel modal
+                setIsLongPressModalOpen(false);
+                /* Trigger edit logic */
+                setEditingReservation(movingReservation);
+                // Need to populate edit form data
+                if (movingReservation) {
+                  setEditFormData({
+                    customerName: movingReservation.customerName,
+                    contact: movingReservation.contact,
+                    adults: movingReservation.adults.toString(),
+                    kids: movingReservation.kids.toString(),
+                    foodPref: movingReservation.foodPref,
+                    specialReq: movingReservation.specialReq || "",
+                  });
+                  setIsEditModalOpen(true);
+                }
+              }}
+            >
+              <X className="h-6 w-6 mb-2" />
+              Cancel / Edit
+            </Button>
           </div>
         </div>
       </Modal>

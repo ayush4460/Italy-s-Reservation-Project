@@ -249,6 +249,70 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ message: 'Error creating reservation', error });
     }
 }
+// Move Reservation
+export const moveReservation = async (req: AuthRequest, res: Response) => {
+    try {
+        const restaurantId = req.user?.userId;
+        if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        const { id } = req.params;
+        const { newTableId } = req.body;
+
+        if (!newTableId) {
+            return res.status(400).json({ message: 'New Table ID is required' });
+        }
+
+        // 1. Get current reservation
+        const reservation = await prisma.reservation.findFirst({
+            where: { id: parseInt(id), table: { restaurantId } }
+        });
+
+        if (!reservation) return res.status(404).json({ message: 'Reservation not found' });
+
+        // 2. Verify new table exists and belongs to restaurant
+        const newTable = await prisma.table.findFirst({
+            where: { id: parseInt(newTableId), restaurantId }
+        });
+
+        if (!newTable) return res.status(404).json({ message: 'Target table not found' });
+
+        // 3. Check if new table is available for the same slot and date
+        const existing = await prisma.reservation.findFirst({
+            where: {
+                tableId: parseInt(newTableId),
+                slotId: reservation.slotId, // Same slot
+                date: reservation.date,     // Same date
+                status: { not: 'CANCELLED' }
+            }
+        });
+
+        if (existing) {
+             return res.status(400).json({ message: 'Target table is already booked for this slot' });
+        }
+
+        // 4. Update reservation
+        const updated = await prisma.reservation.update({
+            where: { id: parseInt(id) },
+            data: {
+                tableId: parseInt(newTableId)
+            }
+        });
+
+        // 5. Invalidate Cache
+        const dateKey = new Date(reservation.date).toISOString().split('T')[0];
+        const cacheKey = `dashboard:stats:v4:${restaurantId}:${dateKey}`;
+        try {
+            await redis.del(cacheKey);
+        } catch (e) { console.warn("Redis Invalidate Error (Ignored):", e); }
+
+        res.json(updated);
+
+    } catch (error) {
+        console.error('Error moving reservation:', error);
+        res.status(500).json({ message: 'Error moving reservation', error });
+    }
+}
+
 // Update Reservation
 export const updateReservation = async (req: AuthRequest, res: Response) => {
     try {
