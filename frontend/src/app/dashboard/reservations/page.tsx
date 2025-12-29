@@ -60,7 +60,7 @@ export default function ReservationsPage() {
     specialReq: "",
   });
   const [bookingLoading, setBookingLoading] = useState(false);
-  const [mergeOptions, setMergeOptions] = useState<Table[]>([]);
+  // Removed separate mergeOptions state to prevent sync issues
   const [selectedMergeTables, setSelectedMergeTables] = useState<number[]>([]);
   const [isMergingMode, setIsMergingMode] = useState(false);
 
@@ -171,8 +171,8 @@ export default function ReservationsPage() {
         ...prev,
         adults: table.capacity.toString(),
       }));
-      setMergeOptions([]); // Reset merge
-      setSelectedMergeTables([]); // Reset merge
+      // Reset merge
+      setSelectedMergeTables([]);
       setIsMergingMode(false); // Reset mode
       setIsBookingModalOpen(true);
     }
@@ -183,17 +183,17 @@ export default function ReservationsPage() {
       if (prev.includes(table.id)) {
         // Remove
         const newSelection = prev.filter((id) => id !== table.id);
-        // Also update mergeOptions for display calculation
-        setMergeOptions((current) => current.filter((t) => t.id !== table.id));
-        if (newSelection.length === 0) setIsMergingMode(false); // Optional: exit mode if empty? No, keep it.
+        if (newSelection.length === 0) setIsMergingMode(false);
         return newSelection;
       } else {
         // Add
-        setMergeOptions((current) => [...current, table]);
         return [...prev, table.id];
       }
     });
   };
+
+  // Derive mergeOptions from selected IDs
+  const mergeOptions = tables.filter((t) => selectedMergeTables.includes(t.id));
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -373,6 +373,14 @@ export default function ReservationsPage() {
     }
   };
 
+  // Capacity Validation Logic
+  const totalGuests =
+    (parseInt(bookingData.adults) || 0) + (parseInt(bookingData.kids) || 0);
+  const totalCapacity =
+    (selectedTable?.capacity || 0) +
+    mergeOptions.reduce((acc, t) => acc + t.capacity, 0);
+  const isCapacityExceeded = totalGuests > totalCapacity;
+
   if (loading)
     return <div className="text-white">Loading reservation system...</div>;
 
@@ -477,7 +485,7 @@ export default function ReservationsPage() {
                       {reservation.customerName}
                       {reservation.groupId && (
                         <span className="text-[10px] ml-1 opacity-70">
-                          (Linked)
+                          (Merged)
                         </span>
                       )}
                     </div>
@@ -693,7 +701,7 @@ export default function ReservationsPage() {
             <Button
               type="submit"
               className="glass-button w-full"
-              disabled={bookingLoading}
+              disabled={bookingLoading || isCapacityExceeded}
             >
               {bookingLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
