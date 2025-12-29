@@ -36,6 +36,23 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Login Mode State
+  const [loginMode, setLoginMode] = useState<"password" | "otp">("password");
+  const [loginStep, setLoginStep] = useState(1); // 1: Email, 2: OTP
+  const [loginOtp, setLoginOtp] = useState("");
+  const [loginTimer, setLoginTimer] = useState(0);
+
+  // Login OTP Timer
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (loginTimer > 0) {
+      interval = setInterval(() => {
+        setLoginTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [loginTimer]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -126,12 +143,51 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await api.post("/auth/login", formData);
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("role", res.data.user.role || "ADMIN"); // Store role
-      router.push("/dashboard");
+      if (loginMode === "password") {
+        const res = await api.post("/auth/login", formData);
+        handleLoginSuccess(res.data);
+      } else {
+        if (loginStep === 1) {
+          // Send OTP
+          await api.post("/auth/login-otp/send", { email: formData.email });
+          setLoginStep(2);
+          setLoginTimer(180);
+          toast.success("OTP sent to your email");
+          setLoading(false);
+        } else {
+          // Verify OTP
+          const res = await api.post("/auth/login-otp/verify", {
+            email: formData.email,
+            otp: loginOtp,
+          });
+          handleLoginSuccess(res.data);
+        }
+      }
     } catch (err: unknown) {
       setError((err as ApiError).response?.data?.message || "Login failed");
+      setLoading(false);
+    }
+  };
+
+  const handleLoginSuccess = (data: {
+    token: string;
+    user: { role: string };
+  }) => {
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("role", data.user.role || "ADMIN");
+    toast.success("Login successful");
+    router.push("/dashboard");
+  };
+
+  const handleResendLoginOtp = async () => {
+    if (loginTimer > 0) return;
+    setLoading(true);
+    try {
+      await api.post("/auth/login-otp/send", { email: formData.email });
+      setLoginTimer(180);
+      toast.success("OTP resent successfully");
+    } catch {
+      toast.error("Failed to resend OTP");
     } finally {
       setLoading(false);
     }
@@ -149,33 +205,123 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Toggle Login Mode */}
+          <div className="flex bg-white/10 p-1 rounded-lg mb-6">
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode("password");
+                setError("");
+              }}
+              className={`flex-1 py-1 text-sm font-medium rounded-md transition-all ${
+                loginMode === "password"
+                  ? "bg-white text-black shadow"
+                  : "text-gray-300 hover:text-white"
+              }`}
+            >
+              Password
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode("otp");
+                setError("");
+              }}
+              className={`flex-1 py-1 text-sm font-medium rounded-md transition-all ${
+                loginMode === "otp"
+                  ? "bg-white text-black shadow"
+                  : "text-gray-300 hover:text-white"
+              }`}
+            >
+              By OTP
+            </button>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="owner@example.com"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="glass-input"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                className="glass-input"
-              />
-            </div>
+            {loginMode === "password" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="owner@example.com"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    className="glass-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    className="glass-input"
+                  />
+                </div>
+              </>
+            )}
+
+            {loginMode === "otp" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="owner@example.com"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    disabled={loginStep === 2}
+                    className="glass-input"
+                  />
+                </div>
+                {loginStep === 2 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="loginOtp">Enter OTP</Label>
+                    <Input
+                      id="loginOtp"
+                      name="loginOtp"
+                      type="text"
+                      placeholder="123456"
+                      maxLength={6}
+                      value={loginOtp}
+                      onChange={(e) => setLoginOtp(e.target.value)}
+                      required
+                      className="glass-input text-center text-lg tracking-widest"
+                      autoFocus
+                    />
+                    <div className="flex items-center justify-between text-sm mt-2">
+                      <span className="text-gray-400">
+                        Valid for {Math.floor(loginTimer / 60)}:
+                        {(loginTimer % 60).toString().padStart(2, "0")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleResendLoginOtp}
+                        disabled={loginTimer > 0 || loading}
+                        className={`font-medium ${
+                          loginTimer > 0
+                            ? "text-gray-600 cursor-not-allowed"
+                            : "text-blue-400 hover:text-blue-300"
+                        }`}
+                      >
+                        Resend OTP
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
 
             {error && <p className="text-red-400 text-sm">{error}</p>}
 
@@ -187,7 +333,11 @@ export default function LoginPage() {
               {loading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              Login
+              {loginMode === "password"
+                ? "Login"
+                : loginStep === 1
+                ? "Send OTP"
+                : "Verify & Login"}
             </Button>
           </form>
         </CardContent>
