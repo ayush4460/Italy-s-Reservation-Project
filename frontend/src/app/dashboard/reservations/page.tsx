@@ -61,7 +61,7 @@ export default function ReservationsPage() {
   const [selectedMergeTables, setSelectedMergeTables] = useState<number[]>([]);
   const [isMergingMode, setIsMergingMode] = useState(false);
 
-  const [role, setRole] = useState("ADMIN");
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     setRole(localStorage.getItem("role") || "ADMIN");

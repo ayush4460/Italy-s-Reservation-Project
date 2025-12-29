@@ -24,7 +24,7 @@ export default function DashboardPage() {
     recentReservations: [] as any[], // Fix type
   });
   const [downloading, setDownloading] = useState(false);
-  const [role, setRole] = useState("ADMIN");
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     setRole(localStorage.getItem("role") || "ADMIN");

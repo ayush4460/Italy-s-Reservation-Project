@@ -36,7 +36,7 @@ export default function TablesPage() {
     capacity: "",
   });
   const [editLoading, setEditLoading] = useState(false);
-  const [role, setRole] = useState("ADMIN");
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     setRole(localStorage.getItem("role") || "ADMIN");
