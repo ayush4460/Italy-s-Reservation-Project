@@ -60,9 +60,20 @@ export default function ReservationsPage() {
     specialReq: "",
   });
   const [bookingLoading, setBookingLoading] = useState(false);
-  // Removed separate mergeOptions state to prevent sync issues
   const [selectedMergeTables, setSelectedMergeTables] = useState<number[]>([]);
   const [isMergingMode, setIsMergingMode] = useState(false);
+
+  // Group Booking State
+  const [isGroupBookingModalOpen, setIsGroupBookingModalOpen] = useState(false);
+  const [groupSelectedTables, setGroupSelectedTables] = useState<number[]>([]);
+  const [groupBookingData, setGroupBookingData] = useState({
+    customerName: "",
+    contact: "",
+    adults: "",
+    kids: "0",
+    foodPref: "Regular",
+    specialReq: "",
+  });
 
   // Edit Reservation State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -321,6 +332,51 @@ export default function ReservationsPage() {
     }
   };
 
+  // --- Group Booking Logic ---
+
+  const handleGroupTableToggle = (tableId: number) => {
+    setGroupSelectedTables((prev) =>
+      prev.includes(tableId)
+        ? prev.filter((id) => id !== tableId)
+        : [...prev, tableId]
+    );
+  };
+
+  const handleGroupBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSlot || groupSelectedTables.length === 0) return;
+
+    // First table is the "main" one, others are merged
+    const [mainTableId, ...mergeTableIds] = groupSelectedTables;
+
+    setBookingLoading(true);
+    try {
+      await reservationService.createReservation({
+        tableId: mainTableId,
+        slotId: selectedSlot.id,
+        date,
+        ...groupBookingData,
+        mergeTableIds: mergeTableIds.length > 0 ? mergeTableIds : undefined,
+      });
+      setIsGroupBookingModalOpen(false);
+      setGroupBookingData({
+        customerName: "",
+        contact: "",
+        adults: "",
+        kids: "0",
+        foodPref: "Regular",
+        specialReq: "",
+      });
+      setGroupSelectedTables([]);
+      fetchReservations();
+    } catch (err) {
+      console.error("Group booking failed", err);
+      alert("Failed to create group booking");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
   // --- Manage Slots Logic ---
 
   const openManageSlots = async () => {
@@ -389,14 +445,27 @@ export default function ReservationsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <h2 className="text-3xl font-bold text-white">Reservations</h2>
-          <Button
-            onClick={openManageSlots}
-            size="sm"
-            variant="outline"
-            className="glass-button text-xs gap-2"
-          >
-            <Settings className="h-4 w-4" /> Manage Slots
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                if (!selectedSlot)
+                  return alert("Please select a time slot first");
+                setIsGroupBookingModalOpen(true);
+              }}
+              size="sm"
+              className="glass-button text-xs gap-2 bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/50 text-purple-200"
+            >
+              <Users className="h-4 w-4" /> Group Booking
+            </Button>
+            <Button
+              onClick={openManageSlots}
+              size="sm"
+              variant="outline"
+              className="glass-button text-xs gap-2"
+            >
+              <Settings className="h-4 w-4" /> Manage Slots
+            </Button>
+          </div>
         </div>
 
         {/* Date Picker */}
@@ -945,6 +1014,228 @@ export default function ReservationsPage() {
             </div>
           </div>
         </div>
+      </Modal>
+
+      {/* Group Booking Modal */}
+      <Modal
+        isOpen={isGroupBookingModalOpen}
+        onClose={() => setIsGroupBookingModalOpen(false)}
+        title="Group Booking"
+      >
+        <form
+          onSubmit={handleGroupBookingSubmit}
+          className="space-y-4 max-h-[70vh] overflow-y-auto pr-2"
+        >
+          <div className="space-y-2">
+            <Label>Customer Name</Label>
+            <Input
+              value={groupBookingData.customerName}
+              onChange={(e) =>
+                setGroupBookingData({
+                  ...groupBookingData,
+                  customerName: e.target.value,
+                })
+              }
+              required
+              className="glass-input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Contact Number</Label>
+            <Input
+              value={groupBookingData.contact}
+              onChange={(e) =>
+                setGroupBookingData({
+                  ...groupBookingData,
+                  contact: e.target.value,
+                })
+              }
+              required
+              className="glass-input"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Adults</Label>
+              <Input
+                type="number"
+                value={groupBookingData.adults}
+                onChange={(e) =>
+                  setGroupBookingData({
+                    ...groupBookingData,
+                    adults: e.target.value,
+                  })
+                }
+                required
+                className="glass-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Kids</Label>
+              <Input
+                type="number"
+                value={groupBookingData.kids}
+                onChange={(e) =>
+                  setGroupBookingData({
+                    ...groupBookingData,
+                    kids: e.target.value,
+                  })
+                }
+                className="glass-input"
+              />
+            </div>
+          </div>
+
+          {/* Table Selection */}
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3 space-y-3">
+            {(() => {
+              const totalGuests =
+                (parseInt(groupBookingData.adults) || 0) +
+                (parseInt(groupBookingData.kids) || 0);
+
+              const selectedTablesList = tables.filter((t) =>
+                groupSelectedTables.includes(t.id)
+              );
+              const totalCapacity = selectedTablesList.reduce(
+                (acc, t) => acc + t.capacity,
+                0
+              );
+
+              return (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Users
+                        className={cn(
+                          "h-4 w-4",
+                          totalCapacity >= totalGuests && totalGuests > 0
+                            ? "text-green-400"
+                            : "text-red-400"
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "text-sm font-medium",
+                          totalCapacity >= totalGuests && totalGuests > 0
+                            ? "text-green-400"
+                            : "text-red-400"
+                        )}
+                      >
+                        {totalCapacity >= totalGuests && totalGuests > 0
+                          ? "Capacity Met"
+                          : `Need ${totalGuests - totalCapacity} more seats`}
+                      </span>
+                    </div>
+                    <span className="text-xs text-white/50">
+                      {totalCapacity} / {totalGuests} Guests
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
+                      Select Tables ({groupSelectedTables.length})
+                    </p>
+                    <div className="grid grid-cols-4 gap-2 max-h-[200px] overflow-y-auto pr-1">
+                      {tables
+                        .filter(
+                          (t) => !reservations.some((r) => r.tableId === t.id)
+                        )
+                        .sort((a, b) => b.capacity - a.capacity)
+                        .map((t) => {
+                          const isSelected = groupSelectedTables.includes(t.id);
+                          return (
+                            <div
+                              key={t.id}
+                              onClick={() => handleGroupTableToggle(t.id)}
+                              className={cn(
+                                "py-2 px-1 rounded text-center cursor-pointer transition-all border",
+                                isSelected
+                                  ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
+                                  : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20"
+                              )}
+                            >
+                              <div className="text-xs font-bold">
+                                T{t.tableNumber}
+                              </div>
+                              <div className="text-[10px] opacity-70">
+                                cap: {t.capacity}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-gray-400 italic pt-1">
+                    * Select multiple tables to accommodate the group.
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Food Preference</Label>
+            <select
+              value={groupBookingData.foodPref}
+              onChange={(e) =>
+                setGroupBookingData({
+                  ...groupBookingData,
+                  foodPref: e.target.value,
+                })
+              }
+              className="glass-input w-full bg-slate-900 border border-white/10 rounded-md p-2 text-white"
+            >
+              <option className="bg-slate-900 text-white" value="Regular">
+                Regular
+              </option>
+              <option className="bg-slate-900 text-white" value="Jain">
+                Jain
+              </option>
+              <option className="bg-slate-900 text-white" value="Swaminarayan">
+                Swaminarayan
+              </option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label>Special Requirements</Label>
+            <Input
+              value={groupBookingData.specialReq}
+              onChange={(e) =>
+                setGroupBookingData({
+                  ...groupBookingData,
+                  specialReq: e.target.value,
+                })
+              }
+              className="glass-input"
+            />
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <Button
+              type="submit"
+              className="glass-button w-full bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/50"
+              disabled={
+                bookingLoading ||
+                groupSelectedTables.length === 0 ||
+                (() => {
+                  const totalGuests =
+                    (parseInt(groupBookingData.adults) || 0) +
+                    (parseInt(groupBookingData.kids) || 0);
+                  const totalCapacity = tables
+                    .filter((t) => groupSelectedTables.includes(t.id))
+                    .reduce((acc, t) => acc + t.capacity, 0);
+                  return totalGuests > totalCapacity;
+                })()
+              }
+            >
+              {bookingLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Confirm Group Booking
+            </Button>
+          </div>
+        </form>
       </Modal>
       {/* Move Reservation Modal */}
       <Modal
