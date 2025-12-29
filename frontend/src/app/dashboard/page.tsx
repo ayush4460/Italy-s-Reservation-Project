@@ -12,11 +12,16 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils"; // Added import for cn
 
+const getISTDate = () => {
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istTime = new Date(now.getTime() + istOffset);
+  return istTime.toISOString().split("T")[0];
+};
+
 export default function DashboardPage() {
   // State
-  const [date, setDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
-  );
+  const [date, setDate] = useState<string>(getISTDate());
   const [stats, setStats] = useState({
     totalTables: 0,
     todayBookings: 0,

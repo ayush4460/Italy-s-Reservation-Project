@@ -35,10 +35,44 @@ const DAYS = [
   "Saturday",
 ];
 
+const formatTo12Hour = (time: string) => {
+  if (!time) return "";
+  const [hours, minutes] = time.split(":").map(Number);
+  const period = hours >= 12 ? "PM" : "AM";
+  const hours12 = hours % 12 || 12;
+  return `${hours12.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")} ${period}`;
+};
+
+const convert12to24 = (hour: string, minute: string, period: string) => {
+  let h = parseInt(hour, 10);
+  if (period === "PM" && h < 12) h += 12;
+  if (period === "AM" && h === 12) h = 0;
+  return `${h.toString().padStart(2, "0")}:${minute}`;
+};
+
+const parseTime = (time: string) => {
+  if (!time) return { hour: "12", minute: "00", period: "AM" };
+  const [h, m] = time.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 || 12;
+  return {
+    hour: hour.toString().padStart(2, "0"),
+    minute: m.toString().padStart(2, "0"),
+    period,
+  };
+};
+
+const getISTDate = () => {
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istTime = new Date(now.getTime() + istOffset);
+  return istTime.toISOString().split("T")[0];
+};
+
 export default function ReservationsPage() {
-  const [date, setDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
-  );
+  const [date, setDate] = useState<string>(getISTDate());
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [tables, setTables] = useState<Table[]>([]);
@@ -525,7 +559,7 @@ export default function ReservationsPage() {
           >
             <Clock className="h-4 w-4" />
             <span>
-              {slot.startTime} - {slot.endTime}
+              {formatTo12Hour(slot.startTime)} - {formatTo12Hour(slot.endTime)}
             </span>
           </button>
         ))}
@@ -535,9 +569,11 @@ export default function ReservationsPage() {
       <Card className="glass-panel border-none text-white min-h-[500px]">
         <CardHeader>
           <CardTitle>
-            Tables for {date} (
+            Tables for {date.split("-").reverse().join("-")} (
             {selectedSlot
-              ? `${selectedSlot.startTime} - ${selectedSlot.endTime}`
+              ? `${formatTo12Hour(selectedSlot.startTime)} - ${formatTo12Hour(
+                  selectedSlot.endTime
+                )}`
               : "Select Slot"}
             )
           </CardTitle>
@@ -929,27 +965,157 @@ export default function ReservationsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Start Time</Label>
-                  <Input
-                    type="time"
-                    value={newSlot.startTime}
-                    onChange={(e) =>
-                      setNewSlot({ ...newSlot, startTime: e.target.value })
-                    }
-                    required
-                    className="glass-input"
-                  />
+                  <div className="flex gap-2">
+                    <select
+                      className="glass-input w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1 text-sm text-white"
+                      value={parseTime(newSlot.startTime).hour}
+                      onChange={(e) => {
+                        const current = parseTime(newSlot.startTime);
+                        setNewSlot({
+                          ...newSlot,
+                          startTime: convert12to24(
+                            e.target.value,
+                            current.minute,
+                            current.period
+                          ),
+                        });
+                      }}
+                    >
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                        <option
+                          key={h}
+                          value={h.toString().padStart(2, "0")}
+                          className="bg-slate-900"
+                        >
+                          {h.toString().padStart(2, "0")}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="glass-input w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1 text-sm text-white"
+                      value={parseTime(newSlot.startTime).minute}
+                      onChange={(e) => {
+                        const current = parseTime(newSlot.startTime);
+                        setNewSlot({
+                          ...newSlot,
+                          startTime: convert12to24(
+                            current.hour,
+                            e.target.value,
+                            current.period
+                          ),
+                        });
+                      }}
+                    >
+                      {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
+                        <option
+                          key={m}
+                          value={m.toString().padStart(2, "0")}
+                          className="bg-slate-900"
+                        >
+                          {m.toString().padStart(2, "0")}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="glass-input w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1 text-sm text-white"
+                      value={parseTime(newSlot.startTime).period}
+                      onChange={(e) => {
+                        const current = parseTime(newSlot.startTime);
+                        setNewSlot({
+                          ...newSlot,
+                          startTime: convert12to24(
+                            current.hour,
+                            current.minute,
+                            e.target.value
+                          ),
+                        });
+                      }}
+                    >
+                      <option value="AM" className="bg-slate-900">
+                        AM
+                      </option>
+                      <option value="PM" className="bg-slate-900">
+                        PM
+                      </option>
+                    </select>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>End Time</Label>
-                  <Input
-                    type="time"
-                    value={newSlot.endTime}
-                    onChange={(e) =>
-                      setNewSlot({ ...newSlot, endTime: e.target.value })
-                    }
-                    required
-                    className="glass-input"
-                  />
+                  <div className="flex gap-2">
+                    <select
+                      className="glass-input w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1 text-sm text-white"
+                      value={parseTime(newSlot.endTime).hour}
+                      onChange={(e) => {
+                        const current = parseTime(newSlot.endTime);
+                        setNewSlot({
+                          ...newSlot,
+                          endTime: convert12to24(
+                            e.target.value,
+                            current.minute,
+                            current.period
+                          ),
+                        });
+                      }}
+                    >
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                        <option
+                          key={h}
+                          value={h.toString().padStart(2, "0")}
+                          className="bg-slate-900"
+                        >
+                          {h.toString().padStart(2, "0")}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="glass-input w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1 text-sm text-white"
+                      value={parseTime(newSlot.endTime).minute}
+                      onChange={(e) => {
+                        const current = parseTime(newSlot.endTime);
+                        setNewSlot({
+                          ...newSlot,
+                          endTime: convert12to24(
+                            current.hour,
+                            e.target.value,
+                            current.period
+                          ),
+                        });
+                      }}
+                    >
+                      {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
+                        <option
+                          key={m}
+                          value={m.toString().padStart(2, "0")}
+                          className="bg-slate-900"
+                        >
+                          {m.toString().padStart(2, "0")}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="glass-input w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1 text-sm text-white"
+                      value={parseTime(newSlot.endTime).period}
+                      onChange={(e) => {
+                        const current = parseTime(newSlot.endTime);
+                        setNewSlot({
+                          ...newSlot,
+                          endTime: convert12to24(
+                            current.hour,
+                            current.minute,
+                            e.target.value
+                          ),
+                        });
+                      }}
+                    >
+                      <option value="AM" className="bg-slate-900">
+                        AM
+                      </option>
+                      <option value="PM" className="bg-slate-900">
+                        PM
+                      </option>
+                    </select>
+                  </div>
                 </div>
               </div>
               <div className="space-y-2">
@@ -1021,7 +1187,8 @@ export default function ReservationsPage() {
                         className="flex items-center justify-between bg-white/5 p-2 rounded-md border border-white/5"
                       >
                         <span className="text-sm">
-                          {slot.startTime} - {slot.endTime}
+                          {formatTo12Hour(slot.startTime)} -{" "}
+                          {formatTo12Hour(slot.endTime)}
                         </span>
                         <Button
                           size="icon"
