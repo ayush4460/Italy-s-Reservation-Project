@@ -39,7 +39,7 @@ export default function TablesPage() {
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
-    setRole(localStorage.getItem("role") || "ADMIN");
+    setRole(localStorage.getItem("role") || "STAFF");
   }, []);
 
   const fetchTables = async () => {

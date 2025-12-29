@@ -64,7 +64,7 @@ export default function ReservationsPage() {
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
-    setRole(localStorage.getItem("role") || "ADMIN");
+    setRole(localStorage.getItem("role") || "STAFF");
   }, []);
 
   // Group Booking State
