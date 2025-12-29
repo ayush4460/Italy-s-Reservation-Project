@@ -580,83 +580,74 @@ export default function ReservationsPage() {
                 (parseInt(bookingData.kids) || 0);
               if (total > selectedTable.capacity) {
                 return (
-                  <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-md space-y-2">
-                    <div className="text-yellow-200 text-sm font-semibold">
-                      Capacity Exceeded ({total} / {selectedTable.capacity})
+                  <div className="rounded-lg border border-white/10 bg-black/20 p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users
+                          className={cn(
+                            "h-4 w-4",
+                            totalCapacity >= totalGuests
+                              ? "text-green-400"
+                              : "text-red-400"
+                          )}
+                        />
+                        <span
+                          className={cn(
+                            "text-sm font-medium",
+                            totalCapacity >= totalGuests
+                              ? "text-green-400"
+                              : "text-red-400"
+                          )}
+                        >
+                          {totalCapacity >= totalGuests
+                            ? "Capacity Met"
+                            : `Need ${totalGuests - totalCapacity} more seats`}
+                        </span>
+                      </div>
+                      <span className="text-xs text-white/50">
+                        {totalCapacity} / {totalGuests} Guests
+                      </span>
                     </div>
 
-                    {!isMergingMode ? (
-                      <Button
-                        type="button"
-                        onClick={() => setIsMergingMode(true)}
-                        variant="secondary"
-                        className="w-full text-xs"
-                      >
-                        Select Tables to Merge
-                      </Button>
-                    ) : (
-                      <div className="space-y-2">
-                        <p className="text-xs text-gray-300">
-                          Select Available Tables:
-                        </p>
-                        <div className="grid grid-cols-3 gap-2 max-h-[150px] overflow-y-auto">
-                          {tables
-                            .filter((t) => {
-                              if (t.id === selectedTable.id) return false;
-                              return !reservations.some(
-                                (r) => r.tableId === t.id
-                              );
-                            })
-                            .map((t) => {
-                              const isSelected = selectedMergeTables.includes(
-                                t.id
-                              );
-                              return (
-                                <div
-                                  key={t.id}
-                                  onClick={() => toggleMergeTable(t)}
-                                  className={cn(
-                                    "p-2 rounded text-xs border cursor-pointer transition-all text-center",
-                                    isSelected
-                                      ? "bg-blue-500/30 border-blue-500"
-                                      : "bg-white/5 border-white/10 hover:bg-white/10"
-                                  )}
-                                >
-                                  T{t.tableNumber} ({t.capacity})
+                    <div className="space-y-1">
+                      <p className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
+                        Add Nearby Tables
+                      </p>
+                      <div className="grid grid-cols-4 gap-2 max-h-[120px] overflow-y-auto pr-1">
+                        {tables
+                          .filter((t) => {
+                            if (t.id === selectedTable.id) return false;
+                            return !reservations.some(
+                              (r) => r.tableId === t.id
+                            );
+                          })
+                          .sort((a, b) => b.capacity - a.capacity) // Sort by capacity desc
+                          .map((t) => {
+                            const isSelected = selectedMergeTables.includes(
+                              t.id
+                            );
+                            return (
+                              <div
+                                key={t.id}
+                                onClick={() => toggleMergeTable(t)}
+                                className={cn(
+                                  "py-1.5 px-1 rounded text-center cursor-pointer transition-all border",
+                                  isSelected
+                                    ? "bg-blue-500/20 border-blue-500/50 text-blue-300"
+                                    : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20"
+                                )}
+                              >
+                                <div className="text-xs font-bold">
+                                  T{t.tableNumber}
                                 </div>
-                              );
-                            })}
-                        </div>
-
-                        <div className="pt-2 border-t border-white/10">
-                          <p className="text-xs text-gray-400">
-                            Merged Capacity:{" "}
-                            {mergeOptions.reduce((s, t) => s + t.capacity, 0)}
-                          </p>
-                          <p
-                            className={cn(
-                              "text-xs font-bold",
-                              selectedTable.capacity +
-                                mergeOptions.reduce(
-                                  (s, t) => s + t.capacity,
-                                  0
-                                ) >=
-                                total
-                                ? "text-green-400"
-                                : "text-red-400"
-                            )}
-                          >
-                            Total Capacity:{" "}
-                            {selectedTable.capacity +
-                              mergeOptions.reduce(
-                                (s, t) => s + t.capacity,
-                                0
-                              )}{" "}
-                            / {total} Required
-                          </p>
-                        </div>
+                                <div className="text-[10px] opacity-70">
+                                  +{t.capacity}
+                                </div>
+                              </div>
+                            );
+                          })}
                       </div>
-                    )}
+                    </div>
                   </div>
                 );
               } else {
