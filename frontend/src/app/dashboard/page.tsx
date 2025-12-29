@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
+import { toPng } from "html-to-image";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Armchair,
@@ -11,6 +12,7 @@ import {
   Loader2,
   TrendingUp,
   Calendar,
+  Image as ImageIcon,
 } from "lucide-react";
 import {
   LineChart,
@@ -29,7 +31,6 @@ const getISTDate = () => {
   const now = new Date();
   const istOffset = 5.5 * 60 * 60 * 1000;
   const istTime = new Date(now.getTime() + istOffset);
-  return istTime.toISOString().split("T")[0];
   return istTime.toISOString().split("T")[0];
 };
 
@@ -91,6 +92,7 @@ export default function DashboardPage() {
   const [chartEnd, setChartEnd] = useState<string>(getISTDate());
   const [downloading, setDownloading] = useState(false);
   const [role, setRole] = useState<string | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setRole(localStorage.getItem("role") || "STAFF");
@@ -161,6 +163,31 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDownloadChart = async () => {
+    if (!chartRef.current) return;
+
+    try {
+      const dataUrl = await toPng(chartRef.current, {
+        cacheBust: true,
+        backgroundColor: "#000000",
+        style: {
+          borderRadius: "12px",
+        },
+        // Force dimensions to ensure Recharts captures correctly
+        width: chartRef.current.offsetWidth,
+        height: chartRef.current.offsetHeight,
+      });
+
+      const link = document.createElement("a");
+      link.download = `reservation-analysis-${chartStart}-to-${chartEnd}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("Failed to download chart", err);
+      alert("Failed to export chart. Try again.");
+    }
+  };
+
   return (
     <div className="pt-4 space-y-6">
       <div className="flex items-center justify-between gap-2">
@@ -200,7 +227,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Analytics Chart Section */}
-      <div className="mt-8">
+      <div className="mt-12">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-blue-400" />
@@ -209,26 +236,37 @@ export default function DashboardPage() {
             </h3>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-white/10 rounded-xl px-2.5 py-1.5 border border-white/20 shadow-inner w-fit">
-            <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-            <input
-              type="date"
-              value={chartStart}
-              onChange={(e) => setChartStart(e.target.value)}
-              className="bg-transparent text-white text-[11px] sm:text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[100px] sm:w-[120px] p-0"
-            />
-            <span className="text-gray-500 font-bold text-[10px] px-0.5">
-              →
-            </span>
-            <input
-              type="date"
-              value={chartEnd}
-              onChange={(e) => setChartEnd(e.target.value)}
-              className="bg-transparent text-white text-[11px] sm:text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[100px] sm:w-[120px] p-0"
-            />
+          <div className="flex items-center gap-2 sm:justify-end">
+            <button
+              onClick={handleDownloadChart}
+              title="Download Analysis as Image"
+              className="flex items-center justify-center p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-all shadow-lg hover:scale-105 active:scale-95"
+            >
+              <ImageIcon className="h-4 w-4" />
+            </button>
+            <div className="flex items-center gap-1.5 bg-white/10 rounded-xl px-2.5 py-1.5 border border-white/20 shadow-inner w-fit">
+              <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+              <input
+                type="date"
+                value={chartStart}
+                onChange={(e) => setChartStart(e.target.value)}
+                className="bg-transparent text-white text-[11px] sm:text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[100px] sm:w-[120px] p-0"
+              />
+              <span className="text-gray-500 font-bold text-[10px] px-0.5">
+                →
+              </span>
+              <input
+                type="date"
+                value={chartEnd}
+                onChange={(e) => setChartEnd(e.target.value)}
+                className="bg-transparent text-white text-[11px] sm:text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[100px] sm:w-[120px] p-0"
+              />
+            </div>
           </div>
         </div>
+      </div>
 
+      <div ref={chartRef}>
         <Card className="glass-panel border-none p-4 sm:p-6 overflow-hidden">
           <div className="h-[280px] sm:h-[350px] md:h-[400px] w-full -ml-4 sm:ml-0">
             <ResponsiveContainer width="100%" height="100%">
