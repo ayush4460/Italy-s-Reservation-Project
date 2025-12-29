@@ -7,13 +7,13 @@ import { sendWhatsAppMessage, sendReservationTemplate } from '../lib/whatsapp';
 const prisma = new PrismaClient();
 
 interface AuthRequest extends Request {
-  user?: { userId: number };
+  user?: { userId: number; role?: string; restaurantId?: number };
 }
 
 // Get slots for a specific date or all slots
 export const getSlots = async (req: AuthRequest, res: Response) => {
   try {
-    const restaurantId = req.user?.userId;
+    const restaurantId = req.user?.restaurantId;
     if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
 
     const { date, all } = req.query; 
@@ -53,8 +53,10 @@ export const getSlots = async (req: AuthRequest, res: Response) => {
 // Create new slots (bulk for multiple days)
 export const createSlots = async (req: AuthRequest, res: Response) => {
     try {
-        const restaurantId = req.user?.userId;
+        const restaurantId = req.user?.restaurantId;
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        if (req.user?.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
 
         const { startTime, endTime, days } = req.body; 
         // days: number[] (0-6)
@@ -90,8 +92,10 @@ export const createSlots = async (req: AuthRequest, res: Response) => {
 
 export const deleteSlot = async (req: AuthRequest, res: Response) => {
      try {
-        const restaurantId = req.user?.userId;
+        const restaurantId = req.user?.restaurantId;
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        if (req.user?.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
 
         const { id } = req.params;
 
@@ -118,7 +122,7 @@ export const deleteSlot = async (req: AuthRequest, res: Response) => {
 
 export const getReservations = async (req: AuthRequest, res: Response) => {
     try {
-        const restaurantId = req.user?.userId;
+        const restaurantId = req.user?.restaurantId;
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
 
         const { date, slotId } = req.query;
@@ -152,8 +156,10 @@ export const getReservations = async (req: AuthRequest, res: Response) => {
 
 export const createReservation = async (req: AuthRequest, res: Response) => {
     try {
-        const restaurantId = req.user?.userId;
+        const restaurantId = req.user?.restaurantId;
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+         if (req.user?.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden: Staff cannot book' });
 
         const { tableId, slotId, date, customerName, contact, adults, kids, foodPref, specialReq, mergeTableIds } = req.body;
 
@@ -275,8 +281,10 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
 // Move Reservation
 export const moveReservation = async (req: AuthRequest, res: Response) => {
     try {
-        const restaurantId = req.user?.userId;
+        const restaurantId = req.user?.restaurantId;
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        if (req.user?.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
 
         const { id } = req.params;
         const { newTableId } = req.body;
@@ -339,8 +347,10 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
 // Update Reservation
 export const updateReservation = async (req: AuthRequest, res: Response) => {
     try {
-        const restaurantId = req.user?.userId;
+        const restaurantId = req.user?.restaurantId;
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        if (req.user?.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
 
         const { id } = req.params;
         const { customerName, contact, adults, kids, foodPref, specialReq } = req.body;
@@ -404,8 +414,10 @@ export const updateReservation = async (req: AuthRequest, res: Response) => {
 // Cancel Reservation
 export const cancelReservation = async (req: AuthRequest, res: Response) => {
      try {
-        const restaurantId = req.user?.userId;
+        const restaurantId = req.user?.restaurantId;
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        if (req.user?.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
 
         const { id } = req.params;
 
@@ -441,8 +453,10 @@ export const cancelReservation = async (req: AuthRequest, res: Response) => {
 // Export Reservations to Excel
 export const exportReservations = async (req: AuthRequest, res: Response) => {
     try {
-        const restaurantId = req.user?.userId;
+        const restaurantId = req.user?.restaurantId;
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        if (req.user?.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
 
         const { date } = req.query;
         if (!date) return res.status(400).json({ message: 'Date is required' });

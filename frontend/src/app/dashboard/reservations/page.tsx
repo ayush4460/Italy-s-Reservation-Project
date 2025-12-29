@@ -13,17 +13,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import {
-  Calendar,
   Clock,
   Armchair,
   Users,
-  Loader2,
-  Plus,
-  Trash2,
+  Calendar,
   Settings,
-  Edit2,
+  ArrowLeftRight, // Correct icon name for move
+  Trash2,
+  Loader2,
   X,
-  ArrowLeftRight, // New icon for move
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +60,12 @@ export default function ReservationsPage() {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [selectedMergeTables, setSelectedMergeTables] = useState<number[]>([]);
   const [isMergingMode, setIsMergingMode] = useState(false);
+
+  const [role, setRole] = useState("ADMIN");
+
+  useEffect(() => {
+    setRole(localStorage.getItem("role") || "ADMIN");
+  }, []);
 
   // Group Booking State
   const [isGroupBookingModalOpen, setIsGroupBookingModalOpen] = useState(false);
@@ -158,6 +162,7 @@ export default function ReservationsPage() {
   };
 
   const handleTableClick = (table: Table) => {
+    if (role === "STAFF") return; // Read-only for staff
     if (!selectedSlot) return alert("Please select a time slot first.");
 
     // Check if booked
@@ -443,29 +448,31 @@ export default function ReservationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between w-full md:w-auto">
           <h2 className="text-3xl font-bold text-white">Reservations</h2>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => {
-                if (!selectedSlot)
-                  return alert("Please select a time slot first");
-                setIsGroupBookingModalOpen(true);
-              }}
-              size="sm"
-              className="glass-button text-xs gap-2 bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/50 text-purple-200"
-            >
-              <Users className="h-4 w-4" /> Group Booking
-            </Button>
-            <Button
-              onClick={openManageSlots}
-              size="sm"
-              variant="outline"
-              className="glass-button text-xs gap-2"
-            >
-              <Settings className="h-4 w-4" /> Manage Slots
-            </Button>
-          </div>
+          {role === "ADMIN" && (
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  if (!selectedSlot)
+                    return alert("Please select a time slot first");
+                  setIsGroupBookingModalOpen(true);
+                }}
+                size="sm"
+                className="glass-button text-xs gap-2 bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/50 text-purple-200"
+              >
+                <Users className="h-4 w-4" /> Group Booking
+              </Button>
+              <Button
+                onClick={openManageSlots}
+                size="sm"
+                variant="outline"
+                className="glass-button text-xs gap-2"
+              >
+                <Settings className="h-4 w-4" /> Manage Slots
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Date Picker */}
@@ -560,7 +567,7 @@ export default function ReservationsPage() {
                     </div>
                   )}
                   {/* Desktop Move Icon */}
-                  {isBooked && (
+                  {role === "ADMIN" && isBooked && (
                     <div
                       className="absolute top-2 right-2 hidden group-hover:block z-10 p-1 bg-white/10 rounded-full hover:bg-white/20 transition-all"
                       onClick={(e) => handleMoveClick(reservation, e)}

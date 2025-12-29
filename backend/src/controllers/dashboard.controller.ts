@@ -4,14 +4,14 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 interface AuthRequest extends Request {
-  user?: { userId: number };
+  user?: { userId: number; role?: string; restaurantId?: number };
 }
 
 import redis from '../lib/redis';
 
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     try {
-        const restaurantId = req.user?.userId;
+        const restaurantId = req.user?.restaurantId;
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
 
         // Get date from query or default to today

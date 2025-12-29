@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import {
 import { Loader2, Save } from "lucide-react";
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -28,8 +30,13 @@ export default function ProfilePage() {
   const [message, setMessage] = useState({ type: "", text: "" });
 
   useEffect(() => {
+    const role = localStorage.getItem("role");
+    if (role !== "ADMIN") {
+      router.push("/dashboard");
+      return;
+    }
     fetchProfile();
-  }, []);
+  }, [router]);
 
   const fetchProfile = async () => {
     try {

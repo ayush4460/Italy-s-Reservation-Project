@@ -36,6 +36,11 @@ export default function TablesPage() {
     capacity: "",
   });
   const [editLoading, setEditLoading] = useState(false);
+  const [role, setRole] = useState("ADMIN");
+
+  useEffect(() => {
+    setRole(localStorage.getItem("role") || "ADMIN");
+  }, []);
 
   const fetchTables = async () => {
     try {
@@ -107,9 +112,11 @@ export default function TablesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold text-white">Table Management</h2>
-        <Button onClick={() => setIsModalOpen(true)} className="glass-button">
-          <Plus className="mr-2 h-4 w-4" /> Add Table
-        </Button>
+        {role === "ADMIN" && (
+          <Button onClick={() => setIsModalOpen(true)} className="glass-button">
+            <Plus className="mr-2 h-4 w-4" /> Add Table
+          </Button>
+        )}
       </div>
 
       {loading ? (
@@ -132,24 +139,26 @@ export default function TablesPage() {
                   Capacity: {table.capacity} People
                 </p>
               </CardContent>
-              <CardFooter className="justify-end pt-0 opacity-0 group-hover:opacity-100 transition-opacity gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
-                  onClick={() => handleEditClick(table)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                  onClick={() => handleDelete(table.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </CardFooter>
+              {role === "ADMIN" && (
+                <CardFooter className="justify-end pt-0 opacity-0 group-hover:opacity-100 transition-opacity gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                    onClick={() => handleEditClick(table)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                    onClick={() => handleDelete(table.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              )}
             </Card>
           ))}
         </div>

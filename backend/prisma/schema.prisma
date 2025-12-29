@@ -19,6 +19,25 @@ model Restaurant {
   tables      Table[]
   slots       Slot[]
   createdAt   DateTime @default(now())
+  staff       Staff[]
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+model Staff {
+  id           Int      @id @default(autoincrement())
+  restaurantId Int
+  name         String
+  email        String   @unique
+  password     String
+  role         Role     @default(STAFF)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([restaurantId])
 }
 
 model Table {

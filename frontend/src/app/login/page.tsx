@@ -38,6 +38,7 @@ export default function LoginPage() {
     try {
       const res = await api.post("/auth/login", formData);
       localStorage.setItem("token", res.data.token);
+      localStorage.setItem("role", res.data.user.role || "ADMIN"); // Store role
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.response?.data?.message || "Login failed");

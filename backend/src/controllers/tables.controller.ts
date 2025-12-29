@@ -4,13 +4,14 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 // Add type for request with user (from middleware)
+// Add type for request with user (from middleware)
 interface AuthRequest extends Request {
-  user?: { userId: number };
+  user?: { userId: number; role?: string; restaurantId?: number };
 }
 
 export const getTables = async (req: AuthRequest, res: Response) => {
   try {
-    const restaurantId = req.user?.userId;
+    const restaurantId = req.user?.restaurantId;
     if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
 
     const tables = await prisma.table.findMany({
@@ -32,9 +33,14 @@ export const getTables = async (req: AuthRequest, res: Response) => {
 
 export const createTable = async (req: AuthRequest, res: Response) => {
   try {
-    const restaurantId = req.user?.userId;
+    const restaurantId = req.user?.restaurantId;
     if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
 
+    // Restrict creation to ADMIN
+    if (req.user?.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'Forbidden: Admins only' });
+    }
+    
     const { tableNumber, capacity } = req.body;
     
     // Check if table number exists
@@ -62,9 +68,14 @@ export const createTable = async (req: AuthRequest, res: Response) => {
 
 export const updateTable = async (req: AuthRequest, res: Response) => {
     try {
-        const restaurantId = req.user?.userId;
+        const restaurantId = req.user?.restaurantId;
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
 
+        // Restrict update to ADMIN
+        if (req.user?.role !== 'ADMIN') {
+            return res.status(403).json({ message: 'Forbidden: Admins only' });
+        }
+        
         const { id } = req.params;
         const { tableNumber, capacity } = req.body;
 
@@ -104,10 +115,15 @@ export const updateTable = async (req: AuthRequest, res: Response) => {
 
 export const deleteTable = async (req: AuthRequest, res: Response) => {
   try {
-    const restaurantId = req.user?.userId;
+    const restaurantId = req.user?.restaurantId;
     const tableId = parseInt(req.params.id);
 
     if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+    // Restrict delete to ADMIN
+    if (req.user?.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'Forbidden: Admins only' });
+    }
 
     await prisma.table.deleteMany({
       where: {

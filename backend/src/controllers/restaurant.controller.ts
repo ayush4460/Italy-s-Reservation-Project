@@ -4,16 +4,16 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 interface AuthRequest extends Request {
-  user?: { userId: number };
+  user?: { userId: number; role?: string; restaurantId?: number };
 }
 
 export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user?.userId;
-    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    const restaurantId = req.user?.restaurantId;
+    if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
 
     const restaurant = await prisma.restaurant.findUnique({
-      where: { id: userId },
+      where: { id: restaurantId },
       select: {
         id: true,
         name: true,
@@ -36,13 +36,18 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
 
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user?.userId;
-    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    const restaurantId = req.user?.restaurantId;
+    if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+    // Restrict profile update to ADMIN
+    if (req.user?.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'Forbidden: Admins only' });
+    }
 
     const { name, address, phone, bannerUrl, logoUrl } = req.body;
 
     const updatedRestaurant = await prisma.restaurant.update({
-      where: { id: userId },
+      where: { id: restaurantId },
       data: {
         name,
         address,

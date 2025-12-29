@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
 interface AuthRequest extends Request {
-  user?: { userId: number };
+  user?: { userId: number; role?: string; restaurantId?: number };
 }
 
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {

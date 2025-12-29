@@ -24,6 +24,11 @@ export default function DashboardPage() {
     recentReservations: [] as any[], // Fix type
   });
   const [downloading, setDownloading] = useState(false);
+  const [role, setRole] = useState("ADMIN");
+
+  useEffect(() => {
+    setRole(localStorage.getItem("role") || "ADMIN");
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -127,18 +132,20 @@ export default function DashboardPage() {
               ? "Today's Bookings"
               : `Bookings for ${date}`}
           </h3>
-          <button
-            onClick={handleDownloadExcel}
-            disabled={downloading}
-            className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-sm font-medium rounded-md border border-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {downloading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            Download Excel
-          </button>
+          {role === "ADMIN" && (
+            <button
+              onClick={handleDownloadExcel}
+              disabled={downloading}
+              className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-sm font-medium rounded-md border border-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {downloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Download Excel
+            </button>
+          )}
         </div>
         <Card className="glass-panel border-none text-white min-h-[300px]">
           <CardContent className="p-0">

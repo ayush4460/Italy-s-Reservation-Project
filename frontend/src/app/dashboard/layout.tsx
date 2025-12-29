@@ -9,12 +9,11 @@ import {
   CalendarClock,
   User,
   LogOut,
-  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
 import api from "@/lib/api";
+import { Users } from "lucide-react"; // Import Users icon
 
 export default function DashboardLayout({
   children,
@@ -24,11 +23,11 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
 
-  const [profile, setProfile] = useState<{
-    name: string;
-    logoUrl?: string;
-    bannerUrl?: string; // Used as User Photo
+  const [data, setData] = useState<{
+    user: { name: string; email: string; role: string };
+    restaurant: { name: string; logoUrl?: string; bannerUrl?: string };
   } | null>(null);
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -41,11 +40,10 @@ export default function DashboardLayout({
 
     const fetchProfile = async () => {
       try {
-        const res = await api.get("/restaurants/me");
-        setProfile(res.data);
+        const res = await api.get("/auth/me");
+        setData(res.data);
       } catch (err) {
         console.error("Failed to fetch profile for header", err);
-        // If error (likely 401/403 or network), redirect to login
         localStorage.removeItem("token");
         router.push("/");
       }
@@ -70,6 +68,7 @@ export default function DashboardLayout({
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("role"); // Clear role too
     router.push("/login");
   };
 
@@ -88,11 +87,11 @@ export default function DashboardLayout({
       {/* Top Header - Floating & Funky */}
       <header className="sticky top-4 z-50 px-4 md:px-8">
         <div className="glass-panel rounded-full h-16 px-6 flex items-center justify-between shadow-[0_8px_32px_rgba(0,0,0,0.2)] border border-white/10 bg-black/40 backdrop-blur-xl">
-          {/* Left: Logo & Brand */}
+          {/* Left: Logo & Brand (Restaurant Info) */}
           <div className="flex items-center gap-4">
-            {profile?.logoUrl ? (
+            {data?.restaurant?.logoUrl ? (
               <img
-                src={profile.logoUrl}
+                src={data.restaurant.logoUrl}
                 alt="Logo"
                 className="h-10 w-auto object-contain max-w-[120px] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]"
               />
@@ -102,7 +101,7 @@ export default function DashboardLayout({
               </div>
             )}
             <span className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 tracking-tight hidden md:block">
-              {profile?.name || "Dashboard"}
+              {data?.restaurant?.name || "Dashboard"}
             </span>
           </div>
 
@@ -143,7 +142,7 @@ export default function DashboardLayout({
             })}
           </nav>
 
-          {/* Right: User Profile & Dropdown */}
+          {/* Right: User Profile & Dropdown (User Info) */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -151,18 +150,19 @@ export default function DashboardLayout({
             >
               <div className="text-right hidden lg:block mr-2">
                 <span className="block text-sm font-bold text-gray-200 group-hover:text-white transition-colors">
-                  {profile?.name}
+                  {data?.user?.name}
                 </span>
                 <span className="block text-[10px] text-gray-500 uppercase tracking-wider font-bold group-hover:text-cyan-400 transition-colors">
-                  Admin
+                  {data?.user?.role || "ADMIN"}
                 </span>
               </div>
 
               <div className="h-10 w-10 rounded-full p-[2px] bg-gradient-to-tr from-cyan-400 via-purple-500 to-pink-500 shadow-lg shadow-purple-500/20">
                 <div className="h-full w-full rounded-full overflow-hidden bg-black/50 backdrop-blur-sm">
-                  {profile?.bannerUrl ? (
+                  {data?.user?.role !== "STAFF" &&
+                  data?.restaurant?.bannerUrl ? (
                     <img
-                      src={profile.bannerUrl}
+                      src={data.restaurant.bannerUrl}
                       alt="User"
                       className="h-full w-full object-cover"
                     />
@@ -178,20 +178,39 @@ export default function DashboardLayout({
                 <div className="p-2 space-y-1">
                   <div className="px-4 py-3 border-b border-white/10 mb-1">
                     <p className="text-sm font-bold text-white">
-                      {profile?.name || "User"}
+                      {data?.user?.name || "User"}
                     </p>
-                    <p className="text-xs text-gray-400">Administrator</p>
+                    <p className="text-xs text-gray-400">
+                      {data?.user?.role || "Administrator"}
+                    </p>
                   </div>
-                  <Link
-                    href="/dashboard/profile"
-                    className="flex items-center px-4 py-3 rounded-xl text-sm font-semibold text-gray-200 hover:bg-purple-500/20 hover:text-white transition-all group"
-                    onClick={() => setIsDropdownOpen(false)}
-                  >
-                    <div className="p-2 rounded-lg bg-white/5 group-hover:bg-purple-500/40 mr-3 transition-colors">
-                      <User className="h-4 w-4 group-hover:text-white transition-colors" />
-                    </div>
-                    Profile
-                  </Link>
+                  {data?.user?.role === "ADMIN" && (
+                    <Link
+                      href="/dashboard/profile"
+                      className="flex items-center px-4 py-3 rounded-xl text-sm font-semibold text-gray-200 hover:bg-purple-500/20 hover:text-white transition-all group"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      <div className="p-2 rounded-lg bg-white/5 group-hover:bg-purple-500/40 mr-3 transition-colors">
+                        <User className="h-4 w-4 group-hover:text-white transition-colors" />
+                      </div>
+                      Profile
+                    </Link>
+                  )}
+
+                  {/* Manage Staff - Admin Only */}
+                  {data?.user?.role === "ADMIN" && (
+                    <Link
+                      href="/dashboard/staff"
+                      className="flex items-center px-4 py-3 rounded-xl text-sm font-semibold text-gray-200 hover:bg-purple-500/20 hover:text-white transition-all group"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      <div className="p-2 rounded-lg bg-white/5 group-hover:bg-purple-500/40 mr-3 transition-colors">
+                        <Users className="h-4 w-4 group-hover:text-white transition-colors" />
+                      </div>
+                      Manage Staff
+                    </Link>
+                  )}
+
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all group"

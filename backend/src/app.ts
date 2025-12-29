@@ -5,6 +5,7 @@ import tableRoutes from './routes/tables.routes';
 import restaurantRoutes from './routes/restaurant.routes';
 import reservationRoutes from './routes/reservations.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import staffRoutes from './routes/staff.routes';
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use('/api/tables', tableRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/staff', staffRoutes);
 
 
 
