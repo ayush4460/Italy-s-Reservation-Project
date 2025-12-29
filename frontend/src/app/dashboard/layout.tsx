@@ -80,11 +80,7 @@ export default function DashboardLayout({
       label: "Reservations",
       icon: CalendarClock,
     },
-  ].filter((item) => {
-    if (data?.user?.role === "STAFF" && item.href === "/dashboard")
-      return false;
-    return true;
-  });
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-mesh text-white font-sans selection:bg-purple-500/30">
