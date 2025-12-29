@@ -36,7 +36,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         const chartEndStr = (req.query.chartEnd as string) || "";
 
         // CHECKS CACHE
-        const cacheKey = `dashboard:stats:v7:${restaurantId}:${dateKey}:${chartStartStr}:${chartEndStr}`;
+        const cacheKey = `dashboard:stats:v10:${restaurantId}:${dateKey}:${chartStartStr}:${chartEndStr}`;
         let cachedData = null;
         try {
             cachedData = await redis.get(cacheKey);
@@ -153,38 +153,46 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
             select: {
                 id: true,
                 date: true,
-                groupId: true
+                groupId: true,
+                adults: true,
+                kids: true
             }
         });
 
         // Group by Date & Unique Booking
-        const dayCounts = new Map<string, Set<string>>();
+        const dayCounts = new Map<string, { bookings: Set<string>, guests: number }>();
         
         // Initialize all days in range with 0 (using UTC iteration)
         let iter = new Date(aStart);
         while (iter <= aEnd) {
             const dStr = iter.toISOString().split('T')[0];
-            dayCounts.set(dStr, new Set());
+            dayCounts.set(dStr, { bookings: new Set(), guests: 0 });
             iter.setUTCDate(iter.getUTCDate() + 1);
         }
 
         analyticsReservations.forEach(res => {
-            // res.date is already a Date object from Prisma
             const dateStr = res.date.toISOString().split('T')[0];
             const bookingKey = res.groupId || `S-${res.id}`;
-            if (dayCounts.has(dateStr)) {
-                dayCounts.get(dateStr)?.add(bookingKey);
+            const dayData = dayCounts.get(dateStr);
+            if (dayData) {
+                // If this is a new booking key for this day, add the guests
+                if (!dayData.bookings.has(bookingKey)) {
+                    dayData.guests += (res.adults + res.kids);
+                }
+                // Always add to bookings Set to track unique counts
+                dayData.bookings.add(bookingKey);
             }
         });
 
-        const analyticsData = Array.from(dayCounts.entries()).map(([date, bookings]) => {
+        const analyticsData = Array.from(dayCounts.entries()).map(([date, data]) => {
             const d = new Date(`${date}T00:00:00.000Z`);
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             return {
                 date,
                 display: `${days[d.getUTCDay()]} ${d.getUTCDate()} ${months[d.getUTCMonth()]}`,
-                count: bookings.size
+                count: data.bookings.size,
+                guestCount: data.guests
             };
         }).sort((a, b) => a.date.localeCompare(b.date));
 

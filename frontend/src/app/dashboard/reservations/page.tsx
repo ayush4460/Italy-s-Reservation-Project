@@ -498,43 +498,48 @@ export default function ReservationsPage() {
     return <div className="text-white">Loading reservation system...</div>;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center w-full md:w-auto gap-6">
-          <h2 className="text-3xl font-bold text-white">Reservations</h2>
-          {role === "ADMIN" && (
-            <div className="flex gap-2">
-              <Button
-                onClick={() => {
-                  if (!selectedSlot)
-                    return alert("Please select a time slot first");
-                  setIsGroupBookingModalOpen(true);
-                }}
-                size="sm"
-                className="glass-button text-xs gap-2 bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/50 text-purple-200"
-              >
-                <Users className="h-4 w-4" /> Group Booking
-              </Button>
-              <Button
-                onClick={openManageSlots}
-                size="sm"
-                variant="outline"
-                className="glass-button text-xs gap-2"
-              >
-                <Settings className="h-4 w-4" /> Manage Slots
-              </Button>
-            </div>
-          )}
+    <div className="pt-4 space-y-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="space-y-4 flex-1">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+              Reservations
+            </h2>
+            {role === "ADMIN" && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  onClick={() => {
+                    if (!selectedSlot)
+                      return alert("Please select a time slot first");
+                    setIsGroupBookingModalOpen(true);
+                  }}
+                  size="sm"
+                  className="glass-button text-[11px] sm:text-xs gap-2 bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/50 text-purple-200 h-8 sm:h-9"
+                >
+                  <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Group Booking
+                </Button>
+                <Button
+                  onClick={openManageSlots}
+                  size="sm"
+                  variant="outline"
+                  className="glass-button text-[11px] sm:text-xs gap-2 h-8 sm:h-9 border-white/20"
+                >
+                  <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Manage
+                  Slots
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Date Picker */}
-        <div className="flex items-center space-x-2 bg-white/10 rounded-lg p-2 border border-white/20">
-          <Calendar className="h-5 w-5 text-gray-300" />
+        <div className="flex items-center space-x-2 bg-white/10 rounded-lg p-1.5 sm:p-2 border border-white/20 w-fit shrink-0">
+          <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-gray-300" />
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="bg-transparent text-white focus:outline-none [&::-webkit-calendar-picker-indicator]:invert"
+            className="bg-transparent text-white text-sm sm:text-base focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[110px] sm:w-auto"
           />
         </div>
       </div>

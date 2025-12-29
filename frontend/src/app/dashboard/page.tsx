@@ -10,6 +10,7 @@ import {
   Download,
   Loader2,
   TrendingUp,
+  Calendar,
 } from "lucide-react";
 import {
   LineChart,
@@ -20,6 +21,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Label,
+  Legend,
 } from "recharts";
 import { cn } from "@/lib/utils"; // Added import for cn
 
@@ -61,7 +63,12 @@ interface DashboardStats {
   todayBookings: number;
   guestsExpected: number;
   recentReservations: ReservationSummary[];
-  analyticsData: { date: string; display: string; count: number }[];
+  analyticsData: {
+    date: string;
+    display: string;
+    count: number;
+    guestCount: number;
+  }[];
 }
 
 export default function DashboardPage() {
@@ -155,18 +162,20 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold text-white">Dashboard Overview</h2>
+    <div className="pt-4 space-y-6">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+          Dashboard
+        </h2>
 
-        {/* Date Picker */}
-        <div className="flex items-center space-x-2 bg-white/10 rounded-lg p-2 border border-white/20">
-          <CalendarCheck className="h-5 w-5 text-gray-300" />
+        {/* Date Picker - Compact on mobile */}
+        <div className="flex items-center space-x-1 sm:space-x-2 bg-white/10 rounded-lg p-1.5 sm:p-2 border border-white/20 w-fit">
+          <CalendarCheck className="h-4 w-4 sm:h-5 sm:w-5 text-gray-300" />
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="bg-transparent text-white focus:outline-none [&::-webkit-calendar-picker-indicator]:invert"
+            className="bg-transparent text-white text-[13px] sm:text-base focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[105px] sm:w-auto"
           />
         </div>
       </div>
@@ -192,7 +201,7 @@ export default function DashboardPage() {
 
       {/* Analytics Chart Section */}
       <div className="mt-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-blue-400" />
             <h3 className="text-xl font-semibold text-white">
@@ -200,39 +209,32 @@ export default function DashboardPage() {
             </h3>
           </div>
 
-          <div className="flex items-center space-x-2 bg-white/10 rounded-lg p-1.5 border border-white/20">
-            <div className="flex items-center px-2 py-1 gap-2">
-              <span className="text-xs text-gray-400 uppercase font-bold">
-                From
-              </span>
-              <input
-                type="date"
-                value={chartStart}
-                onChange={(e) => setChartStart(e.target.value)}
-                className="bg-transparent text-white text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert"
-              />
-            </div>
-            <div className="h-4 w-[1px] bg-white/20" />
-            <div className="flex items-center px-2 py-1 gap-2">
-              <span className="text-xs text-gray-400 uppercase font-bold">
-                To
-              </span>
-              <input
-                type="date"
-                value={chartEnd}
-                onChange={(e) => setChartEnd(e.target.value)}
-                className="bg-transparent text-white text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert"
-              />
-            </div>
+          <div className="flex items-center gap-1.5 bg-white/10 rounded-xl px-2.5 py-1.5 border border-white/20 shadow-inner w-fit">
+            <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+            <input
+              type="date"
+              value={chartStart}
+              onChange={(e) => setChartStart(e.target.value)}
+              className="bg-transparent text-white text-[11px] sm:text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[100px] sm:w-[120px] p-0"
+            />
+            <span className="text-gray-500 font-bold text-[10px] px-0.5">
+              →
+            </span>
+            <input
+              type="date"
+              value={chartEnd}
+              onChange={(e) => setChartEnd(e.target.value)}
+              className="bg-transparent text-white text-[11px] sm:text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[100px] sm:w-[120px] p-0"
+            />
           </div>
         </div>
 
-        <Card className="glass-panel border-none p-6">
-          <div className="h-[350px] w-full">
+        <Card className="glass-panel border-none p-4 sm:p-6 overflow-hidden">
+          <div className="h-[280px] sm:h-[350px] md:h-[400px] w-full -ml-4 sm:ml-0">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={stats.analyticsData}
-                margin={{ top: 10, right: 30, left: 20, bottom: 40 }}
+                margin={{ top: 20, right: 10, left: -5, bottom: 40 }}
               >
                 <CartesianGrid
                   strokeDasharray="3 3"
@@ -274,10 +276,10 @@ export default function DashboardPage() {
                   tickFormatter={(value) => `${value}`}
                 >
                   <Label
-                    value="Total Number of Reservations"
+                    value="Total Count"
                     angle={-90}
                     position="insideLeft"
-                    offset={-10}
+                    offset={15}
                     style={{
                       textAnchor: "middle",
                       fill: "#9ca3af",
@@ -294,10 +296,18 @@ export default function DashboardPage() {
                     boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
                     color: "#fff",
                   }}
-                  itemStyle={{ color: "#60a5fa" }}
-                  cursor={{ stroke: "#60a5fa", strokeWidth: 1 }}
+                  itemStyle={{ fontSize: "13px" }}
+                  cursor={{ stroke: "#ffffff20", strokeWidth: 1 }}
+                />
+                <Legend
+                  verticalAlign="top"
+                  align="right"
+                  height={36}
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: "12px", color: "#9ca3af" }}
                 />
                 <Line
+                  name="Reservations"
                   type="monotone"
                   dataKey="count"
                   stroke="#3b82f6"
@@ -308,11 +318,32 @@ export default function DashboardPage() {
                     strokeWidth: 2,
                     stroke: "#fff",
                   }}
-                  activeDot={{ r: 6, strokeWidth: 0 }}
+                  activeDot={{ r: 6 }}
                   animationDuration={1500}
                   label={{
                     position: "top",
                     fill: "#60a5fa",
+                    fontSize: 10,
+                    offset: 12,
+                  }}
+                />
+                <Line
+                  name="Total Guests"
+                  type="monotone"
+                  dataKey="guestCount"
+                  stroke="#10b981"
+                  strokeWidth={3}
+                  dot={{
+                    r: 4,
+                    fill: "#10b981",
+                    strokeWidth: 2,
+                    stroke: "#fff",
+                  }}
+                  activeDot={{ r: 6 }}
+                  animationDuration={1500}
+                  label={{
+                    position: "top",
+                    fill: "#34d399",
                     fontSize: 10,
                     offset: 12,
                   }}
@@ -324,7 +355,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <h3 className="text-xl font-semibold text-white">
             {date === new Date().toISOString().split("T")[0]
               ? "Today's Bookings"
@@ -334,7 +365,7 @@ export default function DashboardPage() {
             <button
               onClick={handleDownloadExcel}
               disabled={downloading}
-              className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-sm font-medium rounded-md border border-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 px-4 py-2 sm:px-3 sm:py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-sm font-medium rounded-lg sm:rounded-md border border-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
             >
               {downloading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
