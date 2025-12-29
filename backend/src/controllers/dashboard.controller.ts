@@ -31,8 +31,12 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         endOfDay = new Date(startOfDay);
         endOfDay.setDate(endOfDay.getDate() + 1);
 
+        // --- ANALYTICS RANGE ---
+        const chartStartStr = (req.query.chartStart as string) || "";
+        const chartEndStr = (req.query.chartEnd as string) || "";
+
         // CHECKS CACHE
-        const cacheKey = `dashboard:stats:v5:${restaurantId}:${dateKey}`;
+        const cacheKey = `dashboard:stats:v7:${restaurantId}:${dateKey}:${chartStartStr}:${chartEndStr}`;
         let cachedData = null;
         try {
             cachedData = await redis.get(cacheKey);
@@ -121,16 +125,75 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
             }
         });
 
-        // Convert Map to Array for recentReservations and sort
-        // The Map iteration order is insertion order, which follows the 'orderBy' from Prisma (startTime asc).
-        // However, we merged items. Usually the first item of the group determines position, which is fine.
+        // конвертируем Map в Array для recentReservations и сортируем
         const recentReservations = Array.from(groupedReservationsMap.values());
+
+        // --- NEW: ANALYTICS TREND DATA ---
+        let aStart: Date, aEnd: Date;
+        if (chartStartStr && chartEndStr) {
+            // Force UTC parsing
+            aStart = new Date(`${chartStartStr}T00:00:00.000Z`);
+            aEnd = new Date(`${chartEndStr}T23:59:59.999Z`);
+        } else {
+            // Default 7 days (UTC based)
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            aEnd = new Date(`${todayStr}T23:59:59.999Z`);
+            
+            aStart = new Date(`${todayStr}T00:00:00.000Z`);
+            aStart.setUTCDate(aStart.getUTCDate() - 6);
+        }
+
+        const analyticsReservations = await prisma.reservation.findMany({
+            where: {
+                table: { restaurantId },
+                date: { gte: aStart, lte: aEnd },
+                status: { not: 'CANCELLED' }
+            },
+            select: {
+                id: true,
+                date: true,
+                groupId: true
+            }
+        });
+
+        // Group by Date & Unique Booking
+        const dayCounts = new Map<string, Set<string>>();
+        
+        // Initialize all days in range with 0 (using UTC iteration)
+        let iter = new Date(aStart);
+        while (iter <= aEnd) {
+            const dStr = iter.toISOString().split('T')[0];
+            dayCounts.set(dStr, new Set());
+            iter.setUTCDate(iter.getUTCDate() + 1);
+        }
+
+        analyticsReservations.forEach(res => {
+            // res.date is already a Date object from Prisma
+            const dateStr = res.date.toISOString().split('T')[0];
+            const bookingKey = res.groupId || `S-${res.id}`;
+            if (dayCounts.has(dateStr)) {
+                dayCounts.get(dateStr)?.add(bookingKey);
+            }
+        });
+
+        const analyticsData = Array.from(dayCounts.entries()).map(([date, bookings]) => {
+            const d = new Date(`${date}T00:00:00.000Z`);
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return {
+                date,
+                display: `${days[d.getUTCDay()]} ${d.getUTCDate()} ${months[d.getUTCMonth()]}`,
+                count: bookings.size
+            };
+        }).sort((a, b) => a.date.localeCompare(b.date));
 
         const responseData = {
             totalTables,
             todayBookings: bookingsCount,
             guestsExpected: guestsCount,
-            recentReservations
+            recentReservations,
+            analyticsData
         };
 
         // SET CACHE (Expire in 5 minutes)

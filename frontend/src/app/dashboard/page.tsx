@@ -9,7 +9,18 @@ import {
   Users,
   Download,
   Loader2,
+  TrendingUp,
 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Label,
+} from "recharts";
 import { cn } from "@/lib/utils"; // Added import for cn
 
 const getISTDate = () => {
@@ -50,6 +61,7 @@ interface DashboardStats {
   todayBookings: number;
   guestsExpected: number;
   recentReservations: ReservationSummary[];
+  analyticsData: { date: string; display: string; count: number }[];
 }
 
 export default function DashboardPage() {
@@ -60,7 +72,16 @@ export default function DashboardPage() {
     todayBookings: 0,
     guestsExpected: 0,
     recentReservations: [],
+    analyticsData: [],
   });
+
+  // Chart Range State (Default 7 days)
+  const defaultStart = new Date();
+  defaultStart.setDate(defaultStart.getDate() - 6);
+  const [chartStart, setChartStart] = useState<string>(
+    defaultStart.toISOString().split("T")[0]
+  );
+  const [chartEnd, setChartEnd] = useState<string>(getISTDate());
   const [downloading, setDownloading] = useState(false);
   const [role, setRole] = useState<string | null>(null);
 
@@ -71,14 +92,20 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await api.get("/dashboard/stats", { params: { date } });
+        const res = await api.get("/dashboard/stats", {
+          params: {
+            date,
+            chartStart,
+            chartEnd,
+          },
+        });
         setStats(res.data);
       } catch (err) {
         console.error("Failed to fetch stats", err);
       }
     };
     fetchStats();
-  }, [date]);
+  }, [date, chartStart, chartEnd]);
 
   const statItems = [
     {
@@ -161,6 +188,139 @@ export default function DashboardPage() {
             </Card>
           );
         })}
+      </div>
+
+      {/* Analytics Chart Section */}
+      <div className="mt-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-blue-400" />
+            <h3 className="text-xl font-semibold text-white">
+              Reservation Analysis
+            </h3>
+          </div>
+
+          <div className="flex items-center space-x-2 bg-white/10 rounded-lg p-1.5 border border-white/20">
+            <div className="flex items-center px-2 py-1 gap-2">
+              <span className="text-xs text-gray-400 uppercase font-bold">
+                From
+              </span>
+              <input
+                type="date"
+                value={chartStart}
+                onChange={(e) => setChartStart(e.target.value)}
+                className="bg-transparent text-white text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert"
+              />
+            </div>
+            <div className="h-4 w-[1px] bg-white/20" />
+            <div className="flex items-center px-2 py-1 gap-2">
+              <span className="text-xs text-gray-400 uppercase font-bold">
+                To
+              </span>
+              <input
+                type="date"
+                value={chartEnd}
+                onChange={(e) => setChartEnd(e.target.value)}
+                className="bg-transparent text-white text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert"
+              />
+            </div>
+          </div>
+        </div>
+
+        <Card className="glass-panel border-none p-6">
+          <div className="h-[350px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={stats.analyticsData}
+                margin={{ top: 10, right: 30, left: 20, bottom: 40 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#ffffff10"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="date"
+                  stroke="#9ca3af"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  dy={10}
+                  tickFormatter={(dateStr) => {
+                    const d = new Date(`${dateStr}T00:00:00.000Z`);
+                    return d.getUTCDate().toString();
+                  }}
+                >
+                  <Label
+                    value={
+                      stats.analyticsData.length > 0
+                        ? new Date(
+                            `${stats.analyticsData[0].date}T00:00:00.000Z`
+                          ).toLocaleString("en-US", { month: "long" })
+                        : "Month"
+                    }
+                    position="bottom"
+                    offset={20}
+                    fill="#9ca3af"
+                    fontSize={14}
+                    fontWeight="bold"
+                  />
+                </XAxis>
+                <YAxis
+                  stroke="#9ca3af"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `${value}`}
+                >
+                  <Label
+                    value="Total Number of Reservations"
+                    angle={-90}
+                    position="insideLeft"
+                    offset={-10}
+                    style={{
+                      textAnchor: "middle",
+                      fill: "#9ca3af",
+                      fontSize: 13,
+                      fontWeight: "medium",
+                    }}
+                  />
+                </YAxis>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1f2937",
+                    border: "none",
+                    borderRadius: "8px",
+                    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                    color: "#fff",
+                  }}
+                  itemStyle={{ color: "#60a5fa" }}
+                  cursor={{ stroke: "#60a5fa", strokeWidth: 1 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#3b82f6"
+                  strokeWidth={3}
+                  dot={{
+                    r: 4,
+                    fill: "#3b82f6",
+                    strokeWidth: 2,
+                    stroke: "#fff",
+                  }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                  animationDuration={1500}
+                  label={{
+                    position: "top",
+                    fill: "#60a5fa",
+                    fontSize: 10,
+                    offset: 12,
+                  }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
       </div>
 
       <div className="mt-8">

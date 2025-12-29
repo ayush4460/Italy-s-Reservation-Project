@@ -2,6 +2,29 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import ExcelJS from 'exceljs';
 import redis from '../lib/redis';
+
+const clearDashboardCache = async (restaurantId: number, date: Date | string) => {
+    try {
+        const dateKey = typeof date === 'string' ? date : date.toISOString().split('T')[0];
+        // The dashboard cache key is complex: dashboard:stats:v7:restaurantId:dateKey:chartStart:chartEnd
+        // We need to clear all keys for this restaurant that might contain stats for this day.
+        // Easiest is to clear all dashboard:stats:v7:restaurantId:*
+        const pattern = `dashboard:stats:v7:${restaurantId}:*`;
+        
+        let cursor = '0';
+        do {
+            const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+            cursor = nextCursor;
+            if (keys.length > 0) {
+                await redis.del(...keys);
+            }
+        } while (cursor !== '0');
+        
+        console.log(`[Cache] Cleared dashboard stats for restaurant ${restaurantId}`);
+    } catch (err) {
+        console.warn("Redis Clear Cache Error (Ignored):", err);
+    }
+};
 import { sendWhatsAppMessage, sendReservationTemplate } from '../lib/whatsapp';
 
 const prisma = new PrismaClient();
@@ -290,14 +313,10 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
         );
 
         // Invalidate Dashboard Stats Cache
-        // We need to invalidate for the specific date of the reservation
-        const dateKey = new Date(date).toISOString().split('T')[0];
-        const cacheKey = `dashboard:stats:v5:${restaurantId}:${dateKey}`;
-        try {
-            await redis.del(cacheKey);
-        } catch (e) { console.warn("Redis Invalidate Error (Ignored):", e); }
+        await clearDashboardCache(restaurantId, date);
 
         // Send WhatsApp Notification (Only once)
+        const dateKey = new Date(date).toISOString().split('T')[0];
         console.log(`[CreateReservation] Contact: ${contact}, SlotId: ${slotId}`);
         if (contact) {
             try {
@@ -381,11 +400,7 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
         });
 
         // 5. Invalidate Cache
-        const dateKey = new Date(reservation.date).toISOString().split('T')[0];
-        const cacheKey = `dashboard:stats:v5:${restaurantId}:${dateKey}`;
-        try {
-            await redis.del(cacheKey);
-        } catch (e) { console.warn("Redis Invalidate Error (Ignored):", e); }
+        await clearDashboardCache(restaurantId, reservation.date);
 
         res.json(updated);
 
@@ -448,11 +463,7 @@ export const updateReservation = async (req: AuthRequest, res: Response) => {
         }
 
         // Invalidate Cache
-        const dateKey = new Date(reservation.date).toISOString().split('T')[0];
-        const cacheKey = `dashboard:stats:v5:${restaurantId}:${dateKey}`;
-        try {
-            await redis.del(cacheKey);
-        } catch (e) { console.warn("Redis Invalidate Error (Ignored):", e); }
+        await clearDashboardCache(restaurantId, reservation.date);
 
         res.json(updated);
 
@@ -488,11 +499,7 @@ export const cancelReservation = async (req: AuthRequest, res: Response) => {
         });
 
         // Invalidate Cache
-        const dateKey = new Date(reservation.date).toISOString().split('T')[0];
-        const cacheKey = `dashboard:stats:${restaurantId}:${dateKey}`;
-        try {
-            await redis.del(cacheKey);
-        } catch (e) { console.warn("Redis Invalidate Error (Ignored):", e); }
+        await clearDashboardCache(restaurantId, reservation.date);
 
         res.json({ message: 'Reservation cancelled successfully' });
 
