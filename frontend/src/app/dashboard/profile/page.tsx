@@ -14,6 +14,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Loader2, Save } from "lucide-react";
+import { toast } from "sonner";
 
 import { useProfile } from "@/context/profile-context";
 
@@ -31,7 +32,6 @@ export default function ProfilePage() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ type: "", text: "" });
 
   useEffect(() => {
     const role = localStorage.getItem("role");
@@ -55,6 +55,7 @@ export default function ProfilePage() {
       setFormData(res.data);
     } catch (err) {
       console.error("Failed to fetch profile", err);
+      toast.error("Failed to fetch profile data");
     } finally {
       setLoading(false);
     }
@@ -67,17 +68,13 @@ export default function ProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setMessage({ type: "", text: "" });
 
     try {
       await api.put("/restaurants/me", formData);
       await refetchProfile(); // Refresh context to update header
-      setMessage({ type: "success", text: "Profile updated successfully" });
+      toast.success("Profile updated successfully");
     } catch (err: any) {
-      setMessage({
-        type: "error",
-        text: err.response?.data?.message || "Failed to update profile",
-      });
+      toast.error(err.response?.data?.message || "Failed to update profile");
     } finally {
       setSaving(false);
     }
@@ -165,15 +162,6 @@ export default function ProfilePage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col items-start gap-4">
-            {message.text && (
-              <p
-                className={
-                  message.type === "error" ? "text-red-400" : "text-green-400"
-                }
-              >
-                {message.text}
-              </p>
-            )}
             <Button
               type="submit"
               className="glass-button w-full md:w-auto"

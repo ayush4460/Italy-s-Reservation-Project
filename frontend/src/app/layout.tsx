@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins, Montserrat } from "next/font/google";
 import "./globals.css";
 import { GlobalLoaderProvider } from "@/components/global-loader-provider";
+import { Toaster } from "sonner";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -32,6 +33,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <GlobalLoaderProvider />
+        <Toaster richColors position="top-right" duration={3000} theme="dark" />
         {children}
       </body>
     </html>

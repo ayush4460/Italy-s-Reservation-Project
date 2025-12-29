@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { Plus, Trash2, Armchair, Pencil, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Table {
   id: number;
@@ -26,7 +27,6 @@ export default function TablesPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ tableNumber: "", capacity: "" });
-  const [error, setError] = useState("");
 
   // Edit State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -64,8 +64,9 @@ export default function TablesPage() {
       setFormData({ tableNumber: "", capacity: "" });
       setIsModalOpen(false);
       fetchTables();
+      toast.success("Table created successfully");
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to create table");
+      toast.error(err.response?.data?.message || "Failed to create table");
     }
   };
 
@@ -74,8 +75,10 @@ export default function TablesPage() {
     try {
       await api.delete(`/tables/${id}`);
       fetchTables();
+      toast.success("Table deleted successfully");
     } catch (err) {
       console.error("Failed to delete table", err);
+      toast.error("Failed to delete table");
     }
   };
 
@@ -97,12 +100,11 @@ export default function TablesPage() {
       setIsEditModalOpen(false);
       setEditingTable(null);
       fetchTables();
+      toast.success("Table updated successfully");
     } catch (err: unknown) {
       const errorMessage =
         (err as any).response?.data?.message || "Failed to update table";
-      setError(errorMessage);
-      // Clear error after 3 seconds
-      setTimeout(() => setError(""), 3000);
+      toast.error(errorMessage);
     } finally {
       setEditLoading(false);
     }
@@ -198,7 +200,6 @@ export default function TablesPage() {
               className="glass-input"
             />
           </div>
-          {error && <p className="text-red-400 text-sm">{error}</p>}
           <div className="flex justify-end pt-4">
             <Button type="submit" className="glass-button w-full">
               Create Table
@@ -242,7 +243,6 @@ export default function TablesPage() {
               className="glass-input"
             />
           </div>
-          {error && <p className="text-red-400 text-sm">{error}</p>}
           <div className="flex justify-end pt-4">
             <Button
               type="submit"
