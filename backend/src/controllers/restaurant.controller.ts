@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
+// Force restart
 
 interface AuthRequest extends Request {
   user?: { userId: number; role?: string; restaurantId?: number };
@@ -17,6 +18,7 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
       select: {
         id: true,
         name: true,
+        username: true, // Added username
         email: true,
         address: true,
         phone: true,
@@ -44,12 +46,14 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         return res.status(403).json({ message: 'Forbidden: Admins only' });
     }
 
-    const { name, address, phone, bannerUrl, logoUrl } = req.body;
+    const { name, username, email, address, phone, bannerUrl, logoUrl } = req.body;
 
     const updatedRestaurant = await prisma.restaurant.update({
       where: { id: restaurantId },
       data: {
         name,
+        username, // Added username
+        email,    // Added email
         address,
         phone,
         bannerUrl,
@@ -58,6 +62,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       select: {
         id: true,
         name: true,
+        username: true, // Added username
         email: true,
         address: true,
         phone: true,

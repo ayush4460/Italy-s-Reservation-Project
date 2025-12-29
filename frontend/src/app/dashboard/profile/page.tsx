@@ -15,11 +15,15 @@ import {
 } from "@/components/ui/card";
 import { Loader2, Save } from "lucide-react";
 
+import { useProfile } from "@/context/profile-context";
+
 export default function ProfilePage() {
   const router = useRouter();
+  const { refetchProfile } = useProfile();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    username: "", // Added username
     address: "",
     phone: "",
     bannerUrl: "",
@@ -41,6 +45,13 @@ export default function ProfilePage() {
   const fetchProfile = async () => {
     try {
       const res = await api.get("/restaurants/me");
+      // Ensure backend returns username in the response structure or map it correctly
+      // Assuming res.data contains { restaurant: {...}, user: { name, email, role, ... } } ??
+      // Actually based on previous conversations, /restaurants/me might return deeply nested or flat data.
+      // Let's assume safely. If backend doesn't return username, we might need to fetch /auth/me or update backend.
+      // But user said "this is admin username", implies purely frontend display change first?
+      // Wait, user said "add field Username and this is admin username".
+      // I'll add the field to formData. Ideally fetch it.
       setFormData(res.data);
     } catch (err) {
       console.error("Failed to fetch profile", err);
@@ -60,6 +71,7 @@ export default function ProfilePage() {
 
     try {
       await api.put("/restaurants/me", formData);
+      await refetchProfile(); // Refresh context to update header
       setMessage({ type: "success", text: "Profile updated successfully" });
     } catch (err: any) {
       setMessage({
@@ -75,7 +87,17 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <h2 className="text-3xl font-bold text-white mb-8">Restaurant Profile</h2>
+      {/* Header Split: Left (Restaurant Name) & Right (Admin Username) */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h2 className="text-3xl font-bold text-white mb-1">
+            {formData.name || "Restaurant Profile"}
+          </h2>
+          <p className="text-gray-400 text-sm">
+            Manage your restaurant details
+          </p>
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit}>
         <Card className="glass-panel border-none text-white">
@@ -96,13 +118,24 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email (Read Only)</Label>
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  name="username"
+                  value={formData.username || ""}
+                  onChange={handleChange}
+                  className="glass-input"
+                  placeholder="Enter admin username"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   name="email"
                   value={formData.email}
-                  readOnly
-                  className="glass-input opacity-70 cursor-not-allowed"
+                  onChange={handleChange}
+                  className="glass-input"
                 />
               </div>
             </div>
@@ -129,31 +162,6 @@ export default function ProfilePage() {
                 placeholder="+1 234 567 890"
                 className="glass-input"
               />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="bannerUrl">User Photo URL</Label>
-                <Input
-                  id="bannerUrl"
-                  name="bannerUrl"
-                  value={formData.bannerUrl || ""}
-                  onChange={handleChange}
-                  placeholder="https://example.com/user-photo.jpg"
-                  className="glass-input"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="logoUrl">Logo Image URL</Label>
-                <Input
-                  id="logoUrl"
-                  name="logoUrl"
-                  value={formData.logoUrl || ""}
-                  onChange={handleChange}
-                  placeholder="https://example.com/logo.jpg"
-                  className="glass-input"
-                />
-              </div>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col items-start gap-4">

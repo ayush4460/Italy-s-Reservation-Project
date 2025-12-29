@@ -15,42 +15,39 @@ import { useState, useEffect, useRef } from "react";
 import api from "@/lib/api";
 import { Users } from "lucide-react"; // Import Users icon
 
+import { ProfileProvider, useProfile } from "@/context/profile-context";
+
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  return (
+    <ProfileProvider>
+      <InnerDashboardLayout>{children}</InnerDashboardLayout>
+    </ProfileProvider>
+  );
+}
+
+function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, restaurant, refetchProfile } = useProfile();
 
-  const [data, setData] = useState<{
-    user: { name: string; email: string; role: string };
-    restaurant: { name: string; logoUrl?: string; bannerUrl?: string };
-  } | null>(null);
+  // Create a combined data object to match previous structure or use context directly
+  const data = { user, restaurant };
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/");
-      return;
-    }
+  // Logout function
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    router.push("/login");
+  };
 
-    const fetchProfile = async () => {
-      try {
-        const res = await api.get("/auth/me");
-        setData(res.data);
-      } catch (err) {
-        console.error("Failed to fetch profile for header", err);
-        localStorage.removeItem("token");
-        router.push("/");
-      }
-    };
-    fetchProfile();
-  }, [router]);
-
+  // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -65,12 +62,6 @@ export default function DashboardLayout({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role"); // Clear role too
-    router.push("/login");
-  };
 
   const navItems = [
     { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -89,20 +80,11 @@ export default function DashboardLayout({
         <div className="glass-panel rounded-full h-16 px-6 flex items-center justify-between shadow-[0_8px_32px_rgba(0,0,0,0.2)] border border-white/10 bg-black/40 backdrop-blur-xl">
           {/* Left: Logo & Brand (Restaurant Info) */}
           <div className="flex items-center gap-4">
-            {data?.restaurant?.logoUrl ? (
-              <img
-                src={data.restaurant.logoUrl}
-                alt="Logo"
-                className="h-10 w-auto object-contain max-w-[120px] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]"
-              />
-            ) : (
-              <div className="bg-gradient-to-tr from-cyan-400 via-purple-500 to-pink-500 rounded-xl p-2 shadow-lg shadow-purple-500/20">
-                <LayoutDashboard className="h-5 w-5 text-white" />
-              </div>
-            )}
-            <span className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 tracking-tight hidden md:block">
-              {data?.restaurant?.name || "Dashboard"}
-            </span>
+            <img
+              src="/Italys-removebg-preview.png"
+              alt="Logo"
+              className="h-10 w-auto object-contain max-w-[120px] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]"
+            />
           </div>
 
           {/* Center: Navigation Pills */}
@@ -150,7 +132,7 @@ export default function DashboardLayout({
             >
               <div className="text-right hidden lg:block mr-2">
                 <span className="block text-sm font-bold text-gray-200 group-hover:text-white transition-colors">
-                  {data?.user?.name}
+                  {data?.user?.username || data?.user?.name}
                 </span>
                 <span className="block text-[10px] text-gray-500 uppercase tracking-wider font-bold group-hover:text-cyan-400 transition-colors">
                   {data?.user?.role || "ADMIN"}
@@ -159,16 +141,7 @@ export default function DashboardLayout({
 
               <div className="h-10 w-10 rounded-full p-[2px] bg-gradient-to-tr from-cyan-400 via-purple-500 to-pink-500 shadow-lg shadow-purple-500/20">
                 <div className="h-full w-full rounded-full overflow-hidden bg-black/50 backdrop-blur-sm">
-                  {data?.user?.role !== "STAFF" &&
-                  data?.restaurant?.bannerUrl ? (
-                    <img
-                      src={data.restaurant.bannerUrl}
-                      alt="User"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <User className="h-full w-full p-2 text-white/80" />
-                  )}
+                  <User className="h-full w-full p-2 text-white/80" />
                 </div>
               </div>
             </button>
@@ -178,7 +151,7 @@ export default function DashboardLayout({
                 <div className="p-2 space-y-1">
                   <div className="px-4 py-3 border-b border-white/10 mb-1">
                     <p className="text-sm font-bold text-white">
-                      {data?.user?.name || "User"}
+                      {data?.user?.username || data?.user?.name || "User"}
                     </p>
                     <p className="text-xs text-gray-400">
                       {data?.user?.role || "Administrator"}

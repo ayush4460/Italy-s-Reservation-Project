@@ -85,7 +85,12 @@ export const getMe = async (req: any, res: Response) => {
         } else {
             user = await prisma.restaurant.findUnique({
                 where: { id: userId },
-                select: { id: true, name: true, email: true }
+                select: { 
+                    id: true, 
+                    name: true, 
+                    username: true, // Added username
+                    email: true 
+                }
             });
             if (user) user.role = 'ADMIN';
         }
