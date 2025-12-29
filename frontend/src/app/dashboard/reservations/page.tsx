@@ -335,6 +335,7 @@ export default function ReservationsPage() {
 
   // --- Long Press Logic (Mobile) ---
   const handleTouchStart = (table: Table) => {
+    if (role === "STAFF") return;
     const timer = setTimeout(() => {
       // Trigger long press
       const reservation = reservations.find((r) => r.tableId === table.id);
