@@ -14,6 +14,7 @@ import {
   Calendar,
   Image as ImageIcon,
 } from "lucide-react";
+import { useProfile } from "@/context/profile-context";
 import {
   LineChart,
   Line,
@@ -91,11 +92,12 @@ export default function DashboardPage() {
   );
   const [chartEnd, setChartEnd] = useState<string>(getISTDate());
   const [downloading, setDownloading] = useState(false);
-  const [role, setRole] = useState<string | null>(null);
+  const { user: profileUser } = useProfile();
+  const role = profileUser?.role || null;
   const chartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setRole(localStorage.getItem("role") || "STAFF");
+    // Role is now derived from profile context
   }, []);
 
   useEffect(() => {
