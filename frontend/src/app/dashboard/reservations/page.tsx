@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   reservationService,
   Slot,
@@ -150,12 +150,8 @@ export default function ReservationsPage() {
   const [isLongPressModalOpen, setIsLongPressModalOpen] = useState(false);
   const [longPressedTable, setLongPressedTable] = useState<Table | null>(null);
 
-  useEffect(() => {
-    fetchInitialData();
-  }, [date]); // Refetch slots when date changes to get day-specific slots
-
   // Refactored to fetch slots first, then tables+reservations together
-  const fetchInitialData = async () => {
+  const fetchInitialData = useCallback(async () => {
     try {
       setLoading(true);
       const slotsData = await reservationService.getSlots(date);
@@ -176,10 +172,10 @@ export default function ReservationsPage() {
       console.error("Failed to load initial data", err);
       setLoading(false);
     }
-  };
+  }, [date]);
 
   // Unified fetcher for Tables + Reservations
-  const fetchTableData = async () => {
+  const fetchTableData = useCallback(async () => {
     if (!selectedSlot) return;
     try {
       // Don't set global loading here to avoid full page spinner flicker if just switching slots?
@@ -204,13 +200,17 @@ export default function ReservationsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [date, selectedSlot]);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]); // Refetch slots when date changes to get day-specific slots
 
   useEffect(() => {
     if (selectedSlot && date) {
       fetchTableData();
     }
-  }, [selectedSlot, date]);
+  }, [fetchTableData, selectedSlot, date]);
 
   const handleTableClick = (table: Table) => {
     if (role === "STAFF") return; // Read-only for staff

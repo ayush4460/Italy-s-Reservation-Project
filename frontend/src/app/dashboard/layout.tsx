@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -12,7 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
-import api from "@/lib/api";
+
 import { Users } from "lucide-react"; // Import Users icon
 
 import { ProfileProvider, useProfile } from "@/context/profile-context";
@@ -32,7 +33,7 @@ export default function DashboardLayout({
 function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, restaurant, refetchProfile } = useProfile();
+  const { user, restaurant } = useProfile();
 
   // Create a combined data object to match previous structure or use context directly
   const data = { user, restaurant };
@@ -80,10 +81,13 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
         <div className="glass-panel rounded-full h-16 px-6 flex items-center justify-between shadow-[0_8px_32px_rgba(0,0,0,0.2)] border border-white/10 bg-black/40 backdrop-blur-xl">
           {/* Left: Logo & Brand (Restaurant Info) */}
           <div className="flex items-center gap-4">
-            <img
+            <Image
               src="/Italys-removebg-preview.png"
               alt="Logo"
+              width={120}
+              height={40}
               className="h-10 w-auto object-contain max-w-[120px] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]"
+              priority
             />
           </div>
 
@@ -103,7 +107,7 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
                     )}
                   >
                     {isActive && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 border border-white/10 rounded-full" />
+                      <div className="absolute inset-0 bg-linear-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 border border-white/10 rounded-full" />
                     )}
                     {!isActive && (
                       <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 rounded-full transition-all duration-300" />
@@ -139,7 +143,7 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
                 </span>
               </div>
 
-              <div className="h-10 w-10 rounded-full p-[2px] bg-gradient-to-tr from-cyan-400 via-purple-500 to-pink-500 shadow-lg shadow-purple-500/20">
+              <div className="h-10 w-10 rounded-full p-[2px] bg-linear-to-tr from-cyan-400 via-purple-500 to-pink-500 shadow-lg shadow-purple-500/20">
                 <div className="h-full w-full rounded-full overflow-hidden bg-black/50 backdrop-blur-sm">
                   <User className="h-full w-full p-2 text-white/80" />
                 </div>
@@ -211,7 +215,7 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
                 className={cn(
                   "p-3 rounded-full transition-all duration-300 relative",
                   isActive
-                    ? "text-white bg-gradient-to-tr from-cyan-500 to-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)] scale-110"
+                    ? "text-white bg-linear-to-tr from-cyan-500 to-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)] scale-110"
                     : "text-gray-400 hover:text-white hover:bg-white/10"
                 )}
               >

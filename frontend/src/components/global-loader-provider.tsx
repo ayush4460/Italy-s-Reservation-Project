@@ -23,7 +23,7 @@ export function GlobalLoaderProvider() {
   if (!isLoading) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-300">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-300">
       <LoaderSpinner />
     </div>
   );

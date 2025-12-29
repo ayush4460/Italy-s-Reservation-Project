@@ -19,14 +19,40 @@ const getISTDate = () => {
   return istTime.toISOString().split("T")[0];
 };
 
+interface ReservationSummary {
+  id: number;
+  date: string;
+  slotId: number;
+  table: {
+    tableNumber: string;
+  };
+  customerName: string;
+  contact: string;
+  foodPref: string;
+  specialReq?: string;
+  slot: {
+    startTime: string;
+    endTime: string;
+  };
+  adults: number;
+  kids: number;
+}
+
+interface DashboardStats {
+  totalTables: number;
+  todayBookings: number;
+  guestsExpected: number;
+  recentReservations: ReservationSummary[];
+}
+
 export default function DashboardPage() {
   // State
   const [date, setDate] = useState<string>(getISTDate());
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<DashboardStats>({
     totalTables: 0,
     todayBookings: 0,
     guestsExpected: 0,
-    recentReservations: [] as any[], // Fix type
+    recentReservations: [],
   });
   const [downloading, setDownloading] = useState(false);
   const [role, setRole] = useState<string | null>(null);
@@ -160,7 +186,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="divide-y divide-white/10">
-                {stats.recentReservations.map((res: any) => (
+                {stats.recentReservations.map((res: ReservationSummary) => (
                   <div
                     key={res.id}
                     className="p-4 flex items-center justify-between hover:bg-white/5 cursor-pointer transition-colors"
@@ -172,7 +198,7 @@ export default function DashboardPage() {
                     }}
                   >
                     <div className="flex items-center gap-4">
-                      <div className="flex bg-blue-500/20 text-blue-300 font-bold px-3 py-2 rounded-lg items-center justify-center min-w-[3rem]">
+                      <div className="flex bg-blue-500/20 text-blue-300 font-bold px-3 py-2 rounded-lg items-center justify-center min-w-12">
                         <span className="text-lg">{res.table.tableNumber}</span>
                       </div>
                       <div>

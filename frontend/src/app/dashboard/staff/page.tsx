@@ -89,8 +89,9 @@ export default function StaffPage() {
       setIsModalOpen(false);
       fetchStaff();
     } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
       const errorMessage =
-        (err as any).response?.data?.message || "Failed to create staff";
+        error.response?.data?.message || "Failed to create staff";
       setError(errorMessage);
     } finally {
       setSubmitLoading(false);
@@ -143,8 +144,9 @@ export default function StaffPage() {
       setEditingId(null);
       fetchStaff();
     } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
       const errorMessage =
-        (err as any).response?.data?.message || "Failed to update staff";
+        error.response?.data?.message || "Failed to update staff";
       setError(errorMessage);
     } finally {
       setSubmitLoading(false);
@@ -174,7 +176,7 @@ export default function StaffPage() {
             className="glass-panel border-none text-white hover:bg-white/5 transition-colors"
           >
             <CardHeader className="flex flex-row items-center gap-4 pb-2">
-              <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg">
+              <div className="h-12 w-12 rounded-full bg-linear-to-tr from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg">
                 <User className="h-6 w-6 text-white" />
               </div>
               <div className="flex-1 overflow-hidden">
