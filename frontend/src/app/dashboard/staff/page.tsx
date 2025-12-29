@@ -62,6 +62,20 @@ export default function StaffPage() {
     password: "",
     confirmPassword: "",
   });
+  const [originalEmail, setOriginalEmail] = useState("");
+  const [editStep, setEditStep] = useState(1); // 1: Form, 2: OTP
+  const [editOtp, setEditOtp] = useState("");
+  const [editTimer, setEditTimer] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (editTimer > 0) {
+      interval = setInterval(() => {
+        setEditTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [editTimer]);
 
   useEffect(() => {
     // Basic role check
@@ -160,6 +174,8 @@ export default function StaffPage() {
       password: "",
       confirmPassword: "",
     });
+    setOriginalEmail(staff.email);
+    setEditStep(1);
     setIsEditModalOpen(true);
     setError("");
   };
@@ -168,6 +184,27 @@ export default function StaffPage() {
     e.preventDefault();
     if (!editingId) return;
     setError("");
+
+    // Detect Email Change
+    const isEmailChanged = editFormData.email !== originalEmail;
+
+    if (isEmailChanged && editStep === 1) {
+      setSubmitLoading(true);
+      try {
+        await api.post("/staff/email-change-otp/send", {
+          newEmail: editFormData.email,
+          staffId: editingId,
+        });
+        setEditStep(2);
+        setEditTimer(180);
+      } catch (err: unknown) {
+        const error = err as { response?: { data?: { message?: string } } };
+        setError(error.response?.data?.message || "Failed to send OTP");
+      } finally {
+        setSubmitLoading(false);
+      }
+      return;
+    }
 
     if (
       editFormData.password &&
@@ -183,15 +220,35 @@ export default function StaffPage() {
         name: editFormData.name,
         email: editFormData.email,
         password: editFormData.password || undefined,
+        otp: isEmailChanged ? editOtp : undefined,
       });
       setIsEditModalOpen(false);
       setEditingId(null);
+      setEditOtp("");
+      setEditStep(1);
       fetchStaff();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       const errorMessage =
         error.response?.data?.message || "Failed to update staff";
       setError(errorMessage);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const handleResendEditOtp = async () => {
+    if (editTimer > 0 || !editingId) return;
+    setSubmitLoading(true);
+    try {
+      await api.post("/staff/email-change-otp/send", {
+        newEmail: editFormData.email,
+        staffId: editingId,
+      });
+      setEditTimer(180);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || "Failed to resend OTP");
     } finally {
       setSubmitLoading(false);
     }
@@ -396,72 +453,127 @@ export default function StaffPage() {
       {/* Edit Staff Modal */}
       <Modal
         isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        title="Edit Staff Member"
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditStep(1);
+          setEditOtp("");
+          setError("");
+        }}
+        title={editStep === 1 ? "Edit Staff Member" : "Verify New Staff Email"}
       >
         <form onSubmit={handleUpdateStaff} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="edit-name">Name</Label>
-            <Input
-              id="edit-name"
-              value={editFormData.name}
-              onChange={(e) =>
-                setEditFormData({ ...editFormData, name: e.target.value })
-              }
-              placeholder="Staff Name"
-              required
-              className="glass-input"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="edit-email">Email</Label>
-            <Input
-              id="edit-email"
-              type="email"
-              value={editFormData.email}
-              onChange={(e) =>
-                setEditFormData({ ...editFormData, email: e.target.value })
-              }
-              placeholder="staff@example.com"
-              required
-              className="glass-input"
-            />
-          </div>
+          {editStep === 1 ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Name</Label>
+                <Input
+                  id="edit-name"
+                  value={editFormData.name}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, name: e.target.value })
+                  }
+                  placeholder="Staff Name"
+                  required
+                  className="glass-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editFormData.email}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, email: e.target.value })
+                  }
+                  placeholder="staff@example.com"
+                  required
+                  className="glass-input"
+                />
+              </div>
 
-          <div className="border-t border-white/10 pt-4 mt-2">
-            <p className="text-sm text-gray-400 mb-2">
-              Change Password (Optional)
-            </p>
-            <div className="space-y-2">
-              <Label htmlFor="edit-password">New Password</Label>
-              <Input
-                id="edit-password"
-                type="password"
-                value={editFormData.password}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, password: e.target.value })
-                }
-                placeholder="Leave blank to keep current"
-                className="glass-input"
-              />
+              <div className="border-t border-white/10 pt-4 mt-2">
+                <p className="text-sm text-gray-400 mb-2">
+                  Change Password (Optional)
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-password">New Password</Label>
+                  <Input
+                    id="edit-password"
+                    type="password"
+                    value={editFormData.password}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        password: e.target.value,
+                      })
+                    }
+                    placeholder="Leave blank to keep current"
+                    className="glass-input"
+                  />
+                </div>
+                <div className="space-y-2 mt-2">
+                  <Label htmlFor="edit-confirmPassword">
+                    Confirm New Password
+                  </Label>
+                  <Input
+                    id="edit-confirmPassword"
+                    type="password"
+                    value={editFormData.confirmPassword}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        confirmPassword: e.target.value,
+                      })
+                    }
+                    placeholder="Leave blank to keep current"
+                    className="glass-input"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-400">
+                A verification code has been sent to the new email:{" "}
+                <span className="text-white font-medium">
+                  {editFormData.email}
+                </span>
+                .
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="edit-otp">Verification Code</Label>
+                <Input
+                  id="edit-otp"
+                  value={editOtp}
+                  onChange={(e) => setEditOtp(e.target.value)}
+                  placeholder="123456"
+                  required
+                  maxLength={6}
+                  className="glass-input text-center text-lg tracking-widest"
+                  autoFocus
+                />
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">
+                  Valid for {Math.floor(editTimer / 60)}:
+                  {(editTimer % 60).toString().padStart(2, "0")}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleResendEditOtp}
+                  disabled={editTimer > 0 || submitLoading}
+                  className={`font-medium ${
+                    editTimer > 0
+                      ? "text-gray-700 cursor-not-allowed"
+                      : "text-blue-400 hover:text-blue-300"
+                  }`}
+                >
+                  Resend OTP
+                </button>
+              </div>
             </div>
-            <div className="space-y-2 mt-2">
-              <Label htmlFor="edit-confirmPassword">Confirm New Password</Label>
-              <Input
-                id="edit-confirmPassword"
-                type="password"
-                value={editFormData.confirmPassword}
-                onChange={(e) =>
-                  setEditFormData({
-                    ...editFormData,
-                    confirmPassword: e.target.value,
-                  })
-                }
-                placeholder="Leave blank to keep current"
-                className="glass-input"
-              />
-            </div>
-          </div>
+          )}
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
 
@@ -474,7 +586,7 @@ export default function StaffPage() {
               {submitLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              Save Changes
+              {editStep === 1 ? "Save Changes" : "Verify & Save Changes"}
             </Button>
           </div>
         </form>
