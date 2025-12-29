@@ -448,7 +448,7 @@ export default function ReservationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center justify-between w-full md:w-auto">
+        <div className="flex items-center w-full md:w-auto gap-6">
           <h2 className="text-3xl font-bold text-white">Reservations</h2>
           {role === "ADMIN" && (
             <div className="flex gap-2">
