@@ -17,16 +17,39 @@ import {
 import { Loader2 } from "lucide-react";
 import api from "@/lib/api";
 
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    name: "",
+    restaurantName: "",
+    ownerName: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
+  const [signupStep, setSignupStep] = useState(1); // 1: Form, 2: OTP
+  const [otp, setOtp] = useState("");
+  const [timer, setTimer] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // OTP Timer Logic
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -37,17 +60,60 @@ export default function SignupPage() {
     setError("");
     setLoading(true);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      setLoading(false);
-      return;
-    }
+    if (signupStep === 1) {
+      if (formData.password !== formData.confirmPassword) {
+        setError("Passwords do not match");
+        setLoading(false);
+        return;
+      }
 
+      try {
+        await api.post("/auth/signup-otp/send", {
+          email: formData.email,
+          restaurantName: formData.restaurantName,
+        });
+        setSignupStep(2);
+        setTimer(180); // 3 minutes
+      } catch (err: unknown) {
+        const msg =
+          (err as ApiError).response?.data?.message || "Failed to send OTP";
+        setError(msg);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      try {
+        await api.post("/auth/signup", {
+          name: formData.restaurantName,
+          username: formData.ownerName,
+          email: formData.email,
+          password: formData.password,
+          otp,
+        });
+        router.push("/login?signup=success");
+      } catch (err: unknown) {
+        const msg =
+          (err as ApiError).response?.data?.message || "Signup failed";
+        setError(msg);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (timer > 0) return;
+    setLoading(true);
     try {
-      await api.post("/auth/signup", formData);
-      router.push("/login");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Signup failed");
+      await api.post("/auth/signup-otp/send", {
+        email: formData.email,
+        restaurantName: formData.restaurantName,
+      });
+      setTimer(180);
+    } catch (err: unknown) {
+      const msg =
+        (err as ApiError).response?.data?.message || "Failed to resend OTP";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -61,62 +127,118 @@ export default function SignupPage() {
             Create Account
           </CardTitle>
           <CardDescription className="text-center text-gray-300">
-            Join the Italy's Reservation System
+            Join the Italy&apos;s Reservation System
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Restaurant Name / Owner Name</Label>
-              <Input
-                id="name"
-                name="name"
-                placeholder="Details of Owner"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="glass-input"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="owner@example.com"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="glass-input"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                className="glass-input"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                placeholder="••••••••"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-                className="glass-input"
-              />
-            </div>
+            {signupStep === 1 ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="restaurantName">Restaurant Name</Label>
+                  <Input
+                    id="restaurantName"
+                    name="restaurantName"
+                    placeholder="Grand Italia"
+                    value={formData.restaurantName}
+                    onChange={handleChange}
+                    required
+                    className="glass-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ownerName">Owner Name</Label>
+                  <Input
+                    id="ownerName"
+                    name="ownerName"
+                    placeholder="John Doe"
+                    value={formData.ownerName}
+                    onChange={handleChange}
+                    required
+                    className="glass-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="owner@example.com"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    className="glass-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    className="glass-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
+                    className="glass-input"
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-white">Verify Email</Label>
+                    <span className="text-xs text-blue-300">
+                      {formData.email}
+                    </span>
+                  </div>
+                  <Input
+                    id="otp"
+                    type="text"
+                    placeholder="123456"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    required
+                    className="glass-input text-center text-lg tracking-widest"
+                    autoFocus
+                  />
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-400">
+                    Valid for {Math.floor(timer / 60)}:
+                    {(timer % 60).toString().padStart(2, "0")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={timer > 0 || loading}
+                    className={`font-medium ${
+                      timer > 0
+                        ? "text-gray-600 cursor-not-allowed"
+                        : "text-blue-400 hover:text-blue-300"
+                    }`}
+                  >
+                    Resend OTP
+                  </button>
+                </div>
+              </div>
+            )}
 
             {error && <p className="text-red-400 text-sm">{error}</p>}
 
@@ -128,7 +250,7 @@ export default function SignupPage() {
               {loading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              Sign Up
+              {signupStep === 1 ? "Send OTP" : "Complete Signup"}
             </Button>
           </form>
         </CardContent>

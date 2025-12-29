@@ -13,20 +13,76 @@ const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
 export const signup = async (req: Request, res: Response) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, username, email, password, otp } = req.body;
 
+    // 1. Verify OTP
+    const record = await prisma.otpVerification.findUnique({ where: { email } });
+    if (!record) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    if (new Date() > record.expiresAt) {
+      await prisma.otpVerification.delete({ where: { email } });
+      return res.status(400).json({ message: 'OTP has expired' });
+    }
+
+    const isValid = await bcrypt.compare(otp, record.otp);
+    if (!isValid) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    // 2. Create Restaurant
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.restaurant.create({
       data: {
-        name,
+        name,      // Restaurant Name
+        username,  // Owner Name
         email,
         password: hashedPassword,
       },
     });
 
+    // 3. Cleanup OTP
+    await prisma.otpVerification.delete({ where: { email } });
+
     res.status(201).json({ message: 'User created successfully', userId: user.id });
   } catch (error) {
+    console.error('Signup Error:', error);
     res.status(500).json({ message: 'Error creating user', error });
+  }
+};
+
+export const sendSignupOtp = async (req: Request, res: Response) => {
+  try {
+    const { email, restaurantName } = req.body;
+
+    // 1. Check if email exists
+    const admin = await prisma.restaurant.findUnique({ where: { email } });
+    const staff = await prisma.staff.findUnique({ where: { email } });
+
+    if (admin || staff) {
+      return res.status(400).json({ message: 'Email already registered' });
+    }
+
+    // 2. Generate OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date(Date.now() + 3 * 60 * 1000);
+
+    // 3. Store OTP
+    await prisma.otpVerification.upsert({
+      where: { email },
+      update: { otp: hashedOtp, expiresAt },
+      create: { email, otp: hashedOtp, expiresAt },
+    });
+
+    // 4. Send Email
+    await EmailService.sendSignupOTP(email, otp, restaurantName);
+
+    res.json({ message: 'Signup OTP sent successfully' });
+  } catch (error) {
+    console.error('Send Signup OTP Error:', error);
+    res.status(500).json({ message: 'Error processing request', error });
   }
 };
 
