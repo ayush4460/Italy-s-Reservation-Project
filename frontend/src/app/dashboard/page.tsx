@@ -17,6 +17,13 @@ const getISTDate = () => {
   const istOffset = 5.5 * 60 * 60 * 1000;
   const istTime = new Date(now.getTime() + istOffset);
   return istTime.toISOString().split("T")[0];
+  return istTime.toISOString().split("T")[0];
+};
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split("-");
+  return `${d}-${m}-${y}`;
 };
 
 interface ReservationSummary {
@@ -161,7 +168,7 @@ export default function DashboardPage() {
           <h3 className="text-xl font-semibold text-white">
             {date === new Date().toISOString().split("T")[0]
               ? "Today's Bookings"
-              : `Bookings for ${date}`}
+              : `Bookings for ${formatDate(date)}`}
           </h3>
           {role === "ADMIN" && (
             <button
