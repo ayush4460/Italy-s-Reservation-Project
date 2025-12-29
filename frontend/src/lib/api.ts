@@ -12,7 +12,31 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Trigger global loader
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('ax-loading-start'));
+  }
   return config;
+}, (error) => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('ax-loading-stop'));
+  }
+  return Promise.reject(error);
 });
+
+api.interceptors.response.use(
+  (response) => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('ax-loading-stop'));
+    }
+    return response;
+  },
+  (error) => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('ax-loading-stop'));
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;

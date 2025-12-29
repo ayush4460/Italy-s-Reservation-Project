@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins, Montserrat } from "next/font/google";
 import "./globals.css";
+import { GlobalLoaderProvider } from "@/components/global-loader-provider";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -30,6 +31,7 @@ export default function RootLayout({
         className={`${poppins.variable} ${montserrat.variable} antialiased`}
         suppressHydrationWarning
       >
+        <GlobalLoaderProvider />
         {children}
       </body>
     </html>
