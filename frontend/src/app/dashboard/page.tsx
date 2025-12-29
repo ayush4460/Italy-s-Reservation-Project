@@ -3,7 +3,13 @@
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Armchair, CalendarCheck, Users } from "lucide-react";
+import {
+  Armchair,
+  CalendarCheck,
+  Users,
+  Download,
+  Loader2,
+} from "lucide-react";
 import { cn } from "@/lib/utils"; // Added import for cn
 
 export default function DashboardPage() {
@@ -17,6 +23,7 @@ export default function DashboardPage() {
     guestsExpected: 0,
     recentReservations: [] as any[], // Fix type
   });
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -51,6 +58,31 @@ export default function DashboardPage() {
       color: "text-purple-400",
     },
   ];
+
+  const handleDownloadExcel = async () => {
+    try {
+      setDownloading(true);
+      const response = await api.get("/reservations/export", {
+        params: { date },
+        responseType: "blob", // Important for file download
+      });
+
+      // Create a URL for the blob
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `Reservations_${date}.xlsx`); // Filename
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Failed to download excel", err);
+      // You might want to show a toast here
+      alert("Failed to download excel");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -89,11 +121,25 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-8">
-        <h3 className="text-xl font-semibold text-white mb-4">
-          {date === new Date().toISOString().split("T")[0]
-            ? "Today's Bookings"
-            : `Bookings for ${date}`}
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-semibold text-white">
+            {date === new Date().toISOString().split("T")[0]
+              ? "Today's Bookings"
+              : `Bookings for ${date}`}
+          </h3>
+          <button
+            onClick={handleDownloadExcel}
+            disabled={downloading}
+            className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-sm font-medium rounded-md border border-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {downloading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Download Excel
+          </button>
+        </div>
         <Card className="glass-panel border-none text-white min-h-[300px]">
           <CardContent className="p-0">
             {stats.recentReservations.length === 0 ? (
@@ -144,7 +190,7 @@ export default function DashboardPage() {
                             className="text-xs text-blue-300 italic truncate"
                             title={res.specialReq}
                           >
-                            "{res.specialReq}"
+                            &quot;{res.specialReq}&quot;
                           </div>
                         )}
                       </div>

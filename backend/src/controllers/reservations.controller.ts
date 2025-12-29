@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-// Controller responsible for reservation management
 import { PrismaClient } from '@prisma/client';
+import ExcelJS from 'exceljs';
 import redis from '../lib/redis';
 import { sendWhatsAppMessage, sendReservationTemplate } from '../lib/whatsapp';
 
@@ -436,5 +436,137 @@ export const cancelReservation = async (req: AuthRequest, res: Response) => {
     } catch (error) {
         console.error('Error cancelling reservation:', error);
         res.status(500).json({ message: 'Error cancelling reservation', error });
+    }
+}
+// Export Reservations to Excel
+export const exportReservations = async (req: AuthRequest, res: Response) => {
+    try {
+        const restaurantId = req.user?.userId;
+        if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        const { date } = req.query;
+        if (!date) return res.status(400).json({ message: 'Date is required' });
+
+        // 1. Fetch Reservations
+        const dateObj = new Date(date as string);
+        const dayStart = new Date(dateObj); dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(dateObj); dayEnd.setHours(23, 59, 59, 999);
+
+        const reservations = await prisma.reservation.findMany({
+            where: {
+                table: { restaurantId },
+                date: {
+                    gte: dayStart,
+                    lt: dayEnd,
+                },
+                status: { not: 'CANCELLED' }
+            },
+            include: {
+                table: true,
+                slot: true
+            },
+            orderBy: [
+                { slot: { startTime: 'asc' } }, // Sort by time
+                { table: { tableNumber: 'asc' } }
+            ]
+        });
+
+        if (reservations.length === 0) {
+            return res.status(404).json({ message: 'No reservations found for this date' });
+        }
+
+        // 2. Create Workbook
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Italy\'s Reservation System';
+        workbook.created = new Date();
+
+        // 3. Group by Slot
+        const reservationsBySlot: { [key: string]: typeof reservations } = {};
+        
+        reservations.forEach(res => {
+            const slotKey = `${res.slot.startTime} - ${res.slot.endTime}`;
+            if (!reservationsBySlot[slotKey]) {
+                reservationsBySlot[slotKey] = [];
+            }
+            reservationsBySlot[slotKey].push(res);
+        });
+
+        // 4. Create Sheets
+        Object.keys(reservationsBySlot).sort().forEach(slotKey => {
+            const sheet = workbook.addWorksheet(slotKey.replace(/:/g, '-'));
+            
+            // Define Columns
+            sheet.columns = [
+                { header: 'Date', key: 'date', width: 15 },
+                { header: 'Time (IST)', key: 'time', width: 20 },
+                { header: 'Table', key: 'table', width: 15 }, // Increased width
+                { header: 'Customer Name', key: 'name', width: 25 },
+                { header: 'Contact', key: 'contact', width: 15 },
+                { header: 'Adults', key: 'adults', width: 10 },
+                { header: 'Kids', key: 'kids', width: 10 },
+                { header: 'Food Pref', key: 'foodPref', width: 15 },
+                { header: 'Special Req', key: 'specialReq', width: 30 },
+            ];
+
+            // Style Header
+            sheet.getRow(1).font = { bold: true };
+            sheet.getRow(1).fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFE0E0E0' }
+            };
+
+            // Group by GroupID to merge tables
+            const processedReservations: any[] = [];
+            const groupMap: { [key: string]: any } = {};
+
+            reservationsBySlot[slotKey].forEach(r => {
+                if (r.groupId) {
+                    if (groupMap[r.groupId]) {
+                        groupMap[r.groupId].tables.push(r.table.tableNumber);
+                    } else {
+                        groupMap[r.groupId] = {
+                            ...r,
+                            tables: [r.table.tableNumber]
+                        };
+                        processedReservations.push(groupMap[r.groupId]);
+                    }
+                } else {
+                    processedReservations.push({
+                        ...r,
+                        tables: [r.table.tableNumber]
+                    });
+                }
+            });
+
+            // Add Data
+            processedReservations.forEach(r => {
+                const rDate = new Date(r.date);
+                const formattedDate = `${rDate.getDate().toString().padStart(2, '0')}/${(rDate.getMonth() + 1).toString().padStart(2, '0')}/${rDate.getFullYear()}`;
+                
+                sheet.addRow({
+                    date: formattedDate,
+                    time: slotKey,
+                    table: r.tables.sort().join(', '), // Comma separated tables
+                    name: r.customerName,
+                    contact: r.contact,
+                    adults: r.adults,
+                    kids: r.kids,
+                    foodPref: r.foodPref,
+                    specialReq: r.specialReq || '-'
+                });
+            });
+        });
+
+        // 5. Stream Response
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=Reservations_${date}.xlsx`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+
+    } catch (error) {
+        console.error('Export Error:', error);
+        res.status(500).json({ message: 'Failed to export excel', error });
     }
 }
