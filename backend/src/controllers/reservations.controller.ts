@@ -120,6 +120,57 @@ export const deleteSlot = async (req: AuthRequest, res: Response) => {
     }
 }
 
+
+// Get Tables WITH Reservations for a specific slot (Merged Endpoint)
+export const getTablesWithReservations = async (req: AuthRequest, res: Response) => {
+    try {
+        const restaurantId = req.user?.restaurantId;
+        if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        const { date, slotId } = req.query;
+
+        if (!date || !slotId) {
+            return res.status(400).json({ message: 'Date and Slot ID required' });
+        }
+
+        const dateObj = new Date(date as string);
+        const startOfDay = new Date(dateObj); startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(dateObj); endOfDay.setHours(23, 59, 59, 999);
+
+        // Run queries in parallel
+        const [tables, reservations] = await Promise.all([
+            prisma.table.findMany({
+                where: { restaurantId }
+            }),
+            prisma.reservation.findMany({
+                where: {
+                    table: { restaurantId },
+                    slotId: parseInt(slotId as string),
+                    date: {
+                        gte: startOfDay,
+                        lt: endOfDay,
+                    },
+                    status: { not: 'CANCELLED' }
+                },
+                include: {
+                    table: true
+                }
+            })
+        ]);
+
+        // Sort tables numerically
+        tables.sort((a, b) => {
+            return a.tableNumber.localeCompare(b.tableNumber, undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        res.json({ tables, reservations });
+
+    } catch(error) {
+        console.error('Error fetching tables with reservations:', error);
+        res.status(500).json({ message: 'Error fetching data', error });
+    }
+}
+
 export const getReservations = async (req: AuthRequest, res: Response) => {
     try {
         const restaurantId = req.user?.restaurantId;

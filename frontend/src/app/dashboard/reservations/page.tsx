@@ -120,46 +120,63 @@ export default function ReservationsPage() {
     fetchInitialData();
   }, [date]); // Refetch slots when date changes to get day-specific slots
 
-  useEffect(() => {
-    if (selectedSlot && date) {
-      fetchReservations();
-    }
-  }, [selectedSlot, date]);
-
+  // Refactored to fetch slots first, then tables+reservations together
   const fetchInitialData = async () => {
     try {
-      const [slotsData, tablesData] = await Promise.all([
-        reservationService.getSlots(date),
-        reservationService.getTables(),
-      ]);
+      setLoading(true);
+      const slotsData = await reservationService.getSlots(date);
       setSlots(slotsData);
-      setTables(tablesData);
+
       if (slotsData.length > 0) {
+        // This will trigger the useEffect below to fetch unified data
         setSelectedSlot(slotsData[0]);
       } else {
         setSelectedSlot(null);
+        // Fallback: If no slots, just show empty tables (old method)
+        const tablesData = await reservationService.getTables();
+        setTables(tablesData);
+        setReservations([]);
+        setLoading(false); // Manually set loading false here as useEffect won't run
       }
     } catch (err) {
       console.error("Failed to load initial data", err);
+      setLoading(false);
+    }
+  };
+
+  // Unified fetcher for Tables + Reservations
+  const fetchTableData = async () => {
+    if (!selectedSlot) return;
+    try {
+      // Don't set global loading here to avoid full page spinner flicker if just switching slots?
+      // User wants "load together". If we don't show spinner, user sees old state.
+      // Better to show spinner or overlay.
+      // But we have 'loading' state which hides everything?
+      // Existing 'loading' state hides the whole page.
+      // Let's use it for likely first load, but for slot switching maybe just opacity?
+      // For now, let's keep it simple.
+
+      const data = await reservationService.getTablesWithAvailability(
+        date,
+        selectedSlot.id
+      );
+      setTables(data.tables);
+      setReservations(data.reservations);
+    } catch (err) {
+      console.error("Failed to fetch table data", err);
+      // Fallback
+      setTables([]);
+      setReservations([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchReservations = async () => {
-    if (!selectedSlot) return;
-    try {
-      const data = await reservationService.getReservations(
-        date,
-        selectedSlot.id
-      );
-      setReservations(data);
-    } catch (err) {
-      console.error("Failed to fetch reservations", err);
-      // If 404/error, maybe clear reservations
-      setReservations([]);
+  useEffect(() => {
+    if (selectedSlot && date) {
+      fetchTableData();
     }
-  };
+  }, [selectedSlot, date]);
 
   const handleTableClick = (table: Table) => {
     if (role === "STAFF") return; // Read-only for staff
@@ -234,7 +251,7 @@ export default function ReservationsPage() {
         foodPref: "Regular",
         specialReq: "",
       });
-      fetchReservations();
+      fetchTableData();
     } catch (err) {
       console.error("Booking failed", err);
       alert("Failed to create reservation");
@@ -255,7 +272,7 @@ export default function ReservationsPage() {
       );
       setIsEditModalOpen(false);
       setEditingReservation(null);
-      fetchReservations();
+      fetchTableData();
     } catch (err) {
       console.error("Update failed", err);
       alert("Failed to update reservation");
@@ -276,7 +293,7 @@ export default function ReservationsPage() {
       await reservationService.cancelReservation(editingReservation.id);
       setIsEditModalOpen(false);
       setEditingReservation(null);
-      fetchReservations();
+      fetchTableData();
     } catch (err) {
       console.error("Cancel failed", err);
       alert("Failed to cancel reservation");
@@ -307,7 +324,7 @@ export default function ReservationsPage() {
       setIsMoveModalOpen(false);
       setMovingReservation(null);
       setMoveTargetTable(null);
-      fetchReservations();
+      fetchTableData();
     } catch (err) {
       console.error("Move failed", err);
       alert("Failed to move reservation. Target might be taken.");
@@ -373,7 +390,7 @@ export default function ReservationsPage() {
         specialReq: "",
       });
       setGroupSelectedTables([]);
-      fetchReservations();
+      fetchTableData();
     } catch (err) {
       console.error("Group booking failed", err);
       alert("Failed to create group booking");

@@ -79,6 +79,17 @@ class ReservationService {
     return response.data;
   }
 
+  // Unified fetching
+  async getTablesWithAvailability(date: string, slotId: number) {
+    const response = await api.get<{ tables: Table[]; reservations: Reservation[] }>(
+      "/reservations/availability",
+      {
+        params: { date, slotId },
+      }
+    );
+    return response.data;
+  }
+
   async createReservation(data: CreateReservationDto) {
     const response = await api.post<Reservation>("/reservations", data);
     return response.data;
