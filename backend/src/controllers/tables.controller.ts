@@ -60,6 +60,48 @@ export const createTable = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const updateTable = async (req: AuthRequest, res: Response) => {
+    try {
+        const restaurantId = req.user?.userId;
+        if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        const { id } = req.params;
+        const { tableNumber, capacity } = req.body;
+
+        // 1. Check if table exists
+        const existingTable = await prisma.table.findFirst({
+            where: { id: parseInt(id), restaurantId }
+        });
+
+        if (!existingTable) return res.status(404).json({ message: 'Table not found' });
+
+        // 2. Check for Unique Table Number (if changed)
+        if (tableNumber && tableNumber !== existingTable.tableNumber) {
+            const duplicate = await prisma.table.findFirst({
+                where: { restaurantId, tableNumber }
+            });
+            if (duplicate) {
+                return res.status(400).json({ message: 'Table number already exists' });
+            }
+        }
+
+        // 3. Update
+        const updatedTable = await prisma.table.update({
+            where: { id: parseInt(id) },
+            data: {
+                tableNumber: tableNumber || undefined,
+                capacity: capacity ? parseInt(capacity) : undefined
+            }
+        });
+
+        res.json(updatedTable);
+
+    } catch (error) {
+        console.error('Error updating table:', error);
+        res.status(500).json({ message: 'Error updating table', error });
+    }
+}
+
 export const deleteTable = async (req: AuthRequest, res: Response) => {
   try {
     const restaurantId = req.user?.userId;

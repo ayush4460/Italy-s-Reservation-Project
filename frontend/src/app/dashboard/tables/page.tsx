@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
-import { Plus, Trash2, Armchair } from "lucide-react";
+import { Plus, Trash2, Armchair, Pencil, Loader2 } from "lucide-react";
 
 interface Table {
   id: number;
@@ -27,6 +27,15 @@ export default function TablesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ tableNumber: "", capacity: "" });
   const [error, setError] = useState("");
+
+  // Edit State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTable, setEditingTable] = useState<Table | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    tableNumber: "",
+    capacity: "",
+  });
+  const [editLoading, setEditLoading] = useState(false);
 
   const fetchTables = async () => {
     try {
@@ -65,6 +74,35 @@ export default function TablesPage() {
     }
   };
 
+  const handleEditClick = (table: Table) => {
+    setEditingTable(table);
+    setEditFormData({
+      tableNumber: table.tableNumber,
+      capacity: table.capacity.toString(),
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateTable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTable) return;
+    setEditLoading(true);
+    try {
+      await api.put(`/tables/${editingTable.id}`, editFormData);
+      setIsEditModalOpen(false);
+      setEditingTable(null);
+      fetchTables();
+    } catch (err: unknown) {
+      const errorMessage =
+        (err as any).response?.data?.message || "Failed to update table";
+      setError(errorMessage);
+      // Clear error after 3 seconds
+      setTimeout(() => setError(""), 3000);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -94,7 +132,15 @@ export default function TablesPage() {
                   Capacity: {table.capacity} People
                 </p>
               </CardContent>
-              <CardFooter className="justify-end pt-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              <CardFooter className="justify-end pt-0 opacity-0 group-hover:opacity-100 transition-opacity gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                  onClick={() => handleEditClick(table)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -147,6 +193,57 @@ export default function TablesPage() {
           <div className="flex justify-end pt-4">
             <Button type="submit" className="glass-button w-full">
               Create Table
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Table Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Table"
+      >
+        <form onSubmit={handleUpdateTable} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Table Number</Label>
+            <Input
+              value={editFormData.tableNumber}
+              onChange={(e) =>
+                setEditFormData({
+                  ...editFormData,
+                  tableNumber: e.target.value,
+                })
+              }
+              placeholder="e.g. A1 or 01"
+              required
+              className="glass-input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Capacity</Label>
+            <Input
+              type="number"
+              value={editFormData.capacity}
+              onChange={(e) =>
+                setEditFormData({ ...editFormData, capacity: e.target.value })
+              }
+              placeholder="e.g. 4"
+              required
+              className="glass-input"
+            />
+          </div>
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <div className="flex justify-end pt-4">
+            <Button
+              type="submit"
+              className="glass-button w-full"
+              disabled={editLoading}
+            >
+              {editLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Update Table
             </Button>
           </div>
         </form>
