@@ -167,8 +167,8 @@ export default function DashboardPage() {
                     }}
                   >
                     <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-300 font-bold">
-                        {res.table.tableNumber}
+                      <div className="flex bg-blue-500/20 text-blue-300 font-bold px-3 py-2 rounded-lg items-center justify-center min-w-[3rem]">
+                        <span className="text-lg">{res.table.tableNumber}</span>
                       </div>
                       <div>
                         <div className="font-semibold text-white">
