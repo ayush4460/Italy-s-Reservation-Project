@@ -89,3 +89,12 @@ model Reservation {
   @@index([date])
   @@index([status])
 }
+
+model OtpVerification {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  otp       String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

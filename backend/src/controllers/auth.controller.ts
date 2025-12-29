@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { generateCaptcha } from '../utils/captcha';
+import { EmailService } from '../services/email.service';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
@@ -64,6 +66,123 @@ export const login = async (req: Request, res: Response) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Login error', error });
+  }
+};
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    // 1. Check if user exists (Admin or Staff)
+    let user = await prisma.restaurant.findUnique({ where: { email } });
+    if (!user) {
+      user = await prisma.staff.findUnique({ where: { email } }) as any;
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'Email not registered' });
+    }
+
+    // 2. Generate OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3 minutes
+
+    // 3. Store OTP
+    await prisma.otpVerification.upsert({
+      where: { email },
+      update: {
+        otp: hashedOtp,
+        expiresAt,
+      },
+      create: {
+        email,
+        otp: hashedOtp,
+        expiresAt,
+      },
+    });
+
+    // 4. Send Email
+    // Fetch restaurant name if staff, or own name if admin
+    let restaurantName = "Italy's Reservation";
+    if ((user as any).restaurantId) {
+        const r = await prisma.restaurant.findUnique({ where: { id: (user as any).restaurantId } });
+        if (r) restaurantName = r.name;
+    } else {
+        restaurantName = user.name;
+    }
+
+    await EmailService.sendOTP(email, otp, restaurantName);
+
+    res.json({ message: 'OTP sent successfully' });
+
+  } catch (error) {
+    console.error('Forgot Password Error:', error);
+    res.status(500).json({ message: 'Error processing request', error });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    // 1. Verify OTP Record
+    const record = await prisma.otpVerification.findUnique({ where: { email } });
+    
+    if (!record) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    // 2. Check Expiry
+    if (new Date() > record.expiresAt) {
+      await prisma.otpVerification.delete({ where: { email } });
+      return res.status(400).json({ message: 'OTP has expired' });
+    }
+
+    // 3. Verify Hash
+    const isValid = await bcrypt.compare(otp, record.otp);
+    if (!isValid) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    // 4. Hash New Password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // 5. Update User (Try Admin then Staff)
+    let updated = false;
+    
+    // Try Admin
+    const admin = await prisma.restaurant.findUnique({ where: { email } });
+    if (admin) {
+        await prisma.restaurant.update({
+            where: { email },
+            data: { password: hashedPassword }
+        });
+        updated = true;
+    } else {
+        // Try Staff
+        const staff = await prisma.staff.findUnique({ where: { email } });
+        if (staff) {
+            await prisma.staff.update({
+                where: { email },
+                data: { password: hashedPassword }
+            });
+            updated = true;
+        }
+    }
+
+    if (!updated) {
+        return res.status(404).json({ message: 'User not found' });
+    }
+
+    // 6. Delete OTP Record
+    await prisma.otpVerification.delete({ where: { email } });
+
+    res.json({ message: 'Password reset successfully' });
+
+  } catch (error) {
+    console.error('Reset Password Error:', error);
+    res.status(500).json({ message: 'Error resetting password', error });
   }
 };
 
