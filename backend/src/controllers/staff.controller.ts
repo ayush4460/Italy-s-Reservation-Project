@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import { EmailService } from '../services/email.service';
 
 const prisma = new PrismaClient();
 
@@ -28,16 +30,32 @@ export const getStaff = async (req: AuthRequest, res: Response) => {
 // Create new staff
 export const createStaff = async (req: AuthRequest, res: Response) => {
     try {
-        const restaurantId = req.user?.userId;
+        const restaurantId = req.user?.restaurantId;
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
 
-        const { name, email, password } = req.body;
+        const { name, email, password, otp } = req.body;
 
-        if (!name || !email || !password) {
-            return res.status(400).json({ message: 'All fields are required' });
+        if (!name || !email || !password || !otp) {
+            return res.status(400).json({ message: 'All fields including OTP are required' });
         }
 
-        // Check if email exists (in Staff or Restaurant)
+        // 1. Verify OTP
+        const record = await prisma.otpVerification.findUnique({ where: { email } });
+        if (!record) {
+            return res.status(400).json({ message: 'Invalid or expired OTP' });
+        }
+
+        if (new Date() > record.expiresAt) {
+            await prisma.otpVerification.delete({ where: { email } });
+            return res.status(400).json({ message: 'OTP has expired' });
+        }
+
+        const isValid = await bcrypt.compare(otp, record.otp);
+        if (!isValid) {
+            return res.status(400).json({ message: 'Invalid OTP' });
+        }
+
+        // 2. Check if email exists
         const existingStaff = await prisma.staff.findUnique({ where: { email } });
         const existingRestaurant = await prisma.restaurant.findUnique({ where: { email } });
 
@@ -57,10 +75,55 @@ export const createStaff = async (req: AuthRequest, res: Response) => {
             }
         });
 
+        // 3. Cleanup OTP
+        await prisma.otpVerification.delete({ where: { email } });
+
         res.status(201).json({ message: 'Staff created successfully', staff: newStaff });
 
     } catch (error) {
+        console.error('Create Staff Error:', error);
         res.status(500).json({ message: 'Error creating staff', error });
+    }
+};
+
+export const sendStaffOtp = async (req: AuthRequest, res: Response) => {
+    try {
+        const { email } = req.body;
+        const restaurantId = req.user?.restaurantId;
+
+        if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        // 1. Check if email exists
+        const admin = await prisma.restaurant.findUnique({ where: { email } });
+        const staff = await prisma.staff.findUnique({ where: { email } });
+
+        if (admin || staff) {
+            return res.status(400).json({ message: 'Email address already in use' });
+        }
+
+        // 2. Generate OTP
+        const otp = crypto.randomInt(100000, 999999).toString();
+        const hashedOtp = await bcrypt.hash(otp, 10);
+        const expiresAt = new Date(Date.now() + 3 * 60 * 1000);
+
+        // 3. Store OTP
+        await prisma.otpVerification.upsert({
+            where: { email },
+            update: { otp: hashedOtp, expiresAt },
+            create: { email, otp: hashedOtp, expiresAt },
+        });
+
+        // 4. Send Email
+        const restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantId } });
+        const restaurantName = restaurant?.name || "Italy's Reservation";
+
+        await EmailService.sendStaffRegistrationOTP(email, otp, restaurantName);
+
+        res.json({ message: 'OTP sent to staff email' });
+
+    } catch (error) {
+        console.error('Send Staff OTP Error:', error);
+        res.status(500).json({ message: 'Error sending OTP', error });
     }
 };
 

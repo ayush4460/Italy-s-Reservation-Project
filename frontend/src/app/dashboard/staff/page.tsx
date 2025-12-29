@@ -38,6 +38,21 @@ export default function StaffPage() {
   const [error, setError] = useState("");
   const [submitLoading, setSubmitLoading] = useState(false);
 
+  // OTP State
+  const [addStep, setAddStep] = useState(1); // 1: Form, 2: OTP
+  const [otp, setOtp] = useState("");
+  const [timer, setTimer] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
+
   // Edit State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -73,26 +88,55 @@ export default function StaffPage() {
     e.preventDefault();
     setError("");
 
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
+    if (addStep === 1) {
+      if (formData.password !== formData.confirmPassword) {
+        setError("Passwords do not match");
+        return;
+      }
 
+      setSubmitLoading(true);
+      try {
+        await api.post("/staff/otp/send", { email: formData.email });
+        setAddStep(2);
+        setTimer(180); // 3 minutes
+      } catch (err: unknown) {
+        const error = err as { response?: { data?: { message?: string } } };
+        setError(error.response?.data?.message || "Failed to send OTP");
+      } finally {
+        setSubmitLoading(false);
+      }
+    } else {
+      setSubmitLoading(true);
+      try {
+        await api.post("/staff", {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          otp,
+        });
+        setFormData({ name: "", email: "", password: "", confirmPassword: "" });
+        setOtp("");
+        setAddStep(1);
+        setIsModalOpen(false);
+        fetchStaff();
+      } catch (err: unknown) {
+        const error = err as { response?: { data?: { message?: string } } };
+        setError(error.response?.data?.message || "Verification failed");
+      } finally {
+        setSubmitLoading(false);
+      }
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (timer > 0) return;
     setSubmitLoading(true);
     try {
-      await api.post("/staff", {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-      });
-      setFormData({ name: "", email: "", password: "", confirmPassword: "" });
-      setIsModalOpen(false);
-      fetchStaff();
+      await api.post("/staff/otp/send", { email: formData.email });
+      setTimer(180);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      const errorMessage =
-        error.response?.data?.message || "Failed to create staff";
-      setError(errorMessage);
+      setError(error.response?.data?.message || "Failed to resend OTP");
     } finally {
       setSubmitLoading(false);
     }
@@ -221,65 +265,116 @@ export default function StaffPage() {
       {/* Add Staff Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Add New Staff Member"
+        onClose={() => {
+          setIsModalOpen(false);
+          setAddStep(1);
+          setOtp("");
+          setError("");
+        }}
+        title={addStep === 1 ? "Add New Staff Member" : "Verify Staff Email"}
       >
         <form onSubmit={handleCreateStaff} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              placeholder="Staff Name"
-              required
-              className="glass-input"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              placeholder="staff@example.com"
-              required
-              className="glass-input"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-              placeholder="••••••••"
-              required
-              className="glass-input"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              value={formData.confirmPassword}
-              onChange={(e) =>
-                setFormData({ ...formData, confirmPassword: e.target.value })
-              }
-              placeholder="••••••••"
-              required
-              className="glass-input"
-            />
-          </div>
+          {addStep === 1 ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  placeholder="Staff Name"
+                  required
+                  className="glass-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  placeholder="staff@example.com"
+                  required
+                  className="glass-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                  placeholder="••••••••"
+                  required
+                  className="glass-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      confirmPassword: e.target.value,
+                    })
+                  }
+                  placeholder="••••••••"
+                  required
+                  className="glass-input"
+                />
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-400">
+                A verification code has been sent to{" "}
+                <span className="text-white font-medium">{formData.email}</span>
+                .
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="otp">Verification Code</Label>
+                <Input
+                  id="otp"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  placeholder="123456"
+                  required
+                  maxLength={6}
+                  className="glass-input text-center text-lg tracking-widest"
+                  autoFocus
+                />
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">
+                  Valid for {Math.floor(timer / 60)}:
+                  {(timer % 60).toString().padStart(2, "0")}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={timer > 0 || submitLoading}
+                  className={`font-medium ${
+                    timer > 0
+                      ? "text-gray-700 cursor-not-allowed"
+                      : "text-blue-400 hover:text-blue-300"
+                  }`}
+                >
+                  Resend OTP
+                </button>
+              </div>
+            </div>
+          )}
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
 
@@ -292,7 +387,7 @@ export default function StaffPage() {
               {submitLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              Create Account
+              {addStep === 1 ? "Send Invitation" : "Verify & Create Account"}
             </Button>
           </div>
         </form>
