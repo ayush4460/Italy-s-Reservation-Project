@@ -17,6 +17,15 @@ import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { useProfile } from "@/context/profile-context";
+import { Modal } from "@/components/ui/modal";
+
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -24,14 +33,31 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    username: "", // Added username
+    username: "",
     address: "",
     phone: "",
     bannerUrl: "",
     logoUrl: "",
   });
+  const [originalEmail, setOriginalEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // OTP Modal State
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpTimer, setOtpTimer] = useState(0);
+  const [otpLoading, setOtpLoading] = useState(false);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [otpTimer]);
 
   useEffect(() => {
     const role = localStorage.getItem("role");
@@ -45,14 +71,8 @@ export default function ProfilePage() {
   const fetchProfile = async () => {
     try {
       const res = await api.get("/restaurants/me");
-      // Ensure backend returns username in the response structure or map it correctly
-      // Assuming res.data contains { restaurant: {...}, user: { name, email, role, ... } } ??
-      // Actually based on previous conversations, /restaurants/me might return deeply nested or flat data.
-      // Let's assume safely. If backend doesn't return username, we might need to fetch /auth/me or update backend.
-      // But user said "this is admin username", implies purely frontend display change first?
-      // Wait, user said "add field Username and this is admin username".
-      // I'll add the field to formData. Ideally fetch it.
       setFormData(res.data);
+      setOriginalEmail(res.data.email);
     } catch (err) {
       console.error("Failed to fetch profile", err);
       toast.error("Failed to fetch profile data");
@@ -67,16 +87,67 @@ export default function ProfilePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check if email has changed
+    if (formData.email !== originalEmail) {
+      setSaving(true);
+      try {
+        await api.post("/restaurants/email-otp/send", {
+          newEmail: formData.email,
+        });
+        setShowOtpModal(true);
+        setOtpTimer(180); // 3 minutes
+        toast.success("Verification code sent to your new email");
+      } catch (err: unknown) {
+        const msg =
+          (err as ApiError).response?.data?.message || "Failed to send OTP";
+        toast.error(msg);
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    saveProfile();
+  };
+
+  const saveProfile = async (code?: string) => {
     setSaving(true);
+    setOtpLoading(true);
 
     try {
-      await api.put("/restaurants/me", formData);
-      await refetchProfile(); // Refresh context to update header
+      const payload = { ...formData, otp: code };
+      await api.put("/restaurants/me", payload);
+      await refetchProfile();
+      setOriginalEmail(formData.email);
+      setShowOtpModal(false);
+      setOtp("");
       toast.success("Profile updated successfully");
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Failed to update profile");
+    } catch (err: unknown) {
+      const msg =
+        (err as ApiError).response?.data?.message || "Failed to update profile";
+      toast.error(msg);
     } finally {
       setSaving(false);
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (otpTimer > 0) return;
+    setOtpLoading(true);
+    try {
+      await api.post("/restaurants/email-otp/send", {
+        newEmail: formData.email,
+      });
+      setOtpTimer(180);
+      toast.success("OTP resent successfully");
+    } catch (err: unknown) {
+      const msg =
+        (err as ApiError).response?.data?.message || "Failed to resend OTP";
+      toast.error(msg);
+    } finally {
+      setOtpLoading(false);
     }
   };
 
@@ -177,6 +248,64 @@ export default function ProfilePage() {
           </CardFooter>
         </Card>
       </form>
+
+      <Modal
+        isOpen={showOtpModal}
+        onClose={() => setShowOtpModal(false)}
+        title="Verify New Email"
+      >
+        <div className="space-y-4 pt-4">
+          <p className="text-sm text-gray-400">
+            A verification code has been sent to{" "}
+            <span className="text-white font-medium">{formData.email}</span>.
+            Please enter it below to confirm the change.
+          </p>
+
+          <div className="space-y-2">
+            <Label className="text-white">Verification Code</Label>
+            <Input
+              type="text"
+              placeholder="123456"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              className="glass-input text-center text-2xl tracking-[0.5em] font-bold py-6"
+              autoFocus
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-sm pt-2">
+            <span className="text-gray-500">
+              Valid for {Math.floor(otpTimer / 60)}:
+              {(otpTimer % 60).toString().padStart(2, "0")}
+            </span>
+            <button
+              type="button"
+              onClick={handleResendOtp}
+              disabled={otpTimer > 0 || otpLoading}
+              className={`font-medium ${
+                otpTimer > 0
+                  ? "text-gray-700 cursor-not-allowed"
+                  : "text-blue-400 hover:text-blue-300"
+              }`}
+            >
+              Resend Code
+            </button>
+          </div>
+
+          <Button
+            onClick={() => saveProfile(otp)}
+            disabled={otp.length !== 6 || otpLoading}
+            className="w-full glass-button mt-4 py-6 text-lg"
+          >
+            {otpLoading ? (
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            ) : (
+              "Verify & Save Changes"
+            )}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

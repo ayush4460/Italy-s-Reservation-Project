@@ -260,4 +260,64 @@ export const EmailService = {
       throw new Error('Failed to send Signup OTP email');
     }
   },
+
+  sendEmailChangeOTP: async (email: string, otp: string, name: string, restaurantName: string = "Italy's Reservation") => {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9f9f9; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden; }
+          .header { background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); padding: 30px 0; text-align: center; }
+          .header h1 { color: #ffffff; margin: 0; font-size: 24px; font-weight: 300; }
+          .content { padding: 40px; text-align: center; }
+          .greeting { color: #333; font-size: 20px; margin-bottom: 20px; }
+          .message { color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px; }
+          .otp-container { background-color: #f0f4f8; border-radius: 12px; padding: 15px 30px; display: inline-block; margin-bottom: 30px; border: 2px dashed #d1d9e6; }
+          .otp-code { color: #2c3e50; font-size: 32px; font-weight: 700; letter-spacing: 5px; margin: 0; }
+          .footer { background-color: #f9f9f9; padding: 20px; text-align: center; border-top: 1px solid #eee; }
+          .footer p { color: #999; font-size: 12px; margin: 5px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>${restaurantName}</h1>
+          </div>
+          <div class="content">
+            <h2 class="greeting">Hello ${name},</h2>
+            <p class="message">
+              We received a request to change your account email. Use the code below to verify your new email address:
+            </p>
+            <div class="otp-container">
+              <p class="otp-code">${otp}</p>
+            </div>
+            <p class="message">
+              This code is valid for <strong>3 minutes</strong>. <br/>
+              <strong>Note:</strong> Once verified, you must use this new email to login.
+            </p>
+          </div>
+          <div class="footer">
+            <p>&copy; ${new Date().getFullYear()} ${restaurantName}. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      await transporter.sendMail({
+        from: `"${restaurantName}" <${SMTP_USER}>`,
+        to: email,
+        subject: `Verify New Email - ${restaurantName}`,
+        html,
+      });
+      console.log('Email Change OTP sent successfully to', email);
+    } catch (error) {
+      console.error('Error sending email change OTP email:', error);
+      throw new Error('Failed to send Email Change OTP email');
+    }
+  },
 };
