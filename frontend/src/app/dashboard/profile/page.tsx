@@ -88,6 +88,23 @@ export default function ProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validate email format
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    // Validate phone format (if present)
+    // Allows optional +, spaces, dashes, and requires 10-15 digits
+    if (formData.phone) {
+      const phoneRegex = /^\+?[0-9\s-]{10,15}$/;
+      if (!phoneRegex.test(formData.phone)) {
+        toast.error("Please enter a valid phone number (e.g., +1 234 567 890)");
+        return;
+      }
+    }
+
     // Check if email has changed
     if (formData.email !== originalEmail) {
       setSaving(true);
@@ -168,74 +185,91 @@ export default function ProfilePage() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        <Card className="glass-panel border-none text-white">
-          <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
+        <Card className="glass-panel border-none text-white p-2">
+          <CardHeader className="pb-6 border-b border-white/5 mx-6 px-0 mb-6">
+            <CardTitle className="text-xl">Basic Information</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Restaurant Name</Label>
+          <CardContent className="space-y-8 px-8 pb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <Label htmlFor="name" className="text-sm text-gray-300">
+                  Restaurant Name
+                </Label>
                 <Input
                   id="name"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="glass-input"
+                  className="bg-white/5 border-white/10 h-10 text-sm focus:bg-white/10 focus:border-blue-500/50 transition-all placeholder:text-gray-500"
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+              <div className="space-y-3">
+                <Label htmlFor="username" className="text-sm text-gray-300">
+                  Username
+                </Label>
                 <Input
                   id="username"
                   name="username"
                   value={formData.username || ""}
                   onChange={handleChange}
-                  className="glass-input"
+                  className="bg-white/5 border-white/10 h-10 text-sm focus:bg-white/10 focus:border-blue-500/50 transition-all placeholder:text-gray-500"
                   placeholder="Enter admin username"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="email" className="text-sm text-gray-300">
+                Email Address
+              </Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="bg-white/5 border-white/10 h-10 text-sm focus:bg-white/10 focus:border-blue-500/50 transition-all placeholder:text-gray-500"
+              />
+              <p className="text-xs text-gray-500 ml-1">
+                Changing your email will require verification.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <Label htmlFor="address" className="text-sm text-gray-300">
+                  Address
+                </Label>
                 <Input
-                  id="email"
-                  name="email"
-                  value={formData.email}
+                  id="address"
+                  name="address"
+                  value={formData.address || ""}
                   onChange={handleChange}
-                  className="glass-input"
+                  placeholder="123 Main St, City"
+                  className="bg-white/5 border-white/10 h-10 text-sm focus:bg-white/10 focus:border-blue-500/50 transition-all placeholder:text-gray-500"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <Label htmlFor="phone" className="text-sm text-gray-300">
+                  Phone Number
+                </Label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  value={formData.phone || ""}
+                  onChange={handleChange}
+                  placeholder="+1 234 567 890"
+                  className="bg-white/5 border-white/10 h-10 text-sm focus:bg-white/10 focus:border-blue-500/50 transition-all placeholder:text-gray-500"
                 />
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                name="address"
-                value={formData.address || ""}
-                onChange={handleChange}
-                placeholder="123 Main St, City"
-                className="glass-input"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                name="phone"
-                value={formData.phone || ""}
-                onChange={handleChange}
-                placeholder="+1 234 567 890"
-                className="glass-input"
-              />
-            </div>
           </CardContent>
-          <CardFooter className="flex flex-col items-start gap-4">
+          <CardFooter className="flex flex-col items-start gap-4 px-8 pb-8 pt-0">
             <Button
               type="submit"
-              className="glass-button w-full md:w-auto"
+              className="bg-blue-600 hover:bg-blue-700 text-white min-w-[200px] h-10 text-sm"
               disabled={saving}
             >
               {saving ? (
