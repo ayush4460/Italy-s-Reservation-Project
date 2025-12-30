@@ -90,7 +90,7 @@ export default function SignupPage() {
           password: formData.password,
           otp,
         });
-        router.push("/login?signup=success");
+        router.push("/?signup=success");
       } catch (err: unknown) {
         const msg =
           (err as ApiError).response?.data?.message || "Signup failed";
@@ -258,7 +258,7 @@ export default function SignupPage() {
           <p className="text-sm text-gray-300">
             Already have an account?{" "}
             <Link
-              href="/login"
+              href="/"
               className="text-blue-300 hover:text-blue-200 font-semibold"
             >
               Login

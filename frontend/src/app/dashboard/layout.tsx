@@ -45,7 +45,7 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
-    router.push("/login");
+    router.push("/");
   };
 
   // Close dropdown on click outside
