@@ -262,170 +262,172 @@ export default function DashboardPage() {
       </div>
 
       {/* Analytics Chart Section */}
-      <div className="mt-12">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-blue-400" />
-            <h3 className="text-xl font-semibold text-white">
-              Reservation Analysis
-            </h3>
-          </div>
+      {role === "ADMIN" && (
+        <div className="mt-12">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-blue-400" />
+              <h3 className="text-xl font-semibold text-white">
+                Reservation Analysis
+              </h3>
+            </div>
 
-          <div className="flex items-center gap-2 sm:justify-end">
-            <button
-              onClick={handleDownloadChart}
-              title="Download Analysis as Image"
-              className="flex items-center justify-center p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-all shadow-lg hover:scale-105 active:scale-95"
-            >
-              <ImageIcon className="h-4 w-4" />
-            </button>
-            <div className="flex items-center gap-1.5 bg-white/10 rounded-xl px-2.5 py-1.5 border border-white/20 shadow-inner w-fit">
-              <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-              <input
-                type="date"
-                value={chartStart}
-                onChange={(e) => setChartStart(e.target.value)}
-                className="bg-transparent text-white text-[11px] sm:text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[100px] sm:w-[120px] p-0"
-              />
-              <span className="text-gray-500 font-bold text-[10px] px-0.5">
-                →
-              </span>
-              <input
-                type="date"
-                value={chartEnd}
-                onChange={(e) => setChartEnd(e.target.value)}
-                className="bg-transparent text-white text-[11px] sm:text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[100px] sm:w-[120px] p-0"
-              />
+            <div className="flex items-center gap-2 sm:justify-end">
+              <button
+                onClick={handleDownloadChart}
+                title="Download Analysis as Image"
+                className="flex items-center justify-center p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-all shadow-lg hover:scale-105 active:scale-95"
+              >
+                <ImageIcon className="h-4 w-4" />
+              </button>
+              <div className="flex items-center gap-1.5 bg-white/10 rounded-xl px-2.5 py-1.5 border border-white/20 shadow-inner w-fit">
+                <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                <input
+                  type="date"
+                  value={chartStart}
+                  onChange={(e) => setChartStart(e.target.value)}
+                  className="bg-transparent text-white text-[11px] sm:text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[100px] sm:w-[120px] p-0"
+                />
+                <span className="text-gray-500 font-bold text-[10px] px-0.5">
+                  →
+                </span>
+                <input
+                  type="date"
+                  value={chartEnd}
+                  onChange={(e) => setChartEnd(e.target.value)}
+                  className="bg-transparent text-white text-[11px] sm:text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[100px] sm:w-[120px] p-0"
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div ref={chartRef}>
-        <Card className="glass-panel border-none p-4 sm:p-6 overflow-hidden">
-          <div className="h-[280px] sm:h-[350px] md:h-[400px] w-full -ml-4 sm:ml-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={stats.analyticsData}
-                margin={{ top: 20, right: 10, left: -5, bottom: 40 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#ffffff10"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="date"
-                  stroke="#9ca3af"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  dy={10}
-                  tickFormatter={(dateStr) => {
-                    const d = new Date(`${dateStr}T00:00:00.000Z`);
-                    return d.getUTCDate().toString();
-                  }}
-                >
-                  <Label
-                    value={
-                      stats.analyticsData.length > 0
-                        ? new Date(
-                            `${stats.analyticsData[0].date}T00:00:00.000Z`
-                          ).toLocaleString("en-US", { month: "long" })
-                        : "Month"
-                    }
-                    position="bottom"
-                    offset={20}
-                    fill="#9ca3af"
-                    fontSize={14}
-                    fontWeight="bold"
-                  />
-                </XAxis>
-                <YAxis
-                  stroke="#9ca3af"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => `${value}`}
-                >
-                  <Label
-                    value="Total Count"
-                    angle={-90}
-                    position="insideLeft"
-                    offset={15}
-                    style={{
-                      textAnchor: "middle",
-                      fill: "#9ca3af",
-                      fontSize: 13,
-                      fontWeight: "medium",
-                    }}
-                  />
-                </YAxis>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1f2937",
-                    border: "none",
-                    borderRadius: "8px",
-                    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                    color: "#fff",
-                  }}
-                  itemStyle={{ fontSize: "13px" }}
-                  cursor={{ stroke: "#ffffff20", strokeWidth: 1 }}
-                />
-                <Legend
-                  verticalAlign="top"
-                  align="right"
-                  height={36}
-                  iconType="circle"
-                  wrapperStyle={{ fontSize: "12px", color: "#9ca3af" }}
-                />
-                <Line
-                  name="Reservations"
-                  type="monotone"
-                  dataKey="count"
-                  stroke="#3b82f6"
-                  strokeWidth={3}
-                  dot={{
-                    r: 4,
-                    fill: "#3b82f6",
-                    strokeWidth: 2,
-                    stroke: "#fff",
-                  }}
-                  activeDot={{ r: 6 }}
-                  animationDuration={1500}
-                  label={{
-                    position: "top",
-                    fill: "#60a5fa",
-                    fontSize: 10,
-                    offset: 12,
-                  }}
-                />
-                <Line
-                  name="Total Guests"
-                  type="monotone"
-                  dataKey="guestCount"
-                  stroke="#10b981"
-                  strokeWidth={3}
-                  dot={{
-                    r: 4,
-                    fill: "#10b981",
-                    strokeWidth: 2,
-                    stroke: "#fff",
-                  }}
-                  activeDot={{ r: 6 }}
-                  animationDuration={1500}
-                  label={{
-                    position: "top",
-                    fill: "#34d399",
-                    fontSize: 10,
-                    offset: 12,
-                  }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+          <div ref={chartRef}>
+            <Card className="glass-panel border-none p-4 sm:p-6 overflow-hidden">
+              <div className="h-[280px] sm:h-[350px] md:h-[400px] w-full -ml-4 sm:ml-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={stats.analyticsData}
+                    margin={{ top: 20, right: 10, left: -5, bottom: 40 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#ffffff10"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="date"
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      dy={10}
+                      tickFormatter={(dateStr) => {
+                        const d = new Date(`${dateStr}T00:00:00.000Z`);
+                        return d.getUTCDate().toString();
+                      }}
+                    >
+                      <Label
+                        value={
+                          stats.analyticsData.length > 0
+                            ? new Date(
+                                `${stats.analyticsData[0].date}T00:00:00.000Z`
+                              ).toLocaleString("en-US", { month: "long" })
+                            : "Month"
+                        }
+                        position="bottom"
+                        offset={20}
+                        fill="#9ca3af"
+                        fontSize={14}
+                        fontWeight="bold"
+                      />
+                    </XAxis>
+                    <YAxis
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => `${value}`}
+                    >
+                      <Label
+                        value="Total Count"
+                        angle={-90}
+                        position="insideLeft"
+                        offset={15}
+                        style={{
+                          textAnchor: "middle",
+                          fill: "#9ca3af",
+                          fontSize: 13,
+                          fontWeight: "medium",
+                        }}
+                      />
+                    </YAxis>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f2937",
+                        border: "none",
+                        borderRadius: "8px",
+                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                        color: "#fff",
+                      }}
+                      itemStyle={{ fontSize: "13px" }}
+                      cursor={{ stroke: "#ffffff20", strokeWidth: 1 }}
+                    />
+                    <Legend
+                      verticalAlign="top"
+                      align="right"
+                      height={36}
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: "12px", color: "#9ca3af" }}
+                    />
+                    <Line
+                      name="Reservations"
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#3b82f6"
+                      strokeWidth={3}
+                      dot={{
+                        r: 4,
+                        fill: "#3b82f6",
+                        strokeWidth: 2,
+                        stroke: "#fff",
+                      }}
+                      activeDot={{ r: 6 }}
+                      animationDuration={1500}
+                      label={{
+                        position: "top",
+                        fill: "#60a5fa",
+                        fontSize: 10,
+                        offset: 12,
+                      }}
+                    />
+                    <Line
+                      name="Total Guests"
+                      type="monotone"
+                      dataKey="guestCount"
+                      stroke="#10b981"
+                      strokeWidth={3}
+                      dot={{
+                        r: 4,
+                        fill: "#10b981",
+                        strokeWidth: 2,
+                        stroke: "#fff",
+                      }}
+                      activeDot={{ r: 6 }}
+                      animationDuration={1500}
+                      label={{
+                        position: "top",
+                        fill: "#34d399",
+                        fontSize: 10,
+                        offset: 12,
+                      }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
           </div>
-        </Card>
-      </div>
+        </div>
+      )}
 
       <div className="mt-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
@@ -530,145 +532,147 @@ export default function DashboardPage() {
       </div>
 
       {/* NEW: Today's Slot Analysis */}
-      <div className="mt-8">
-        <Card className="glass-panel border-none text-white">
-          <CardHeader>
-            <CardTitle className="text-lg font-medium flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CalendarCheck className="h-5 w-5 text-purple-400" />
-                Daily Time Slot Analysis
-              </div>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={handleDownloadSlotChart}
-                  title="Download Analysis as Image"
-                  className="flex items-center justify-center p-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 transition-all shadow-lg hover:scale-105 active:scale-95"
-                >
-                  <ImageIcon className="h-4 w-4" />
-                </button>
-                <div className="flex items-center gap-4 text-sm font-normal">
-                  <div className="flex flex-col items-end">
-                    <span className="text-gray-400 text-xs">
-                      Total Bookings
-                    </span>
-                    <span className="text-purple-400 font-bold">
-                      {stats.todayBookings}
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-gray-400 text-xs text-right">
-                      Total Guests
-                    </span>
-                    <span className="text-blue-400 font-bold">
-                      {stats.guestsExpected}
-                    </span>
-                  </div>
+      {role === "ADMIN" && (
+        <div className="mt-8">
+          <Card className="glass-panel border-none text-white">
+            <CardHeader>
+              <CardTitle className="text-lg font-medium flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CalendarCheck className="h-5 w-5 text-purple-400" />
+                  Daily Time Slot Analysis
                 </div>
-              </div>
-            </CardTitle>
-            <p className="text-xs text-gray-500">
-              Breakdown for {formatDate(date)}
-            </p>
-          </CardHeader>
-          <div ref={slotChartRef}>
-            <CardContent className="h-[350px]">
-              {!stats.slotAnalytics || stats.slotAnalytics.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                  <CalendarCheck className="h-10 w-10 mb-2 opacity-20" />
-                  <p>No slot data available for today</p>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={stats.slotAnalytics}
-                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={handleDownloadSlotChart}
+                    title="Download Analysis as Image"
+                    className="flex items-center justify-center p-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 transition-all shadow-lg hover:scale-105 active:scale-95"
                   >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="rgba(255,255,255,0.1)"
-                      vertical={false}
-                    />
-                    <XAxis
-                      dataKey="timeSlot"
-                      stroke="#9ca3af"
-                      tick={{ fill: "#9ca3af", fontSize: 12 }}
-                      axisLine={false}
-                      tickLine={false}
+                    <ImageIcon className="h-4 w-4" />
+                  </button>
+                  <div className="flex items-center gap-4 text-sm font-normal">
+                    <div className="flex flex-col items-end">
+                      <span className="text-gray-400 text-xs">
+                        Total Bookings
+                      </span>
+                      <span className="text-purple-400 font-bold">
+                        {stats.todayBookings}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-gray-400 text-xs text-right">
+                        Total Guests
+                      </span>
+                      <span className="text-blue-400 font-bold">
+                        {stats.guestsExpected}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardTitle>
+              <p className="text-xs text-gray-500">
+                Breakdown for {formatDate(date)}
+              </p>
+            </CardHeader>
+            <div ref={slotChartRef}>
+              <CardContent className="h-[350px]">
+                {!stats.slotAnalytics || stats.slotAnalytics.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                    <CalendarCheck className="h-10 w-10 mb-2 opacity-20" />
+                    <p>No slot data available for today</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={stats.slotAnalytics}
+                      margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
                     >
-                      <Label
-                        value="Time Slots"
-                        offset={-5}
-                        position="insideBottom"
-                        fill="#6b7280"
-                        fontSize={12}
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="rgba(255,255,255,0.1)"
+                        vertical={false}
                       />
-                    </XAxis>
-                    <YAxis
-                      stroke="#9ca3af"
-                      tick={{ fill: "#9ca3af", fontSize: 12 }}
-                      axisLine={false}
-                      tickLine={false}
-                    >
-                      <Label
-                        value="Count"
-                        angle={-90}
-                        position="insideLeft"
-                        fill="#6b7280"
-                        fontSize={12}
-                        offset={10}
+                      <XAxis
+                        dataKey="timeSlot"
+                        stroke="#9ca3af"
+                        tick={{ fill: "#9ca3af", fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                      >
+                        <Label
+                          value="Time Slots"
+                          offset={-5}
+                          position="insideBottom"
+                          fill="#6b7280"
+                          fontSize={12}
+                        />
+                      </XAxis>
+                      <YAxis
+                        stroke="#9ca3af"
+                        tick={{ fill: "#9ca3af", fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                      >
+                        <Label
+                          value="Count"
+                          angle={-90}
+                          position="insideLeft"
+                          fill="#6b7280"
+                          fontSize={12}
+                          offset={10}
+                        />
+                      </YAxis>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "rgba(0,0,0,0.8)",
+                          borderColor: "rgba(255,255,255,0.1)",
+                          borderRadius: "8px",
+                          color: "#fff",
+                        }}
+                        cursor={{ fill: "rgba(255,255,255,0.05)" }}
                       />
-                    </YAxis>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "rgba(0,0,0,0.8)",
-                        borderColor: "rgba(255,255,255,0.1)",
-                        borderRadius: "8px",
-                        color: "#fff",
-                      }}
-                      cursor={{ fill: "rgba(255,255,255,0.05)" }}
-                    />
-                    <Legend wrapperStyle={{ paddingTop: "20px" }} />
-                    <Bar
-                      dataKey="bookings"
-                      name="Bookings"
-                      fill="#8b5cf6"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={50}
-                    >
-                      <LabelList
+                      <Legend wrapperStyle={{ paddingTop: "20px" }} />
+                      <Bar
                         dataKey="bookings"
-                        position="top"
+                        name="Bookings"
                         fill="#8b5cf6"
-                        fontSize={10}
-                        formatter={(val: unknown) =>
-                          Number(val) > 0 ? Number(val) : ""
-                        }
-                      />
-                    </Bar>
-                    <Bar
-                      dataKey="guests"
-                      name="Guests Expected"
-                      fill="#3b82f6"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={50}
-                    >
-                      <LabelList
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={50}
+                      >
+                        <LabelList
+                          dataKey="bookings"
+                          position="top"
+                          fill="#8b5cf6"
+                          fontSize={10}
+                          formatter={(val: unknown) =>
+                            Number(val) > 0 ? Number(val) : ""
+                          }
+                        />
+                      </Bar>
+                      <Bar
                         dataKey="guests"
-                        position="top"
+                        name="Guests Expected"
                         fill="#3b82f6"
-                        fontSize={10}
-                        formatter={(val: unknown) =>
-                          Number(val) > 0 ? Number(val) : ""
-                        }
-                      />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </div>
-        </Card>
-      </div>
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={50}
+                      >
+                        <LabelList
+                          dataKey="guests"
+                          position="top"
+                          fill="#3b82f6"
+                          fontSize={10}
+                          formatter={(val: unknown) =>
+                            Number(val) > 0 ? Number(val) : ""
+                          }
+                        />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
