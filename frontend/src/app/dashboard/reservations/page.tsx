@@ -21,7 +21,7 @@ import {
   ArrowLeftRight, // Correct icon name for move
   Trash2,
   Loader2,
-  X,
+  Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -142,6 +142,7 @@ export default function ReservationsPage() {
     useState<Reservation | null>(null);
   const [moveTargetTable, setMoveTargetTable] = useState<Table | null>(null);
   const [moveLoading, setMoveLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   // Long Press State
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(
@@ -315,24 +316,28 @@ export default function ReservationsPage() {
     }
   };
 
-  const handleCancelReservation = async () => {
+  const handleCancelReservation = async (id: number) => {
     if (
-      !editingReservation ||
-      !confirm("Are you sure you want to cancel this reservation?")
+      !confirm(
+        "Are you sure you want to cancel this reservation? This will make the table available immediately."
+      )
     )
       return;
-
-    setBookingLoading(true); // Reuse loading state
+    setCancelLoading(true);
     try {
-      await reservationService.cancelReservation(editingReservation.id);
-      setIsEditModalOpen(false);
+      await reservationService.cancelReservation(id);
+      setIsEditModalOpen(false); // Close edit modal if open
+      setIsLongPressModalOpen(false); // Close long press modal if open
       setEditingReservation(null);
+      setMovingReservation(null); // Clear moving reservation if it was set
       fetchTableData();
+      // toast.success("Reservation cancelled successfully"); // Uncomment if toast is implemented
     } catch (err) {
       console.error("Cancel failed", err);
+      // toast.error("Failed to cancel reservation"); // Uncomment if toast is implemented
       alert("Failed to cancel reservation");
     } finally {
-      setBookingLoading(false);
+      setCancelLoading(false);
     }
   };
 
@@ -934,10 +939,13 @@ export default function ReservationsPage() {
               type="button"
               variant="destructive"
               className="flex-1 bg-red-500/20 text-red-400 hover:bg-red-500/30"
-              onClick={handleCancelReservation}
-              disabled={bookingLoading}
+              onClick={() =>
+                editingReservation &&
+                handleCancelReservation(editingReservation.id)
+              }
+              disabled={cancelLoading}
             >
-              {bookingLoading && (
+              {cancelLoading && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               Cancel Reservation
@@ -1493,42 +1501,53 @@ export default function ReservationsPage() {
         </div>
       </Modal>
 
-      {/* Long Press Action Modal (Mobile) */}
+      {/* Mobile Actions Modal (Long Press) */}
       <Modal
         isOpen={isLongPressModalOpen}
         onClose={() => setIsLongPressModalOpen(false)}
         title={`Table ${longPressedTable?.tableNumber} Actions`}
       >
         <div className="space-y-4">
-          <div className="bg-white/5 p-4 rounded-lg">
-            <p className="text-sm text-gray-400">Guest</p>
-            <p className="font-bold text-lg">
+          <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1">
+              Current Guest
+            </p>
+            <p className="font-bold text-xl text-white">
               {movingReservation?.customerName}
             </p>
+            {movingReservation?.groupId && (
+              <p className="text-xs text-blue-400 font-semibold mt-1 flex items-center gap-1">
+                <Users className="h-3 w-3" /> Merged Group
+              </p>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Button
-              className="glass-button bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 flex-col py-8"
-              onClick={() => {
-                // Trigger move modal
-                handleMoveClick(movingReservation!);
-              }}
-            >
-              <ArrowLeftRight className="h-6 w-6 mb-2" />
-              Move Table
-            </Button>
+          <div className="grid grid-cols-1 gap-3">
+            {role === "ADMIN" && (
+              <Button
+                className="glass-button bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 border-blue-500/20 py-6 h-auto flex items-center justify-start px-6 gap-4"
+                onClick={() => {
+                  handleMoveClick(movingReservation!);
+                }}
+              >
+                <div className="p-2 rounded-lg bg-blue-500/20">
+                  <ArrowLeftRight className="h-5 w-5" />
+                </div>
+                <div className="text-left">
+                  <p className="font-bold text-sm">Move Table</p>
+                  <p className="text-[10px] opacity-60">
+                    Reassign to another table
+                  </p>
+                </div>
+              </Button>
+            )}
 
             <Button
-              variant="destructive"
-              className="bg-red-500/20 text-red-300 hover:bg-red-500/30 flex-col py-8"
+              className="glass-button bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 border-purple-500/20 py-6 h-auto flex items-center justify-start px-6 gap-4"
               onClick={() => {
-                // Open edit/cancel modal
                 setIsLongPressModalOpen(false);
-                /* Trigger edit logic */
-                setEditingReservation(movingReservation);
-                // Need to populate edit form data
                 if (movingReservation) {
+                  setEditingReservation(movingReservation);
                   setEditFormData({
                     customerName: movingReservation.customerName,
                     contact: movingReservation.contact,
@@ -1541,10 +1560,51 @@ export default function ReservationsPage() {
                 }
               }}
             >
-              <X className="h-6 w-6 mb-2" />
-              Cancel / Edit
+              <div className="p-2 rounded-lg bg-purple-500/20">
+                <Pencil className="h-5 w-5" />
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-sm">Edit Booking</p>
+                <p className="text-[10px] opacity-60">
+                  Update guest details or preferences
+                </p>
+              </div>
             </Button>
+
+            {role === "ADMIN" && (
+              <Button
+                variant="destructive"
+                disabled={cancelLoading}
+                className="bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/20 py-6 h-auto flex items-center justify-start px-6 gap-4"
+                onClick={() => {
+                  if (movingReservation)
+                    handleCancelReservation(movingReservation.id);
+                }}
+              >
+                <div className="p-2 rounded-lg bg-red-500/20">
+                  {cancelLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-5 w-5" />
+                  )}
+                </div>
+                <div className="text-left">
+                  <p className="font-bold text-sm">Cancel Reservation</p>
+                  <p className="text-[10px] opacity-60">
+                    Release table and notify guest
+                  </p>
+                </div>
+              </Button>
+            )}
           </div>
+
+          <Button
+            variant="ghost"
+            className="w-full text-gray-500 hover:text-white mt-2"
+            onClick={() => setIsLongPressModalOpen(false)}
+          >
+            Close Menu
+          </Button>
         </div>
       </Modal>
     </div>
