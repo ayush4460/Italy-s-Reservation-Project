@@ -6,10 +6,10 @@ import redis from '../lib/redis';
 const clearDashboardCache = async (restaurantId: number, date: Date | string) => {
     try {
         const dateKey = typeof date === 'string' ? date : date.toISOString().split('T')[0];
-        // The dashboard cache key is complex: dashboard:stats:v7:restaurantId:dateKey:chartStart:chartEnd
+        // The dashboard cache key is complex: dashboard:stats:v10:restaurantId:dateKey:chartStart:chartEnd
         // We need to clear all keys for this restaurant that might contain stats for this day.
-        // Easiest is to clear all dashboard:stats:v7:restaurantId:*
-        const pattern = `dashboard:stats:v7:${restaurantId}:*`;
+        // Easiest is to clear all dashboard:stats:v10:restaurantId:*
+        const pattern = `dashboard:stats:v10:${restaurantId}:*`;
         
         let cursor = '0';
         do {

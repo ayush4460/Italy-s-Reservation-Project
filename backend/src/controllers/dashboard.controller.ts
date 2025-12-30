@@ -21,15 +21,16 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         const dateKey = date ? (date as string) : new Date().toISOString().split('T')[0];
 
         if (date) {
-             const selectedDate = new Date(date as string);
-             startOfDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+             // Treat input date string (YYYY-MM-DD) as UTC start
+             startOfDay = new Date(`${date}T00:00:00.000Z`);
         } else {
              const now = new Date();
-             startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+             const todayStr = now.toISOString().split('T')[0];
+             startOfDay = new Date(`${todayStr}T00:00:00.000Z`);
         }
         
         endOfDay = new Date(startOfDay);
-        endOfDay.setDate(endOfDay.getDate() + 1);
+        endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
 
         // --- ANALYTICS RANGE ---
         const chartStartStr = (req.query.chartStart as string) || "";
