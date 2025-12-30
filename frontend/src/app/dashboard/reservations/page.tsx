@@ -140,7 +140,7 @@ export default function ReservationsPage() {
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [movingReservation, setMovingReservation] =
     useState<Reservation | null>(null);
-  const [moveTargetTable, setMoveTargetTable] = useState<Table | null>(null);
+  const [moveTargetTables, setMoveTargetTables] = useState<Table[]>([]);
   const [moveLoading, setMoveLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
 
@@ -346,27 +346,27 @@ export default function ReservationsPage() {
   const handleMoveClick = (reservation: Reservation, e?: React.MouseEvent) => {
     e?.stopPropagation(); // Prevent opening table details
     setMovingReservation(reservation);
-    setMoveTargetTable(null);
+    setMoveTargetTables([]);
     setIsMoveModalOpen(true);
     setIsLongPressModalOpen(false); // Close long press modal if open
   };
 
   const handleMoveSubmit = async () => {
-    if (!movingReservation || !moveTargetTable) return;
+    if (!movingReservation || moveTargetTables.length === 0) return;
 
     setMoveLoading(true);
     try {
       await reservationService.moveReservation(
         movingReservation.id,
-        moveTargetTable.id
+        moveTargetTables.map((t) => t.id)
       );
       setIsMoveModalOpen(false);
       setMovingReservation(null);
-      setMoveTargetTable(null);
+      setMoveTargetTables([]);
       fetchTableData();
     } catch (err) {
       console.error("Move failed", err);
-      alert("Failed to move reservation. Target might be taken.");
+      alert("Failed to move reservation. Targets might be taken.");
     } finally {
       setMoveLoading(false);
     }
@@ -670,7 +670,11 @@ export default function ReservationsPage() {
                   </span>
                   <div className="flex items-center text-xs mt-1 opacity-70">
                     <Users className="h-3 w-3 mr-1" />
-                    {table.capacity}
+                    {isBooked && reservation
+                      ? `${
+                          (reservation.adults || 0) + (reservation.kids || 0)
+                        } / ${table.capacity}`
+                      : table.capacity}
                   </div>
                   {isBooked && (
                     <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
@@ -1509,32 +1513,99 @@ export default function ReservationsPage() {
             <span className="text-white font-bold">
               {movingReservation?.customerName}
             </span>{" "}
-            from current table. Select a new table below:
+            from current table. Select new table(s) below:
           </p>
+
+          {/* Validation Status */}
+          {(() => {
+            const totalGuests =
+              (movingReservation?.adults || 0) + (movingReservation?.kids || 0);
+            const totalCapacity = moveTargetTables.reduce(
+              (sum, t) => sum + t.capacity,
+              0
+            );
+            const isSufficient = totalCapacity >= totalGuests;
+            const remaining = totalGuests - totalCapacity;
+
+            return (
+              <div className="flex items-center justify-between bg-white/5 p-3 rounded-lg border border-white/10">
+                <div className="flex items-center gap-2">
+                  <Users
+                    className={cn(
+                      "h-4 w-4",
+                      isSufficient ? "text-green-400" : "text-red-400"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "text-sm font-medium",
+                      isSufficient ? "text-green-400" : "text-red-400"
+                    )}
+                  >
+                    {isSufficient
+                      ? "Capacity Met"
+                      : `Note: Need ${remaining} more seats`}
+                  </span>
+                </div>
+                <div className="text-xs text-white/50">
+                  {totalCapacity} / {totalGuests} Guests
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="grid grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto p-1">
             {tables
-              .filter(
-                (t) => !reservations.find((r) => r.tableId === t.id) // Only available tables (simplified check)
-              )
-              .map((table) => (
-                <button
-                  key={table.id}
-                  onClick={() => setMoveTargetTable(table)}
-                  className={cn(
-                    "flex flex-col items-center justify-center p-3 rounded-lg border transition-all",
-                    moveTargetTable?.id === table.id
-                      ? "bg-blue-500/20 border-blue-400 text-blue-300"
-                      : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
-                  )}
-                >
-                  <Armchair className="h-6 w-6 mb-1" />
-                  <span className="font-bold">{table.tableNumber}</span>
-                  <span className="text-xs opacity-70">
-                    Cap: {table.capacity}
-                  </span>
-                </button>
-              ))}
+              .filter((t) => {
+                // 1. If table is available (not booked), always show
+                const isBooked = reservations.some((r) => r.tableId === t.id);
+                if (!isBooked) return true;
+
+                // 2. If table is booked:
+                // Check if it belongs to the CURRENT merging group
+                if (movingReservation?.groupId) {
+                  const bookedByCurrentGroup = reservations.some(
+                    (r) =>
+                      r.tableId === t.id &&
+                      r.groupId === movingReservation.groupId
+                  );
+                  return bookedByCurrentGroup;
+                }
+
+                // If single reservation, do not show booked tables (even its own, usually)
+                // Unless we want to allow "staying" on same table + adding others?
+                // User requirement: "in individual moves only available tables"
+                return false;
+              })
+              .map((table) => {
+                const isSelected = moveTargetTables.some(
+                  (t) => t.id === table.id
+                );
+                return (
+                  <button
+                    key={table.id}
+                    onClick={() => {
+                      setMoveTargetTables((prev) =>
+                        isSelected
+                          ? prev.filter((t) => t.id !== table.id)
+                          : [...prev, table]
+                      );
+                    }}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-3 rounded-lg border transition-all",
+                      isSelected
+                        ? "bg-blue-500/20 border-blue-400 text-blue-300"
+                        : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+                    )}
+                  >
+                    <Armchair className="h-6 w-6 mb-1" />
+                    <span className="font-bold">{table.tableNumber}</span>
+                    <span className="text-xs opacity-70">
+                      Cap: {table.capacity}
+                    </span>
+                  </button>
+                );
+              })}
             {tables.filter((t) => !reservations.find((r) => r.tableId === t.id))
               .length === 0 && (
               <div className="col-span-3 text-center text-gray-500 py-4">
@@ -1546,11 +1617,40 @@ export default function ReservationsPage() {
           <div className="flex justify-end pt-4">
             <Button
               className="glass-button w-full"
-              disabled={!moveTargetTable || moveLoading}
+              disabled={
+                moveTargetTables.length === 0 ||
+                moveLoading ||
+                (() => {
+                  const totalGuests =
+                    (movingReservation?.adults || 0) +
+                    (movingReservation?.kids || 0);
+                  const totalCapacity = moveTargetTables.reduce(
+                    (sum, t) => sum + t.capacity,
+                    0
+                  );
+                  return totalGuests > totalCapacity;
+                })()
+              }
               onClick={handleMoveSubmit}
             >
               {moveLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirm Move to {moveTargetTable?.tableNumber}
+              {(() => {
+                const totalGuests =
+                  (movingReservation?.adults || 0) +
+                  (movingReservation?.kids || 0);
+                const totalCapacity = moveTargetTables.reduce(
+                  (sum, t) => sum + t.capacity,
+                  0
+                );
+                if (totalGuests > totalCapacity) {
+                  return `Select tables to allot remaining ${
+                    totalGuests - totalCapacity
+                  } guests`;
+                }
+                return `Confirm Move to ${moveTargetTables
+                  .map((t) => t.tableNumber)
+                  .join(", ")}`;
+              })()}
             </Button>
           </div>
         </div>

@@ -367,7 +367,7 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ message: 'Error creating reservation', error });
     }
 }
-// Move Reservation
+// Move Reservation (Smart Move)
 export const moveReservation = async (req: AuthRequest, res: Response) => {
     try {
         const restaurantId = req.user?.restaurantId;
@@ -376,52 +376,117 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
         if (req.user?.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
 
         const { id } = req.params;
-        const { newTableId } = req.body;
+        const { newTableIds } = req.body; // Expect array of table IDs
 
-        if (!newTableId) {
-            return res.status(400).json({ message: 'New Table ID is required' });
+        if (!newTableIds || !Array.isArray(newTableIds) || newTableIds.length === 0) {
+            return res.status(400).json({ message: 'New Table IDs are required' });
         }
 
-        // 1. Get current reservation
-        const reservation = await prisma.reservation.findFirst({
+        // 1. Get current reservation (to find group)
+        const currentRes = await prisma.reservation.findFirst({
             where: { id: parseInt(id), table: { restaurantId } }
         });
 
-        if (!reservation) return res.status(404).json({ message: 'Reservation not found' });
+        if (!currentRes) return res.status(404).json({ message: 'Reservation not found' });
 
-        // 2. Verify new table exists and belongs to restaurant
-        const newTable = await prisma.table.findFirst({
-            where: { id: parseInt(newTableId), restaurantId }
-        });
-
-        if (!newTable) return res.status(404).json({ message: 'Target table not found' });
-
-        // 3. Check if new table is available for the same slot and date
-        const existing = await prisma.reservation.findFirst({
-            where: {
-                tableId: parseInt(newTableId),
-                slotId: reservation.slotId, // Same slot
-                date: reservation.date,     // Same date
-                status: { not: 'CANCELLED' }
-            }
-        });
-
-        if (existing) {
-             return res.status(400).json({ message: 'Target table is already booked for this slot' });
+        // 2. Identify all "Old" reservations (if grouped)
+        let oldReservations = [currentRes];
+        if (currentRes.groupId) {
+            oldReservations = await prisma.reservation.findMany({
+                where: { groupId: currentRes.groupId, table: { restaurantId } }
+            });
         }
 
-        // 4. Update reservation
-        const updated = await prisma.reservation.update({
-            where: { id: parseInt(id) },
-            data: {
-                tableId: parseInt(newTableId)
+        // 3. Verify New Tables (Existence & Ownership)
+        const newTables = await prisma.table.findMany({
+            where: {
+                id: { in: newTableIds },
+                restaurantId
             }
         });
 
-        // 5. Invalidate Cache
-        await clearDashboardCache(restaurantId, reservation.date);
+        if (newTables.length !== newTableIds.length) {
+            return res.status(404).json({ message: 'One or more target tables not found' });
+        }
 
-        res.json(updated);
+        // 4. Validate Capacity
+        // Use guest count from the *primary* old reservation (assuming duplicated info)
+        const totalGuests = (currentRes.adults || 0) + (currentRes.kids || 0);
+        const newTotalCapacity = newTables.reduce((sum, t) => sum + t.capacity, 0);
+
+        if (totalGuests > newTotalCapacity) {
+             return res.status(400).json({ 
+                 message: `Capacity insufficient. Guests: ${totalGuests}, Target Capacity: ${newTotalCapacity}` 
+             });
+        }
+
+        // 5. Check Availability of New Tables
+        // (Must not be booked in same slot/date, EXCLUDING the current reservations if we supported moving to subset, 
+        // but here we assume moving to *completely different* tables usually. 
+        // If moving to overlapping tables, we'd need to be careful. 
+        // Simple check: Is anyone ELSE sitting there?)
+        
+        const oldTableIds = oldReservations.map(r => r.tableId);
+        
+        const conflicts = await prisma.reservation.findFirst({
+            where: {
+                tableId: { in: newTableIds },
+                slotId: currentRes.slotId,
+                date: currentRes.date,
+                status: { not: 'CANCELLED' },
+                // AND NOT in oldTableIds? 
+                // If I am moving from T1->T1 (silly) or T1->T1+T2. 
+                // Any table in 'newTableIds' that is ALSO in 'oldTableIds' is technically "available" because we are about to free it.
+                // So strictly we check if there is a reservation on newTableId that is NOT in [oldReservationIds]
+                id: { notIn: oldReservations.map(r => r.id) } 
+            }
+        });
+
+        if (conflicts) {
+             return res.status(400).json({ message: 'One or more target tables are already booked by another customer' });
+        }
+
+        // 6. Execute Move (Transaction)
+        // Strategy: Delete Old -> Create New (Cleanest for Group Logic)
+        
+        // Prepare Group ID
+        const newGroupId = newTables.length > 1 
+            ? `GRP-${Date.now()}-${Math.floor(Math.random() * 1000)}` 
+            : null;
+
+        await prisma.$transaction(async (tx) => {
+            // A. Delete Old
+            // We use deleteMany with IDs
+            await tx.reservation.deleteMany({
+                where: {
+                    id: { in: oldReservations.map(r => r.id) }
+                }
+            });
+
+            // B. Create New
+            for (const table of newTables) {
+                await tx.reservation.create({
+                    data: {
+                        tableId: table.id,
+                        slotId: currentRes.slotId,
+                        date: currentRes.date,
+                        customerName: currentRes.customerName,
+                        contact: currentRes.contact,
+                        adults: currentRes.adults,
+                        kids: currentRes.kids,
+                        foodPref: currentRes.foodPref,
+                        specialReq: currentRes.specialReq,
+                        status: 'BOOKED', // or keep old status?
+                        groupId: newGroupId
+                    }
+                });
+            }
+        });
+
+        // 7. Invalidate Cache
+        await clearDashboardCache(restaurantId, currentRes.date);
+
+        res.json({ message: 'Reservation moved successfully' });
 
     } catch (error) {
         console.error('Error moving reservation:', error);
