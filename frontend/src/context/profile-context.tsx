@@ -8,7 +8,6 @@ import React, {
   useCallback,
 } from "react";
 import api from "@/lib/api";
-import { useRouter } from "next/navigation";
 
 interface UserProfile {
   name: string;
@@ -40,7 +39,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [restaurant, setRestaurant] = useState<RestaurantProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   const fetchProfile = useCallback(async () => {
     try {
