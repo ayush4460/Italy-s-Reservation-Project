@@ -51,10 +51,21 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 
         // Efficiently aggregate data
         // Fetch ALL reservations for the day to aggregate in memory (avoids complex SQL group logic for now)
+        
+        // Determine Day of Week for Slot Filtering
+        const dayOfWeek = startOfDay.getDay(); // 0-6
+
         const [totalTables, allSlots, dayReservations] = await Promise.all([
             prisma.table.count({ where: { restaurantId } }),
             prisma.slot.findMany({ 
-                where: { restaurantId, isActive: true },
+                where: { 
+                    restaurantId, 
+                    isActive: true,
+                    OR: [
+                        { dayOfWeek: dayOfWeek },
+                        { date: startOfDay }
+                    ]
+                },
                 orderBy: { startTime: 'asc' }
             }),
             prisma.reservation.findMany({
