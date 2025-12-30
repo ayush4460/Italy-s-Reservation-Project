@@ -498,7 +498,7 @@ export default function ReservationsPage() {
     return <div className="text-white">Loading reservation system...</div>;
 
   return (
-    <div className="pt-4 space-y-6">
+    <div className="pt-10 space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="space-y-4 flex-1">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">

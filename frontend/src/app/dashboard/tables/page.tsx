@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { Plus, Trash2, Armchair, Pencil, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useProfile } from "@/context/profile-context";
 
 interface Table {
   id: number;
@@ -36,10 +37,11 @@ export default function TablesPage() {
     capacity: "",
   });
   const [editLoading, setEditLoading] = useState(false);
-  const [role, setRole] = useState<string | null>(null);
+  const { user: profileUser } = useProfile();
+  const role = profileUser?.role || null;
 
   useEffect(() => {
-    setRole(localStorage.getItem("role") || "STAFF");
+    // Role is now derived from profile context
   }, []);
 
   const fetchTables = async () => {
@@ -111,11 +113,16 @@ export default function TablesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold text-white">Table Management</h2>
+    <div className="pt-10 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+          Table Management
+        </h2>
         {role === "ADMIN" && (
-          <Button onClick={() => setIsModalOpen(true)} className="glass-button">
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            className="glass-button h-9 sm:h-10 text-xs sm:text-sm"
+          >
             <Plus className="mr-2 h-4 w-4" /> Add Table
           </Button>
         )}
@@ -142,7 +149,7 @@ export default function TablesPage() {
                 </p>
               </CardContent>
               {role === "ADMIN" && (
-                <CardFooter className="justify-end pt-0 opacity-0 group-hover:opacity-100 transition-opacity gap-2">
+                <CardFooter className="justify-end pt-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all gap-2 flex-wrap">
                   <Button
                     variant="ghost"
                     size="sm"
