@@ -51,8 +51,12 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 
         // Efficiently aggregate data
         // Fetch ALL reservations for the day to aggregate in memory (avoids complex SQL group logic for now)
-        const [totalTables, dayReservations] = await Promise.all([
+        const [totalTables, allSlots, dayReservations] = await Promise.all([
             prisma.table.count({ where: { restaurantId } }),
+            prisma.slot.findMany({ 
+                where: { restaurantId, isActive: true },
+                orderBy: { startTime: 'asc' }
+            }),
             prisma.reservation.findMany({
                 where: {
                     table: { restaurantId },
@@ -94,39 +98,77 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         const groupedReservationsMap = new Map<string, any>(); // Key can be groupId or "ID-<id>"
         const standaloneReservations = [];
 
+        // --- SLOT ANALYTICS SETUP ---
+        const slotMap = new Map<string, { timeDisplay: string, bookings: Set<string>, guests: number, startTime: string }>();
+
+        // Pre-fill with empty slots
+        const formatTime = (t: string) => {
+            const [h, m] = t.split(':');
+            const hour = parseInt(h);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const h12 = hour % 12 || 12;
+            return `${h12}:${m} ${ampm}`;
+        };
+
+        allSlots.forEach(s => {
+            slotMap.set(s.startTime, {
+                 timeDisplay: `${formatTime(s.startTime)} - ${formatTime(s.endTime)}`,
+                 bookings: new Set(),
+                 guests: 0,
+                 startTime: s.startTime
+            });
+        });
+
         dayReservations.forEach(res => {
-            // Group Logic
+            // Stats Group Logic (existing)
             if (res.groupId) {
                 if (!processedGroups.has(res.groupId)) {
-                    // New Group encountered
                     processedGroups.add(res.groupId);
                     bookingsCount++;
-                    guestsCount += (res.adults + res.kids); // Count guests once per group
-
-                    // Initialize grouped object for list
-                    groupedReservationsMap.set(res.groupId, {
-                        ...res, // Copy base fields
-                        table: { tableNumber: res.table.tableNumber.toString() } // Start table list
-                    });
+                    guestsCount += (res.adults + res.kids);
+                    groupedReservationsMap.set(res.groupId, { ...res, table: { tableNumber: res.table.tableNumber.toString() } });
                 } else {
-                    // Existing Group - just append table number to the grouped object
                     const existing = groupedReservationsMap.get(res.groupId);
-                    if (existing) {
-                        existing.table.tableNumber += `+${res.table.tableNumber}`;
-                    }
+                    if (existing) existing.table.tableNumber += `+${res.table.tableNumber}`;
                 }
             } else {
-                // Standalone
                 bookingsCount++;
                 guestsCount += (res.adults + res.kids);
-                groupedReservationsMap.set(`ID-${res.id}`, {
-                    ...res,
-                    table: { tableNumber: res.table.tableNumber.toString() }
+                groupedReservationsMap.set(`ID-${res.id}`, { ...res, table: { tableNumber: res.table.tableNumber.toString() } });
+            }
+
+            // --- SLOT ANALYTICS UPDATE ---
+            const slotKey = res.slot.startTime; // Use startTime as key for sorting
+            
+            // If slot in reservation is not in active slots (maybe deleted?), add strictly or ignore? 
+            // Better to add it to show data logic correctness
+            if (!slotMap.has(slotKey)) {
+                slotMap.set(slotKey, {
+                    timeDisplay: `${formatTime(res.slot.startTime)} - ${formatTime(res.slot.endTime)}`,
+                    bookings: new Set(),
+                    guests: 0,
+                    startTime: res.slot.startTime
                 });
+            }
+            
+            const slotData = slotMap.get(slotKey)!;
+            const bookingKey = res.groupId || `ID-${res.id}`;
+            
+            // Avoid double counting merged tables for guest count in the same slot
+            if (!slotData.bookings.has(bookingKey)) {
+                slotData.guests += (res.adults + res.kids);
+                slotData.bookings.add(bookingKey);
             }
         });
 
-        // конвертируем Map в Array для recentReservations и сортируем
+        const slotAnalytics = Array.from(slotMap.values())
+            .sort((a, b) => a.startTime.localeCompare(b.startTime))
+            .map(s => ({
+                timeSlot: s.timeDisplay,
+                bookings: s.bookings.size,
+                guests: s.guests
+            }));
+
         const recentReservations = Array.from(groupedReservationsMap.values());
 
         // --- NEW: ANALYTICS TREND DATA ---
@@ -202,7 +244,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
             todayBookings: bookingsCount,
             guestsExpected: guestsCount,
             recentReservations,
-            analyticsData
+            analyticsData,
+            slotAnalytics // NEW FIELD
         };
 
         // SET CACHE (Expire in 5 minutes)
