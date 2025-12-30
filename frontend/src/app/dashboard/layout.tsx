@@ -48,6 +48,8 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
     router.push("/");
   };
 
+  const [isChecking, setIsChecking] = useState(true);
+
   // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -63,6 +65,21 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  // PROTECTED ROUTE CHECK
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/");
+    } else {
+      // Defer state update to avoid synchronous setState warning
+      setTimeout(() => setIsChecking(false), 0);
+    }
+  }, [router]);
+
+  if (isChecking) {
+    return null; // Or a loading spinner
+  }
 
   const navItems = [
     { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
