@@ -499,6 +499,62 @@ export default function ReservationsPage() {
     mergeOptions.reduce((acc, t) => acc + t.capacity, 0);
   const isCapacityExceeded = totalGuests > totalCapacity;
 
+  // Group tables for display
+  const processedTables = React.useMemo(() => {
+    const handledTableIds = new Set<number>();
+    const result: { table: Table; reservation?: Reservation }[] = [];
+
+    // Sort tables by tableNumber first to ensure consistent order
+    const sortedTables = [...tables].sort(
+      (a, b) => Number(a.tableNumber) - Number(b.tableNumber)
+    );
+
+    sortedTables.forEach((table) => {
+      if (handledTableIds.has(table.id)) return;
+
+      const reservation = reservations.find((r) => r.tableId === table.id);
+
+      if (reservation && reservation.groupId) {
+        // Find all tables in this group
+        const groupReservations = reservations.filter(
+          (r) => r.groupId === reservation.groupId
+        );
+        const groupTableIds = groupReservations.map((r) => r.tableId);
+        const groupTables = tables.filter((t) => groupTableIds.includes(t.id));
+
+        // Mark all as handled
+        groupTables.forEach((t) => handledTableIds.add(t.id));
+
+        // Create merged display table
+        const sortedGroupTables = groupTables.sort(
+          (a, b) => Number(a.tableNumber) - Number(b.tableNumber)
+        );
+        const mergedNumbers = sortedGroupTables
+          .map((t) => t.tableNumber)
+          .join(", ");
+        const totalCapacity = groupTables.reduce(
+          (sum, t) => sum + t.capacity,
+          0
+        );
+
+        // Use the first table as base but override display props
+        result.push({
+          table: {
+            ...sortedGroupTables[0],
+            tableNumber: mergedNumbers,
+            capacity: totalCapacity,
+          },
+          reservation: reservation,
+        });
+      } else {
+        handledTableIds.add(table.id);
+        result.push({ table, reservation });
+      }
+    });
+
+    return result;
+  }, [tables, reservations]);
+
   if (loading)
     return <div className="text-white">Loading reservation system...</div>;
 
@@ -590,10 +646,7 @@ export default function ReservationsPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            {tables.map((table) => {
-              const reservation = reservations.find(
-                (r) => r.tableId === table.id
-              );
+            {processedTables.map(({ table, reservation }) => {
               const isBooked = !!reservation;
 
               return (
@@ -612,7 +665,9 @@ export default function ReservationsPage() {
                   )}
                 >
                   <Armchair className="h-8 w-8 mb-2" />
-                  <span className="font-bold text-xl">{table.tableNumber}</span>
+                  <span className="font-bold text-xl text-center leading-tight">
+                    {table.tableNumber}
+                  </span>
                   <div className="flex items-center text-xs mt-1 opacity-70">
                     <Users className="h-3 w-3 mr-1" />
                     {table.capacity}
@@ -620,7 +675,7 @@ export default function ReservationsPage() {
                   {isBooked && (
                     <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                   )}
-                  {isBooked && (
+                  {isBooked && reservation && (
                     <div className="absolute bottom-2 text-xs font-semibold truncate max-w-[90%]">
                       {reservation.customerName}
                       {reservation.groupId && (
@@ -631,7 +686,7 @@ export default function ReservationsPage() {
                     </div>
                   )}
                   {/* Desktop Move Icon */}
-                  {role === "ADMIN" && isBooked && (
+                  {role === "ADMIN" && isBooked && reservation && (
                     <div
                       className="absolute top-2 right-2 hidden group-hover:block z-10 p-1 bg-white/10 rounded-full hover:bg-white/20 transition-all"
                       onClick={(e) => handleMoveClick(reservation, e)}
