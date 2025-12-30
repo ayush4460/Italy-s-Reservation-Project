@@ -488,16 +488,21 @@ export const cancelReservation = async (req: AuthRequest, res: Response) => {
         });
 
         if (!reservation) return res.status(404).json({ message: 'Reservation not found' });
-
-        // Option 1: Hard Delete
-        // await prisma.reservation.delete({ where: { id: parseInt(id) } });
-
-        // Option 2: Soft Delete (Status = CANCELLED) -> Better for records
-        await prisma.reservation.update({
-            where: { id: parseInt(id) },
-            data: { status: 'CANCELLED' }
-        });
-
+ 
+        // Handle Merged Tables (Cancel all related reservations)
+        if (reservation.groupId) {
+            await prisma.reservation.updateMany({
+                where: { groupId: reservation.groupId, table: { restaurantId } },
+                data: { status: 'CANCELLED' }
+            });
+        } else {
+            // Soft Delete (Status = CANCELLED) for single table
+            await prisma.reservation.update({
+                where: { id: parseInt(id) },
+                data: { status: 'CANCELLED' }
+            });
+        }
+ 
         // Invalidate Cache
         await clearDashboardCache(restaurantId, reservation.date);
 

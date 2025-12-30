@@ -316,22 +316,22 @@ export default function ReservationsPage() {
     }
   };
 
-  const handleCancelReservation = async (id: number) => {
-    if (
-      !confirm(
-        "Are you sure you want to cancel this reservation? This will make the table available immediately."
-      )
-    )
-      return;
+  const handleCancelReservation = async (reservation: Reservation) => {
+    const isMerged = !!reservation.groupId;
+    const message = isMerged
+      ? "All reservation tables of this merged customer will be made available. Are you sure?"
+      : "Are you sure you want to cancel this reservation? This will make the table available immediately.";
+
+    if (!confirm(message)) return;
     setCancelLoading(true);
     try {
-      await reservationService.cancelReservation(id);
+      await reservationService.cancelReservation(reservation.id);
       setIsEditModalOpen(false); // Close edit modal if open
       setIsLongPressModalOpen(false); // Close long press modal if open
       setEditingReservation(null);
       setMovingReservation(null); // Clear moving reservation if it was set
       fetchTableData();
-      // toast.success("Reservation cancelled successfully"); // Uncomment if toast is implemented
+      // toast.success(isMerged ? "Group reservations cancelled" : "Reservation cancelled successfully"); // Uncomment if toast is implemented
     } catch (err) {
       console.error("Cancel failed", err);
       // toast.error("Failed to cancel reservation"); // Uncomment if toast is implemented
@@ -941,7 +941,7 @@ export default function ReservationsPage() {
               className="flex-1 bg-red-500/20 text-red-400 hover:bg-red-500/30"
               onClick={() =>
                 editingReservation &&
-                handleCancelReservation(editingReservation.id)
+                handleCancelReservation(editingReservation)
               }
               disabled={cancelLoading}
             >
@@ -1578,7 +1578,7 @@ export default function ReservationsPage() {
                 className="bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/20 py-6 h-auto flex items-center justify-start px-6 gap-4"
                 onClick={() => {
                   if (movingReservation)
-                    handleCancelReservation(movingReservation.id);
+                    handleCancelReservation(movingReservation);
                 }}
               >
                 <div className="p-2 rounded-lg bg-red-500/20">
