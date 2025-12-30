@@ -25,7 +25,7 @@ const clearDashboardCache = async (restaurantId: number, date: Date | string) =>
         console.warn("Redis Clear Cache Error (Ignored):", err);
     }
 };
-import { sendWhatsAppMessage, sendReservationTemplate } from '../lib/whatsapp';
+import { sendReservationConfirmation } from '../lib/gupshup';
 
 const prisma = new PrismaClient();
 
@@ -316,29 +316,48 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
         await clearDashboardCache(restaurantId, date);
 
         // Send WhatsApp Notification (Only once)
-        const dateKey = new Date(date).toISOString().split('T')[0];
-        console.log(`[CreateReservation] Contact: ${contact}, SlotId: ${slotId}`);
-        if (contact) {
-            try {
+        // Send WhatsApp Notification (Gupshup)
+        try {
+           console.log(`[CreateReservation] Sending Gupshup msg to ${contact}`);
+           if (contact) {
                 const slotObj = await prisma.slot.findUnique({ where: { id: parseInt(slotId) } });
+                const startTime = slotObj ? slotObj.startTime : 'Unknown Time'; // {{5}} Time
+                const endTime = slotObj ? slotObj.endTime : '';
+                const batch = `${startTime} - ${endTime}`; // {{4}} Batch (Time Range)
                 
-                if (slotObj) {
-                    const [year, month, day] = dateKey.split('-');
-                    const formattedDate = `${day}/${month}`;
-                    let formattedContact = contact.trim();
-                    if (/^\d{10}$/.test(formattedContact)) {
-                        formattedContact = '+91' + formattedContact;
-                    }
-                    
-                    const tableNumbers = tables.map(t => t.tableNumber).join(', ');
-                    const textBody = `Hello ${customerName}, your reservation for tables ${tableNumbers} is confirmed for ${formattedDate} at ${slotObj.startTime}.`;
-                    
-                    const testTarget = 'whatsapp:+917878065085'; // Keep validation number for now
-                    await sendWhatsAppMessage(testTarget, textBody);
-                }
-            } catch (err) {
-               console.error("Failed to send WhatsApp:", err);
-            }
+                const dateKey = new Date(date);
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const dayName = days[dateKey.getDay()]; // {{3}} Day
+                
+                const dayStr = dateKey.getDate().toString().padStart(2, '0');
+                const monthStr = (dateKey.getMonth() + 1).toString().padStart(2, '0');
+                const yearStr = dateKey.getFullYear();
+                const formattedDate = `${dayStr}/${monthStr}/${yearStr}`; // {{2}} Date
+
+                const totalGuests = parseInt(adults) + parseInt(kids); // {{6}} Guests
+                
+                // {{8}} Food Preparation
+                const foodPreparation = foodPref || 'Not Specified'; 
+
+                // Template Params Array
+                const templateParams = [
+                    customerName,       // {{1}} Name
+                    formattedDate,      // {{2}} Date
+                    dayName,            // {{3}} Day
+                    batch,              // {{4}} Batch
+                    startTime,          // {{5}} Time
+                    totalGuests.toString(), // {{6}} Guests
+                    contact,            // {{7}} Contact
+                    foodPreparation     // {{8}} Food Preparation
+                ];
+                 
+                 await sendReservationConfirmation(
+                    contact, 
+                    templateParams
+                 );
+           }
+        } catch (e) {
+            console.error("Error sending Gupshup message:", e);
         }
 
         res.status(201).json({ message: 'Reservation created', groupId });
