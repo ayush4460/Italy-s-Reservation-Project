@@ -33,7 +33,7 @@ export default function DashboardLayout({
 function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, restaurant } = useProfile();
+  const { user, restaurant, loading } = useProfile();
 
   // Create a combined data object to match previous structure or use context directly
   const data = { user, restaurant };
@@ -66,19 +66,23 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // PROTECTED ROUTE CHECK
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    // If not loading and no user, redirect
+    // Note: ProfileContext handles the fetch, if it fails (401), user is null
+    if (!loading && !user) {
       router.push("/");
-    } else {
+    } else if (user) {
       // Defer state update to avoid synchronous setState warning
       setTimeout(() => setIsChecking(false), 0);
     }
-  }, [router]);
+  }, [user, loading, router]);
 
-  if (isChecking) {
-    return null; // Or a loading spinner
+  if (isChecking || loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+      </div>
+    );
   }
 
   const navItems = [

@@ -109,6 +109,14 @@ export const login = async (req: Request, res: Response) => {
 
     const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '1d' });
     
+    // Set HttpOnly Cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // true in production
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 1 day
+    });
+    
     // Return unified structure
     res.json({ 
         token, 
@@ -346,6 +354,14 @@ export const verifyLoginOtp = async (req: Request, res: Response) => {
       };
   
       const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '1d' });
+      
+      // Set HttpOnly Cookie
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+        maxAge: 24 * 60 * 60 * 1000 // 1 day
+      });
       
       // 6. Delete OTP Record
       await prisma.otpVerification.delete({ where: { email } });

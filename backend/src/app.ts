@@ -1,5 +1,6 @@
 import express from 'express'; 
 import cors from 'cors';
+import cookieParser from 'cookie-parser'; // Import cookie-parser
 import authRoutes from './routes/auth.routes';
 import tableRoutes from './routes/tables.routes';
 import restaurantRoutes from './routes/restaurant.routes';
@@ -27,6 +28,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+app.use(cookieParser()); // Use cookie-parser middleware
 
 app.use(express.json());
 
