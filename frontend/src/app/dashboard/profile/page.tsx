@@ -272,12 +272,25 @@ export default function ProfilePage() {
               className="bg-blue-600 hover:bg-blue-700 text-white min-w-[200px] h-10 text-sm"
               disabled={saving}
             >
-              {saving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {formData.email !== originalEmail ? (
+                <>
+                  {saving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  Verify Email
+                </>
               ) : (
-                <Save className="mr-2 h-4 w-4" />
+                <>
+                  {saving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  Save Changes
+                </>
               )}
-              Save Changes
             </Button>
           </CardFooter>
         </Card>
