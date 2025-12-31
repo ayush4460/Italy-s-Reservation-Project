@@ -125,6 +125,7 @@ export default function ReservationsPage() {
     foodPref: "",
     specialReq: "",
   });
+  const [editMergeTables, setEditMergeTables] = useState<number[]>([]);
 
   // Manage Slots Modal State
   const [isManageSlotsOpen, setIsManageSlotsOpen] = useState(false);
@@ -231,6 +232,7 @@ export default function ReservationsPage() {
         foodPref: reservation.foodPref,
         specialReq: reservation.specialReq || "",
       });
+      setEditMergeTables([]); // Reset
       setIsEditModalOpen(true);
     } else {
       // Open Create Modal
@@ -301,10 +303,10 @@ export default function ReservationsPage() {
 
     setBookingLoading(true);
     try {
-      await reservationService.updateReservation(
-        editingReservation.id,
-        editFormData
-      );
+      await reservationService.updateReservation(editingReservation.id, {
+        ...editFormData,
+        addTableIds: editMergeTables.length > 0 ? editMergeTables : undefined,
+      });
       setIsEditModalOpen(false);
       setEditingReservation(null);
       fetchTableData();
@@ -810,7 +812,7 @@ export default function ReservationsPage() {
 
                     <div className="space-y-1">
                       <p className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
-                        Add Nearby Tables
+                        ADD NEARBY TABLES
                       </p>
                       <div className="grid grid-cols-4 gap-2 max-h-[120px] overflow-y-auto pr-1">
                         {tables
@@ -963,6 +965,127 @@ export default function ReservationsPage() {
             </div>
           </div>
           <div className="space-y-2">
+            {/* Dynamic Merge Logic UI */}
+            {editingReservation &&
+              (() => {
+                const totalGuests =
+                  (parseInt(editFormData.adults) || 0) +
+                  (parseInt(editFormData.kids) || 0);
+
+                // Calculate current capacity
+                let currentCapacity = 0;
+                if (editingReservation.groupId) {
+                  const groupRes = reservations.filter(
+                    (r) => r.groupId === editingReservation.groupId
+                  );
+                  const groupTableIds = groupRes.map((r) => r.tableId);
+                  const groupTables = tables.filter((t) =>
+                    groupTableIds.includes(t.id)
+                  );
+                  currentCapacity = groupTables.reduce(
+                    (sum, t) => sum + t.capacity,
+                    0
+                  );
+                } else {
+                  const currentTable = tables.find(
+                    (t) => t.id === editingReservation.tableId
+                  );
+                  currentCapacity = currentTable ? currentTable.capacity : 0;
+                }
+
+                // Added capacity
+                const addedTables = tables.filter((t) =>
+                  editMergeTables.includes(t.id)
+                );
+                const addedCapacity = addedTables.reduce(
+                  (sum, t) => sum + t.capacity,
+                  0
+                );
+                const totalCapacity = currentCapacity + addedCapacity;
+
+                if (totalGuests > currentCapacity) {
+                  return (
+                    <div className="rounded-lg border border-white/10 bg-black/20 p-3 space-y-3 mt-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Users
+                            className={cn(
+                              "h-4 w-4",
+                              totalCapacity >= totalGuests
+                                ? "text-green-400"
+                                : "text-red-400"
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              "text-sm font-medium",
+                              totalCapacity >= totalGuests
+                                ? "text-green-400"
+                                : "text-red-400"
+                            )}
+                          >
+                            {totalCapacity >= totalGuests
+                              ? "Capacity Met"
+                              : `Need ${
+                                  totalGuests - totalCapacity
+                                } more seats`}
+                          </span>
+                        </div>
+                        <span className="text-xs text-white/50">
+                          {totalCapacity} / {totalGuests} Guests
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
+                          ADD NEARBY TABLES
+                        </p>
+                        <div className="grid grid-cols-4 gap-2 max-h-[120px] overflow-y-auto pr-1">
+                          {tables
+                            .filter((t) => {
+                              // Exclude currently booked tables
+                              if (reservations.some((r) => r.tableId === t.id))
+                                return false;
+                              return true;
+                            })
+                            .sort((a, b) => b.capacity - a.capacity)
+                            .map((t) => {
+                              const isSelected = editMergeTables.includes(t.id);
+                              return (
+                                <div
+                                  key={t.id}
+                                  onClick={() => {
+                                    setEditMergeTables((prev) =>
+                                      prev.includes(t.id)
+                                        ? prev.filter((id) => id !== t.id)
+                                        : [...prev, t.id]
+                                    );
+                                  }}
+                                  className={cn(
+                                    "py-1.5 px-1 rounded text-center cursor-pointer transition-all border",
+                                    isSelected
+                                      ? "bg-blue-500/20 border-blue-500/50 text-blue-300"
+                                      : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20"
+                                  )}
+                                >
+                                  <div className="text-xs font-bold">
+                                    T{t.tableNumber}
+                                  </div>
+                                  <div className="text-[10px] opacity-70">
+                                    +{t.capacity}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+          </div>
+          <div className="space-y-2">
             <Label>Food Preference</Label>
             <select
               value={editFormData.foodPref}
@@ -1012,7 +1135,35 @@ export default function ReservationsPage() {
             <Button
               type="submit"
               className="glass-button flex-1"
-              disabled={bookingLoading}
+              disabled={
+                bookingLoading ||
+                (() => {
+                  if (!editingReservation) return false;
+                  const totalGuests =
+                    (parseInt(editFormData.adults) || 0) +
+                    (parseInt(editFormData.kids) || 0);
+
+                  let currentCapacity = 0;
+                  if (editingReservation.groupId) {
+                    const groupTableIds = reservations
+                      .filter((r) => r.groupId === editingReservation.groupId)
+                      .map((r) => r.tableId);
+                    currentCapacity = tables
+                      .filter((t) => groupTableIds.includes(t.id))
+                      .reduce((sum, t) => sum + t.capacity, 0);
+                  } else {
+                    const t = tables.find(
+                      (t) => t.id === editingReservation.tableId
+                    );
+                    currentCapacity = t ? t.capacity : 0;
+                  }
+
+                  const addedCapacity = tables
+                    .filter((t) => editMergeTables.includes(t.id))
+                    .reduce((sum, t) => sum + t.capacity, 0);
+                  return totalGuests > currentCapacity + addedCapacity;
+                })()
+              }
             >
               {bookingLoading && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

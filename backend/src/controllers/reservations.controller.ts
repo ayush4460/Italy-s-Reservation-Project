@@ -527,9 +527,6 @@ export const updateReservation = async (req: AuthRequest, res: Response) => {
             // updateMany returns { count: n }
             // To return a full object we might need to fetch one, but 'updated' usually expects the object.
             // However, the frontend just checks response 200 usually. 
-            // Let's refetch one to return proper object or just return { count: n } if frontend handles it?
-            // Existing frontend expects 'updated' object structure usually? 
-            // Checking frontend 'reservationService': just returns response.data.
             // Let's just return { message: 'Updated', count: updated.count } or similar.
             // Or to be safe and compatible with single update return, let's just return the first one updated.
         } else {
@@ -544,6 +541,64 @@ export const updateReservation = async (req: AuthRequest, res: Response) => {
                     specialReq
                 }
             });
+        }
+
+        // --- Handle Adding Extra Tables (Dynamic Merge) ---
+        // We get `addTableIds` from body which is optional
+        const { addTableIds } = req.body;
+
+        if (addTableIds && Array.isArray(addTableIds) && addTableIds.length > 0) {
+            
+            // 1. Verify availability of new tables
+            const conflicts = await prisma.reservation.findFirst({
+                where: {
+                    tableId: { in: addTableIds },
+                    slotId: reservation.slotId, // Same slot
+                    date: reservation.date,     // Same date
+                    status: { not: 'CANCELLED' }
+                }
+            });
+
+            if (conflicts) {
+                return res.status(400).json({ message: 'One or more added tables are already booked' });
+            }
+
+            // 2. Determine Group ID
+            let groupId = reservation.groupId;
+            if (!groupId) {
+                // If single reservation, create a new Group ID
+                groupId = `GRP-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                // Update the ORIGINAL reservation to have this Group ID
+                await prisma.reservation.update({
+                    where: { id: parseInt(id) },
+                    data: { groupId }
+                });
+            }
+
+            // 3. Create New Reservations for Added Tables
+            // We use the UPDATED details (from body) 
+            // Note: If we updated a group above, all members have new details. 
+            // The new tables should also have these new details.
+            
+            await prisma.$transaction(
+                addTableIds.map((tid: number) => 
+                    prisma.reservation.create({
+                        data: {
+                            tableId: tid,
+                            slotId: reservation.slotId,
+                            date: reservation.date,
+                            customerName,
+                            contact,
+                            adults: parseInt(adults),
+                            kids: parseInt(kids),
+                            foodPref,
+                            specialReq,
+                            groupId,
+                            status: 'BOOKED'
+                        }
+                    })
+                )
+            );
         }
 
         // Invalidate Cache

@@ -49,6 +49,7 @@ export interface UpdateReservationDto {
   kids: string;
   foodPref: string;
   specialReq: string;
+  addTableIds?: number[];
 }
 
 class ReservationService {
