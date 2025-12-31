@@ -17,6 +17,7 @@ interface UserProfile {
 }
 
 interface RestaurantProfile {
+  id: number;
   name: string;
   logoUrl?: string;
   bannerUrl?: string;

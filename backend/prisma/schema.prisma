@@ -21,6 +21,7 @@ model Restaurant {
   slots       Slot[]
   createdAt   DateTime @default(now())
   staff       Staff[]
+  whatsAppMessages WhatsAppMessage[]
 }
 
 enum Role {
@@ -97,4 +98,22 @@ model OtpVerification {
   expiresAt DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model WhatsAppMessage {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  phoneNumber  String     
+  customerName String?
+  messageId    String?
+  type         String?    // 'text', 'image', 'template'
+  content      String
+  direction    String     // 'inbound' | 'outbound'
+  status       String?    // 'sent', 'delivered', 'read', 'received'
+  isRead       Boolean    @default(false)
+  timestamp    DateTime   @default(now())
+
+  @@index([phoneNumber])
+  @@index([restaurantId])
 }

@@ -12,13 +12,14 @@ import {
   LogOut,
   Phone,
   MessageCircle,
+  Users, // Import Users icon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 
-import { Users } from "lucide-react"; // Import Users icon
-
 import { ProfileProvider, useProfile } from "@/context/profile-context";
+import { SocketProvider } from "@/context/socket-context";
+import { UnreadProvider, useUnread } from "@/context/unread-context";
 
 export default function DashboardLayout({
   children,
@@ -27,7 +28,11 @@ export default function DashboardLayout({
 }) {
   return (
     <ProfileProvider>
-      <InnerDashboardLayout>{children}</InnerDashboardLayout>
+      <SocketProvider>
+        <UnreadProvider>
+          <InnerDashboardLayout>{children}</InnerDashboardLayout>
+        </UnreadProvider>
+      </SocketProvider>
     </ProfileProvider>
   );
 }
@@ -95,6 +100,15 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
       label: "Reservations",
       icon: CalendarClock,
     },
+    ...(user?.role === "ADMIN"
+      ? [
+          {
+            href: "/dashboard/chat",
+            label: "Live Chat",
+            icon: MessageCircle,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -116,39 +130,9 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
 
           {/* Center: Navigation Pills */}
           <nav className="hidden md:flex items-center gap-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-              return (
-                <Link key={item.href} href={item.href}>
-                  <div
-                    className={cn(
-                      "relative flex items-center space-x-2 px-5 py-2.5 rounded-full transition-all duration-300 text-sm font-semibold overflow-hidden group",
-                      isActive
-                        ? "text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]"
-                        : "text-gray-400 hover:text-white"
-                    )}
-                  >
-                    {isActive && (
-                      <div className="absolute inset-0 bg-linear-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 border border-white/10 rounded-full" />
-                    )}
-                    {!isActive && (
-                      <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 rounded-full transition-all duration-300" />
-                    )}
-
-                    <Icon
-                      className={cn(
-                        "h-4 w-4 relative z-10 transition-transform duration-300",
-                        isActive
-                          ? "scale-110 text-cyan-300"
-                          : "group-hover:scale-110 group-hover:text-purple-300"
-                      )}
-                    />
-                    <span className="relative z-10">{item.label}</span>
-                  </div>
-                </Link>
-              );
-            })}
+            {navItems.map((item) => (
+              <NavItem key={item.href} item={item} pathname={pathname} />
+            ))}
           </nav>
 
           {/* Right: User Profile & Dropdown (User Info) */}
@@ -256,24 +240,23 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile Navigation (Bottom) - Enhanced */}
       <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 glass-panel rounded-full px-6 py-4 flex items-center gap-8 z-50 shadow-[0_10px_40px_rgba(0,0,0,0.5)] bg-black/60 border border-white/10">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href;
-          return (
-            <Link key={item.href} href={item.href}>
+        {navItems.map((item) => (
+          <div key={item.href}>
+            <Link href={item.href}>
               <div
                 className={cn(
                   "p-3 rounded-full transition-all duration-300 relative",
-                  isActive
+                  pathname === item.href
                     ? "text-white bg-linear-to-tr from-cyan-500 to-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)] scale-110"
                     : "text-gray-400 hover:text-white hover:bg-white/10"
                 )}
               >
-                <Icon className="h-6 w-6" />
+                <item.icon className="h-6 w-6" />
+                {item.label === "Live Chat" && <MobileBadge />}
               </div>
             </Link>
-          );
-        })}
+          </div>
+        ))}
       </nav>
 
       {/* Main Content Area */}
@@ -281,5 +264,58 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
     </div>
+  );
+}
+
+function NavItem({ item, pathname }: { item: any; pathname: string }) {
+  const Icon = item.icon;
+  const isActive = pathname === item.href;
+  const { unreadCount } = useUnread();
+
+  return (
+    <Link href={item.href}>
+      <div
+        className={cn(
+          "relative flex items-center space-x-2 px-5 py-2.5 rounded-full transition-all duration-300 text-sm font-semibold group", // Removed overflow-hidden
+          isActive
+            ? "text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]"
+            : "text-gray-400 hover:text-white"
+        )}
+      >
+        {isActive && (
+          <div className="absolute inset-0 bg-linear-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 border border-white/10 rounded-full" />
+        )}
+        {/* Badge Logic */}
+        {item.label === "Live Chat" && unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center bg-red-600 text-white text-[10px] font-bold px-1 rounded-full z-50 shadow-lg ring-4 ring-[#0f0f13] border border-white/10">
+            {unreadCount}
+          </span>
+        )}
+
+        {!isActive && (
+          <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 rounded-full transition-all duration-300" />
+        )}
+
+        <Icon
+          className={cn(
+            "h-4 w-4 relative z-10 transition-transform duration-300",
+            isActive
+              ? "scale-110 text-cyan-300"
+              : "group-hover:scale-110 group-hover:text-purple-300"
+          )}
+        />
+        <span className="relative z-10">{item.label}</span>
+      </div>
+    </Link>
+  );
+}
+
+function MobileBadge() {
+  const { unreadCount } = useUnread();
+  if (unreadCount === 0) return null;
+  return (
+    <span className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full z-20 shadow-md ring-1 ring-black">
+      {unreadCount}
+    </span>
   );
 }
