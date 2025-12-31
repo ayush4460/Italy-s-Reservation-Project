@@ -10,6 +10,8 @@ import {
   CalendarClock,
   User,
   LogOut,
+  Phone,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
@@ -208,6 +210,33 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
                       Manage Staff
                     </Link>
                   )}
+
+                  {/* Customer Support */}
+                  <div className="border-t border-white/10 my-1 pt-1">
+                    <p className="px-4 py-1 text-[10px] text-gray-500 uppercase tracking-wider font-bold">
+                      Customer Support
+                    </p>
+                    <a
+                      href="tel:+917878065085"
+                      className="flex items-center px-4 py-2 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-all group"
+                    >
+                      <div className="p-1.5 rounded-lg bg-white/5 group-hover:bg-cyan-500/20 mr-3 transition-colors">
+                        <Phone className="h-3.5 w-3.5 group-hover:text-cyan-400 transition-colors" />
+                      </div>
+                      Call (+91 7878065085)
+                    </a>
+                    <a
+                      href="https://wa.me/917878065085"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center px-4 py-2 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-all group"
+                    >
+                      <div className="p-1.5 rounded-lg bg-white/5 group-hover:bg-green-500/20 mr-3 transition-colors">
+                        <MessageCircle className="h-3.5 w-3.5 group-hover:text-green-400 transition-colors" />
+                      </div>
+                      WhatsApp
+                    </a>
+                  </div>
 
                   <button
                     onClick={handleLogout}
