@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Fragment } from "react";
+import React from "react";
 import { Button } from "./button";
 import { X } from "lucide-react";
 

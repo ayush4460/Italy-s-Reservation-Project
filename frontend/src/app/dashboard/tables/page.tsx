@@ -23,6 +23,14 @@ interface Table {
   capacity: number;
 }
 
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
+
 export default function TablesPage() {
   const [tables, setTables] = useState<Table[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,8 +75,10 @@ export default function TablesPage() {
       setIsModalOpen(false);
       fetchTables();
       toast.success("Table created successfully");
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Failed to create table");
+    } catch (err: unknown) {
+      toast.error(
+        (err as ApiError).response?.data?.message || "Failed to create table"
+      );
     }
   };
 
@@ -105,7 +115,7 @@ export default function TablesPage() {
       toast.success("Table updated successfully");
     } catch (err: unknown) {
       const errorMessage =
-        (err as any).response?.data?.message || "Failed to update table";
+        (err as ApiError).response?.data?.message || "Failed to update table";
       toast.error(errorMessage);
     } finally {
       setEditLoading(false);
