@@ -62,6 +62,7 @@ export const sendReservationConfirmation = async (
     };
     bodyJsonApproach.append('template', JSON.stringify(templateData));
 
+    console.log(`[Gupshup] API URL: ${url}`);
     console.log(`[Gupshup] Sending to ${destination} with params:`, params);
 
     try {

@@ -341,6 +341,10 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
 
                 // Template Params Array
                 const templateParams = [
+                    '22.3039',           // Lat (Start with location for header)
+                    '70.8022',           // Long
+                    'The Italy\'s',       // Loc Name
+                    'Rajkot, Gujarat',   // Loc Address
                     customerName,       // {{1}} Name
                     formattedDate,      // {{2}} Date
                     dayName,            // {{3}} Day
