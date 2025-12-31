@@ -237,10 +237,14 @@ export default function ReservationsPage() {
     } else {
       // Open Create Modal
       setSelectedTable(table);
-      setBookingData((prev) => ({
-        ...prev,
+      setBookingData({
+        customerName: "",
+        contact: "",
         adults: table.capacity.toString(),
-      }));
+        kids: "0",
+        foodPref: "Regular",
+        specialReq: "",
+      });
       // Reset merge
       setSelectedMergeTables([]);
       setIsMergingMode(false); // Reset mode
