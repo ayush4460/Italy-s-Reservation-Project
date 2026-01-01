@@ -25,7 +25,7 @@ const clearDashboardCache = async (restaurantId: number, date: Date | string) =>
         console.warn("Redis Clear Cache Error (Ignored):", err);
     }
 };
-import { sendReservationConfirmation } from '../lib/gupshup';
+
 
 const prisma = new PrismaClient();
 
@@ -341,10 +341,6 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
 
                 // Template Params Array
                 const templateParams = [
-                    '22.3039',           // Lat (Start with location for header)
-                    '70.8022',           // Long
-                    'The Italy\'s',       // Loc Name
-                    'Rajkot, Gujarat',   // Loc Address
                     customerName,       // {{1}} Name
                     formattedDate,      // {{2}} Date
                     dayName,            // {{3}} Day
@@ -355,9 +351,20 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
                     foodPreparation     // {{8}} Food Preparation
                 ];
                  
-                 await sendReservationConfirmation(
+                // Location for header
+                const location = {
+                    latitude: "22.270041",
+                    longitude: "73.149727",
+                    name: "Italy's Traditional Pizzeria",
+                    address: "Opp. HDFC Bank, Sun Pharma Road, Vadodara"
+                };
+
+                 const { sendTemplateV3 } = await import('../lib/whatsapp');
+                 await sendTemplateV3(
                     contact, 
-                    templateParams
+                    'brunch_di_gala_reservation_confirmation',
+                    templateParams,
+                    location
                  );
            }
         } catch (e) {
