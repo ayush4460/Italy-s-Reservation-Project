@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 import api from "@/lib/api";
 import { useSocket } from "./socket-context";
 import { useProfile } from "./profile-context";
@@ -22,20 +28,21 @@ export const UnreadProvider = ({ children }: { children: React.ReactNode }) => {
   const { socket } = useSocket();
   const { user } = useProfile();
 
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = useCallback(async () => {
     try {
       const res = await api.get("/chat/unread-count");
       setUnreadCount(res.data.count);
     } catch (error) {
       console.error("Failed to fetch unread count", error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (user?.role === "ADMIN") {
+      // eslint-disable-next-line
       fetchUnreadCount();
     }
-  }, [user]);
+  }, [user, fetchUnreadCount]);
 
   useEffect(() => {
     if (!socket) return;
@@ -47,8 +54,7 @@ export const UnreadProvider = ({ children }: { children: React.ReactNode }) => {
 
     socket.on("connect", handleConnect);
 
-    // @ts-expect-error: Message type is implicitly any for now
-    const handleNewMessage = (message: any) => {
+    const handleNewMessage = (message: { direction: string }) => {
       // Only increment for inbound messages
       if (message.direction === "inbound") {
         setUnreadCount((prev) => prev + 1);
@@ -61,7 +67,7 @@ export const UnreadProvider = ({ children }: { children: React.ReactNode }) => {
       socket.off("connect", handleConnect);
       socket.off("new_message", handleNewMessage);
     };
-  }, [socket]); // Removed user dependency to keep listener stable
+  }, [socket, user?.role, fetchUnreadCount]);
 
   return (
     <UnreadContext.Provider
