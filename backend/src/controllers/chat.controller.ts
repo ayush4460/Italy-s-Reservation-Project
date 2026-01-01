@@ -18,31 +18,38 @@ export const getChats = async (req: AuthRequest, res: Response) => {
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
         
         const chats = await prisma.$queryRaw`
-            SELECT DISTINCT ON (m."phoneNumber") 
-                m."phoneNumber",
-                m."content",
-                m."timestamp",
-                m."direction",
-                m."status",
+            SELECT 
+                t1."phoneNumber",
+                t1."content",
+                t1."timestamp",
+                t1."direction",
+                t1."status",
                 (
-                    SELECT u."customerName" 
-                    FROM "WhatsAppMessage" u 
-                    WHERE u."phoneNumber" = m."phoneNumber" 
-                      AND u."customerName" IS NOT NULL 
-                    ORDER BY u."timestamp" DESC 
+                    SELECT u."customerName"
+                    FROM "WhatsAppMessage" u
+                    WHERE u."phoneNumber" = t1."phoneNumber"
+                      AND u."customerName" IS NOT NULL
+                    ORDER BY u."timestamp" DESC
                     LIMIT 1
                 ) as "customerName",
-                (
-                    SELECT COUNT(*)::int 
-                    FROM "WhatsAppMessage" u 
-                    WHERE u."restaurantId" = m."restaurantId" 
-                      AND u."phoneNumber" = m."phoneNumber" 
-                      AND u."direction" = 'inbound' 
-                      AND u."isRead" = false
-                ) as "unreadCount"
-            FROM "WhatsAppMessage" m
-            WHERE m."restaurantId" = ${restaurantId}
-            ORDER BY m."phoneNumber", m."timestamp" DESC
+                COALESCE(unread_stats.cnt, 0)::int as "unreadCount"
+            FROM "WhatsAppMessage" t1
+            INNER JOIN (
+                SELECT "phoneNumber", MAX("timestamp") as max_timestamp
+                FROM "WhatsAppMessage"
+                WHERE "restaurantId" = ${restaurantId}
+                GROUP BY "phoneNumber"
+            ) t2 ON t1."phoneNumber" = t2."phoneNumber" AND t1."timestamp" = t2.max_timestamp
+            LEFT JOIN (
+                SELECT "phoneNumber", COUNT(*)::int as cnt
+                FROM "WhatsAppMessage"
+                WHERE "restaurantId" = ${restaurantId} 
+                  AND "direction" = 'inbound' 
+                  AND "isRead" = false
+                GROUP BY "phoneNumber"
+            ) unread_stats ON t1."phoneNumber" = unread_stats."phoneNumber"
+            WHERE t1."restaurantId" = ${restaurantId}
+            ORDER BY t1."timestamp" DESC
         `;
 
         const sortedChats = (chats as any[]).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -161,6 +168,12 @@ export const sendTemplate = async (req: AuthRequest, res: Response) => {
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
 
         const { phone, templateId, params } = req.body;
+
+        // Ensure phone starts with 91 for consistency in DB and API
+        let formattedPhone = phone.replace(/\D/g, "");
+        if (!formattedPhone.startsWith("91")) {
+            formattedPhone = `91${formattedPhone}`;
+        }
         
         // 1. Send via Helper (V3 with Location)
         const { sendTemplateV3, hydrateTemplate } = await import('../lib/whatsapp');
@@ -175,9 +188,9 @@ export const sendTemplate = async (req: AuthRequest, res: Response) => {
 
         // Only send location if it's this specific template (or generally if we decide later)
         if (templateId === 'brunch_di_gala_reservation_confirmation') {
-             await sendTemplateV3(phone, templateId, params || [], location);
+             await sendTemplateV3(formattedPhone, templateId, params || [], location);
         } else {
-             await sendTemplateV3(phone, templateId, params || []);
+             await sendTemplateV3(formattedPhone, templateId, params || []);
         }
 
         // 2. Save to DB (Hydrated content)
@@ -187,7 +200,7 @@ export const sendTemplate = async (req: AuthRequest, res: Response) => {
         const savedMsg = await prisma.whatsAppMessage.create({
             data: {
                 restaurantId,
-                phoneNumber: phone,
+                phoneNumber: formattedPhone,
                 type: 'template',
                 content: content, 
                 direction: 'outbound',

@@ -64,15 +64,23 @@ export default function ChatPage() {
   }, [user, loading, router]);
 
   // Fetch Chat List
-  const fetchChats = async () => {
+  const fetchChats = async (background = false) => {
     try {
-      const res = await api.get("/chat");
+      const res = await api.get("/chat", {
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+        // @ts-ignore
+        skipLoader: background,
+      });
       setChats(res.data);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to load chats");
+      if (!background) toast.error("Failed to load chats");
     } finally {
-      setLoadingChats(false);
+      if (!background) setLoadingChats(false);
     }
   };
 
@@ -179,45 +187,26 @@ export default function ChatPage() {
               scrollRef.current.scrollIntoView({ behavior: "smooth" });
             }
           }, 100);
+
+          // If we are looking at it, mark as read immediately?
+          // We usually do this in useEffect dependency on selectedPhone.
+          // But for real-time, we might want to ACK read?
+          // For now, let's just refresh list which will show unread=0 if we read it?
+          // Actually if we just received it, it is Unread in DB.
+          // We need to mark it read if we are viewing it.
+          api.put(`/chat/${message.phoneNumber}/read`).then(refreshUnreadCount);
         }
 
-        // 2. Update Chat List (Move to top)
-        setChats((prevChats) => {
-          const otherChats = prevChats.filter(
-            (c) => c.phoneNumber !== message.phoneNumber
-          );
-          const existingChat = prevChats.find(
-            (c) => c.phoneNumber === message.phoneNumber
-          );
-
-          // Increment unread count if it's an inbound message and we are NOT looking at this chat
-          let newUnreadCount = existingChat?.unreadCount || 0;
-          if (
-            message.direction === "inbound" &&
-            selectedPhone !== message.phoneNumber
-          ) {
-            newUnreadCount += 1;
-          }
-
-          const newChatEntry = {
-            phoneNumber: message.phoneNumber,
-            content: message.content,
-            timestamp: message.timestamp || new Date().toISOString(),
-            direction: message.direction,
-            status: message.status,
-            unreadCount: newUnreadCount,
-            customerName: message.customerName || existingChat?.customerName,
-          };
-
-          return [newChatEntry, ...otherChats];
-        });
+        // 2. Update Chat List by fetching fresh data (Single Source of Truth)
+        // This ensures unread counts and sorting are always correct based on DB
+        fetchChats(true);
       }
     );
 
     return () => {
       socket.off("new_message");
     };
-  }, [socket, selectedPhone]);
+  }, [socket, selectedPhone, refreshUnreadCount]);
 
   // Initial Message Load for Selected Phone
   useEffect(() => {
@@ -264,7 +253,7 @@ export default function ChatPage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={fetchChats}
+              onClick={() => fetchChats(false)}
               className="text-gray-400 hover:text-white"
             >
               <RefreshCw className="h-4 w-4" />
@@ -309,34 +298,43 @@ export default function ChatPage() {
                         <User className="h-4 w-4" />
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 overflow-hidden">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="font-medium text-white">
-                          {chat.phoneNumber}
-                          {chat.customerName && (
-                            <span className="text-gray-400 font-normal ml-2 text-sm">
-                              ~ {chat.customerName}
-                            </span>
-                          )}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          {!!chat.unreadCount && chat.unreadCount > 0 && (
-                            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                    <div className="flex-1 min-w-0 overflow-hidden text-left">
+                      <div className="grid grid-cols-[1fr_auto] items-center gap-2 mb-1 w-full">
+                        <div className="min-w-0">
+                          <p className="font-medium text-white truncate">
+                            {chat.phoneNumber}
+                            {chat.customerName && (
+                              <span className="text-gray-400 font-normal ml-2 text-sm">
+                                ~ {chat.customerName}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 justify-end">
+                          {(Number(chat.unreadCount) || 0) > 0 && (
+                            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center inline-flex items-center justify-center">
                               {chat.unreadCount}
                             </span>
                           )}
-                          <span className="text-xs text-gray-400">
-                            {new Date(chat.timestamp).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              hour12: true,
-                            })}
+                          <span className="text-xs text-gray-400 whitespace-nowrap">
+                            {chat.timestamp
+                              ? new Date(chat.timestamp).toLocaleTimeString(
+                                  [],
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                  }
+                                )
+                              : ""}
                           </span>
                         </div>
                       </div>
-                      <p className="text-sm text-gray-400 truncate">
+                      <p className="text-sm text-gray-400 truncate block w-full">
                         {chat.direction === "outbound" && "You: "}
-                        {chat.content}
+                        {chat.content.length > 30
+                          ? chat.content.slice(0, 30) + "..."
+                          : chat.content}
                       </p>
                     </div>
                   </button>

@@ -16,6 +16,8 @@ import { toast } from "sonner";
 interface Props {
   phone: string;
   onSendSuccess: () => void;
+  reservation?: any;
+  trigger?: React.ReactNode;
 }
 
 const TEMPLATES = [
@@ -35,7 +37,12 @@ const TEMPLATES = [
   },
 ];
 
-export function WhatsAppTemplateSelector({ phone, onSendSuccess }: Props) {
+export function WhatsAppTemplateSelector({
+  phone,
+  onSendSuccess,
+  reservation,
+  trigger,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
@@ -43,7 +50,53 @@ export function WhatsAppTemplateSelector({ phone, onSendSuccess }: Props) {
 
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
-    setParamValues({});
+
+    // Auto-fill logic
+    if (
+      templateId === "brunch_di_gala_reservation_confirmation" &&
+      reservation
+    ) {
+      // 0: Name {{1}}
+      // 1: Date {{2}}
+      // 2: Day {{3}}
+      // 3: Batch {{4}}
+      // 4: Time {{5}}
+      // 5: Guests {{6}}
+      // 6: Contact {{7}}
+      // 7: Food Preparation {{8}}
+
+      // Format Date stats
+      // Assume reservation.date is YYYY-MM-DD or standard
+      const dateObj = new Date(reservation.date);
+      const days = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ];
+      const dayName = days[dateObj.getDay()];
+      const dayStr = dateObj.getDate().toString().padStart(2, "0");
+      const monthStr = (dateObj.getMonth() + 1).toString().padStart(2, "0");
+      const yearStr = dateObj.getFullYear();
+      const formattedDate = `${dayStr}/${monthStr}/${yearStr}`;
+
+      const params: Record<string, string> = {
+        0: reservation.customerName,
+        1: formattedDate,
+        2: dayName,
+        3: `${reservation.slot.startTime} - ${reservation.slot.endTime}`,
+        4: reservation.slot.startTime,
+        5: (reservation.adults + reservation.kids).toString(),
+        6: reservation.contact,
+        7: reservation.foodPref || "Not Specified",
+      };
+      setParamValues(params);
+    } else {
+      setParamValues({});
+    }
   };
 
   const handleParamChange = (index: number, value: string) => {
@@ -63,8 +116,14 @@ export function WhatsAppTemplateSelector({ phone, onSendSuccess }: Props) {
         (_, index) => paramValues[index] || ""
       );
 
+      // Ensure phone starts with 91
+      let formattedPhone = phone.replace(/\D/g, ""); // Remove non-digits
+      if (!formattedPhone.startsWith("91")) {
+        formattedPhone = `91${formattedPhone}`;
+      }
+
       await api.post("/chat/template", {
-        phone,
+        phone: formattedPhone,
         templateId: selectedTemplate,
         params,
       });
@@ -83,13 +142,17 @@ export function WhatsAppTemplateSelector({ phone, onSendSuccess }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-gray-400 hover:text-white hover:bg-white/10"
-        >
-          <Plus className="h-5 w-5" />
-        </Button>
+        {trigger ? (
+          trigger
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-gray-400 hover:text-white hover:bg-white/10"
+          >
+            <Plus className="h-5 w-5" />
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="glass-panel text-white border-white/10 sm:max-w-md">
         <DialogHeader>

@@ -29,6 +29,7 @@ import {
   Bar,
   LabelList,
 } from "recharts";
+import { WhatsAppTemplateSelector } from "@/components/chat/whatsapp-template-selector";
 import { cn } from "@/lib/utils"; // Added import for cn
 
 const getISTDate = () => {
@@ -486,6 +487,23 @@ export default function DashboardPage() {
                         <div className="text-sm text-gray-400">
                           {res.contact}
                         </div>
+                        {role === "ADMIN" && (
+                          <div
+                            onClick={(e) => e.stopPropagation()} // Prevent row click
+                            className="mt-1"
+                          >
+                            <WhatsAppTemplateSelector
+                              phone={res.contact}
+                              onSendSuccess={() => {}}
+                              reservation={res}
+                              trigger={
+                                <button className="text-[10px] bg-green-500/20 hover:bg-green-500/30 text-green-400 px-2 py-0.5 rounded border border-green-500/20 transition-colors uppercase font-bold tracking-wider">
+                                  Send WhatsApp
+                                </button>
+                              }
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 
