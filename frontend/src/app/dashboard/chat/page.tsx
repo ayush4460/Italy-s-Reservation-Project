@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Phone, User, RefreshCw, X } from "lucide-react";
+import { Send, Phone, User, RefreshCw, X, Search } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { WhatsAppTemplateSelector } from "@/components/chat/whatsapp-template-selector";
@@ -42,8 +42,16 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loadingChats, setLoadingChats] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const filteredChats = chats.filter(
+    (chat) =>
+      chat.phoneNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (chat.customerName &&
+        chat.customerName.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   const { user, loading } = useProfile();
   const { refreshUnreadCount } = useUnread();
@@ -248,7 +256,7 @@ export default function ChatPage() {
           selectedPhone ? "hidden md:flex" : "flex" // Hide on mobile if chat selected
         )}
       >
-        <CardHeader className="pb-4 border-b border-white/10">
+        <CardHeader className="pb-4 border-b border-white/10 space-y-4">
           <div className="flex justify-between items-center">
             <CardTitle className="text-xl font-bold text-white">
               Chats
@@ -262,18 +270,27 @@ export default function ChatPage() {
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search by number or name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 glass-input"
+            />
+          </div>
         </CardHeader>
         <CardContent className="p-0 flex-1 overflow-hidden">
           <ScrollArea className="h-full">
             {loadingChats ? (
               <div className="p-4 text-center text-gray-400">Loading...</div>
-            ) : chats.length === 0 ? (
+            ) : filteredChats.length === 0 ? (
               <div className="p-4 text-center text-gray-400">
-                No conversations yet
+                {searchQuery ? "No results found" : "No conversations yet"}
               </div>
             ) : (
               <div className="flex flex-col">
-                {chats.map((chat) => (
+                {filteredChats.map((chat) => (
                   <button
                     key={chat.phoneNumber}
                     onClick={() => setSelectedPhone(chat.phoneNumber)}

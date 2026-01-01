@@ -111,6 +111,27 @@ export const handleGupshupWebhook = async (req: Request, res: Response) => {
             const { getIO } = await import('../lib/socket');
             const io = getIO();
             io.to(`restaurant_${restaurantId}`).emit('new_message', savedMessage);
+
+            // Send Email Notification (Async/Non-blocking)
+            // Fetch restaurant email first
+            prisma.restaurant.findUnique({
+                where: { id: restaurantId },
+                select: { email: true, name: true, username: true }
+            }).then(restaurant => {
+                if (restaurant && restaurant.email && savedMessage.direction === 'inbound') {
+                    import('../services/email.service').then(({ EmailService }) => {
+                         EmailService.sendWhatsAppNotification(restaurant.email, {
+                            customerName: savedMessage.customerName || 'Unknown',
+                            phoneNumber: savedMessage.phoneNumber,
+                            message: savedMessage.content,
+                            timestamp: savedMessage.timestamp,
+                            restaurantName: restaurant.name,
+                            ownerName: restaurant.username || 'Admin' 
+                        }).catch(err => console.error('[Webhook] Email Notification Fail:', err));
+                    });
+                }
+            }).catch(err => console.error('[Webhook] Failed to fetch restaurant for email:', err));
+
         } catch (socketError) {
             console.error('[Webhook] Socket emit error:', socketError);
         }

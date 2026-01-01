@@ -442,4 +442,94 @@ export const EmailService = {
       throw new Error('Failed to send Staff Email Change OTP email');
     }
   },
+
+  sendWhatsAppNotification: async (
+      email: string, 
+      data: {
+        customerName: string;
+        phoneNumber: string;
+        message: string;
+        timestamp: Date;
+        restaurantName?: string;
+        ownerName?: string;
+      }
+    ) => {
+      const restaurantName = data.restaurantName || "Italy's Reservation";
+      const ownerName = data.ownerName || "Admin"; // Fallback to Admin
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+      const replyLink = `${frontendUrl}/dashboard/chat`;
+
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9f9f9; margin: 0; padding: 0; }
+            .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden; }
+            .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px 0; text-align: center; }
+            .header h1 { color: #ffffff; margin: 0; font-size: 24px; font-weight: 300; display: flex; align-items: center; justify-content: center; gap: 10px; }
+            .content { padding: 40px; }
+            .greeting { color: #333; font-size: 20px; margin-bottom: 20px; text-align: center; }
+            .message-card { background-color: #f0fdf4; border: 1px solid #dcfce7; border-radius: 12px; padding: 20px; margin-bottom: 30px; }
+            .label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+            .value { font-size: 16px; color: #111827; font-weight: 500; margin-bottom: 16px; }
+            .message-text { background-color: #ffffff; padding: 15px; border-radius: 8px; border-left: 4px solid #10b981; font-style: italic; color: #374151; margin-top: 10px; }
+            .button-container { text-align: center; margin-top: 30px; }
+            .reply-button { background-color: #10b981; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block; transition: background-color 0.2s; }
+            .reply-button:hover { background-color: #059669; }
+            .footer { background-color: #f9f9f9; padding: 20px; text-align: center; border-top: 1px solid #eee; }
+            .footer p { color: #999; font-size: 12px; margin: 5px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>New WhatsApp Message</h1>
+            </div>
+            <div class="content">
+              <h2 class="greeting">Hello ${ownerName},</h2>
+              <p style="text-align: center; color: #666; margin-bottom: 30px;">
+                You have received a new message on your business WhatsApp.
+              </p>
+              
+              <div class="message-card">
+                <div class="label">From</div>
+                <div class="value">${data.customerName || 'Unknown'} <span style="color: #9ca3af; font-weight: normal;">(${data.phoneNumber})</span></div>
+                
+                <div class="label">Time</div>
+                <div class="value">${new Date(data.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</div>
+                
+                <div class="label">Message</div>
+                <div class="message-text">
+                  "${data.message}"
+                </div>
+              </div>
+
+              <div class="button-container">
+                <a href="${replyLink}" class="reply-button">Reply Now</a>
+              </div>
+            </div>
+            <div class="footer">
+              <p>&copy; ${new Date().getFullYear()} ${restaurantName}. All rights reserved.</p>
+              <p>This notification was sent instantly upon receiving the message.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      try {
+        await transporter.sendMail({
+          from: `"${restaurantName}" <${SMTP_USER}>`,
+          to: email,
+          subject: `New Message from ${data.customerName || data.phoneNumber}`,
+          html,
+        });
+        console.log('WhatsApp Notification sent to', email);
+      } catch (error) {
+        console.error('Error sending WhatsApp notification:', error);
+        // Don't throw logic error here to prevent blocking the main webhook flow
+      }
+    },
 };
