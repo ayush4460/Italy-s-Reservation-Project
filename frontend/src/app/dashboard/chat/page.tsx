@@ -72,7 +72,7 @@ export default function ChatPage() {
           Pragma: "no-cache",
           Expires: "0",
         },
-        // @ts-ignore
+        // @ts-expect-error: skipLoader is custom config
         skipLoader: background,
       });
       setChats(res.data);
@@ -86,9 +86,12 @@ export default function ChatPage() {
 
   // Fetch Messages for Selected Phone
   const fetchMessages = async (phone: string) => {
-    // setLoadingMessages(true);
+    // setLoadingMessages(true); // Uncomment if we implement local loading UI later
     try {
-      const res = await api.get(`/chat/${phone}`);
+      const res = await api.get(`/chat/${phone}`, {
+        // @ts-expect-error: skipLoader is custom config
+        skipLoader: true,
+      });
       setMessages(res.data);
       // Scroll to bottom
       setTimeout(() => {
