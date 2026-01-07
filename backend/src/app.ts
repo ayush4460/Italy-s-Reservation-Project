@@ -15,7 +15,7 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:3000',
   process.env.FRONTEND_URL || 'https://italy-reservation.vercel.app',
-  process.env.APP_URL || 'https://reservations.theitalys.com' 
+  process.env.APP_URL || 'https://reservation.theitalys.com' 
 ];
 
 app.use(cors({
