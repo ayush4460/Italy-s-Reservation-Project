@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins, Montserrat } from "next/font/google";
 import "./globals.css";
 import { GlobalLoaderProvider } from "@/components/global-loader-provider";
+import { Footer } from "@/components/footer";
 import { Toaster } from "sonner";
 
 const poppins = Poppins({
@@ -17,8 +18,8 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "The Italy's Reservation",
-  description: "Designed by Axiom Solutions",
+  title: "The Italys Reservation System",
+  description: "Powered by Axiom HiTech",
 };
 
 export default function RootLayout({
@@ -35,6 +36,7 @@ export default function RootLayout({
         <GlobalLoaderProvider />
         <Toaster richColors position="top-right" duration={3000} theme="dark" />
         {children}
+        <Footer />
       </body>
     </html>
   );
