@@ -1,10 +1,8 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../utils/prisma';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { EmailService } from '../services/email.service';
-
-const prisma = new PrismaClient();
 // Force restart
 
 interface AuthRequest extends Request {

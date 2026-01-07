@@ -1,12 +1,9 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../utils/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { generateCaptcha } from '../utils/captcha';
 import { EmailService } from '../services/email.service';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
 // Removed getCaptcha function

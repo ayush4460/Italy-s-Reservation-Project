@@ -1,11 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { sendReservationConfirmation } from '../lib/gupshup'; // We use this purely for sending logic? 
-// Actually we need a generic send function. The one in lib/gupshup is specific to reservation template?
-// Let's verify lib/gupshup.ts content or create a new generic send.
-import axios from 'axios';
-
-const prisma = new PrismaClient();
+import prisma from '../utils/prisma';
 
 interface AuthRequest extends Request {
   user?: { userId: number; role?: string; restaurantId?: number };

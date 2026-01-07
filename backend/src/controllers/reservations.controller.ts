@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+
 import ExcelJS from 'exceljs';
 import redis from '../lib/redis';
 
@@ -27,7 +27,7 @@ const clearDashboardCache = async (restaurantId: number, date: Date | string) =>
 };
 
 
-const prisma = new PrismaClient();
+import prisma from '../utils/prisma';
 
 interface AuthRequest extends Request {
   user?: { userId: number; role?: string; restaurantId?: number };
