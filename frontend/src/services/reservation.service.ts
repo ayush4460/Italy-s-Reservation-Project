@@ -5,6 +5,7 @@ export interface Slot {
   startTime: string;
   endTime: string;
   dayOfWeek?: number;
+  reservedCount?: number;
 }
 
 export interface Table {

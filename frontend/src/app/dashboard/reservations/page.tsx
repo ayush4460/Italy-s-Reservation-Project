@@ -7,6 +7,7 @@ import {
   Table,
   Reservation,
 } from "@/services/reservation.service";
+import { useSocket } from "@/context/socket-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -153,28 +154,32 @@ export default function ReservationsPage() {
   const [longPressedTable, setLongPressedTable] = useState<Table | null>(null);
 
   // Refactored to fetch slots first, then tables+reservations together
-  const fetchInitialData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const slotsData = await reservationService.getSlots(date);
-      setSlots(slotsData);
+  const fetchInitialData = useCallback(
+    async (preserveSelection = false) => {
+      try {
+        setLoading(true);
+        const slotsData = await reservationService.getSlots(date);
+        setSlots(slotsData);
 
-      if (slotsData.length > 0) {
-        // This will trigger the useEffect below to fetch unified data
-        setSelectedSlot(slotsData[0]);
-      } else {
-        setSelectedSlot(null);
-        // Fallback: If no slots, just show empty tables (old method)
-        const tablesData = await reservationService.getTables();
-        setTables(tablesData);
-        setReservations([]);
-        setLoading(false); // Manually set loading false here as useEffect won't run
+        if (slotsData.length > 0) {
+          if (!preserveSelection) {
+            setSelectedSlot(slotsData[0]);
+          }
+        } else {
+          setSelectedSlot(null);
+          // Fallback: If no slots, just show empty tables (old method)
+          const tablesData = await reservationService.getTables();
+          setTables(tablesData);
+          setReservations([]);
+          setLoading(false); // Manually set loading false here as useEffect won't run
+        }
+      } catch (err) {
+        console.error("Failed to load initial data", err);
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Failed to load initial data", err);
-      setLoading(false);
-    }
-  }, [date]);
+    },
+    [date]
+  );
 
   // Unified fetcher for Tables + Reservations
   const fetchTableData = useCallback(async () => {
@@ -207,6 +212,31 @@ export default function ReservationsPage() {
   useEffect(() => {
     fetchInitialData();
   }, [fetchInitialData]); // Refetch slots when date changes to get day-specific slots
+
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUpdate = (data: { date: string; slotId: number }) => {
+      // If the update is for the current viewed date
+      if (data.date === date) {
+        // Refres slots to update counts (preserve selection)
+        fetchInitialData(true);
+
+        // If the update is for the CURRENTLY selected slot, refresh the grid
+        if (selectedSlot && selectedSlot.id === data.slotId) {
+          fetchTableData();
+        }
+      }
+    };
+
+    socket.on("reservation:update", handleUpdate);
+
+    return () => {
+      socket.off("reservation:update", handleUpdate);
+    };
+  }, [socket, date, selectedSlot, fetchInitialData, fetchTableData]);
 
   useEffect(() => {
     if (selectedSlot && date) {
@@ -612,7 +642,7 @@ export default function ReservationsPage() {
       </div>
 
       {/* Slots Selection */}
-      <div className="flex overflow-x-auto pb-2 gap-3 no-scrollbar min-h-[50px]">
+      <div className="flex overflow-x-auto pb-2 pt-2 gap-3 no-scrollbar min-h-[50px]">
         {slots.length === 0 && (
           <div className="text-gray-400 text-sm py-2">
             No slots available for this day.
@@ -623,7 +653,7 @@ export default function ReservationsPage() {
             key={slot.id}
             onClick={() => setSelectedSlot(slot)}
             className={cn(
-              "flex items-center space-x-2 px-4 py-2 rounded-full border transition-all whitespace-nowrap",
+              "relative flex items-center space-x-2 px-4 py-2 rounded-full border transition-all whitespace-nowrap",
               selectedSlot?.id === slot.id
                 ? "bg-blue-500/20 border-blue-400 text-blue-300"
                 : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
@@ -633,6 +663,11 @@ export default function ReservationsPage() {
             <span>
               {formatTo12Hour(slot.startTime)} - {formatTo12Hour(slot.endTime)}
             </span>
+            {slot.reservedCount && slot.reservedCount > 0 ? (
+              <span className="absolute -top-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
+                {slot.reservedCount}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>

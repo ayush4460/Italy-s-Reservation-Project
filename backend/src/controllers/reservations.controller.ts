@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 
 import ExcelJS from 'exceljs';
 import redis from '../lib/redis';
+import { getIO } from '../lib/socket';
 
 const clearDashboardCache = async (restaurantId: number, date: Date | string) => {
     try {
@@ -53,8 +54,6 @@ export const getSlots = async (req: AuthRequest, res: Response) => {
             { date: dateObj }
         ];
     } else {
-        // Default to today if nothing provided? Or return empty?
-         // For now require date if not all
          return res.status(400).json({ message: 'Date or all=true required' });
     }
 
@@ -65,6 +64,43 @@ export const getSlots = async (req: AuthRequest, res: Response) => {
             { startTime: 'asc' }
         ]
     });
+
+    if (date && all !== 'true') {
+        const startOfDay = new Date(date as string); startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(date as string); endOfDay.setHours(23, 59, 59, 999);
+
+        // Fetch all non-cancelled reservations for this day
+        const reservations = await prisma.reservation.findMany({
+            where: {
+                table: { restaurantId },
+                date: {
+                    gte: startOfDay,
+                    lt: endOfDay,
+                },
+                status: { not: 'CANCELLED' }
+            },
+            select: { slotId: true, tableId: true, groupId: true, id: true }
+        });
+
+        // Map counts to slots
+        const slotsWithCounts = slots.map(slot => {
+            const slotReservations = reservations.filter(r => r.slotId === slot.id);
+            
+            // Count unique bookings (Unified Group or Single Table)
+            const uniqueBookings = new Set();
+            slotReservations.forEach(r => {
+                if (r.groupId) {
+                    uniqueBookings.add(r.groupId);
+                } else {
+                    uniqueBookings.add(`RES-${r.id}`);
+                }
+            });
+
+            return { ...slot, reservedCount: uniqueBookings.size };
+        });
+
+        return res.json(slotsWithCounts);
+    }
 
     res.json(slots);
   } catch (error) {
@@ -371,6 +407,16 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
             console.error("Error sending Gupshup message:", e);
         }
 
+        // Emit socket event
+        try {
+            getIO().to(`restaurant_${restaurantId}`).emit('reservation:update', {
+                date: dateObj.toISOString().split('T')[0],
+                slotId: parseInt(slotId)
+            });
+        } catch (err) {
+            console.error("Socket emit failed", err);
+        }
+
         res.status(201).json({ message: 'Reservation created', groupId });
 
     } catch (error) {
@@ -497,6 +543,16 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
         // 7. Invalidate Cache
         await clearDashboardCache(restaurantId, currentRes.date);
 
+        // Emit socket event
+        try {
+            getIO().to(`restaurant_${restaurantId}`).emit('reservation:update', {
+                date: currentRes.date.toISOString().split('T')[0],
+                slotId: currentRes.slotId
+            });
+        } catch (err) {
+            console.error("Socket emit failed", err);
+        }
+
         res.json({ message: 'Reservation moved successfully' });
 
     } catch (error) {
@@ -615,6 +671,16 @@ export const updateReservation = async (req: AuthRequest, res: Response) => {
         // Invalidate Cache
         await clearDashboardCache(restaurantId, reservation.date);
 
+        // Emit socket event
+        try {
+            getIO().to(`restaurant_${restaurantId}`).emit('reservation:update', {
+                date: reservation.date.toISOString().split('T')[0],
+                slotId: reservation.slotId
+            });
+        } catch (err) {
+            console.error("Socket emit failed", err);
+        }
+
         res.json(updated);
 
     } catch (error) {
@@ -655,6 +721,16 @@ export const cancelReservation = async (req: AuthRequest, res: Response) => {
  
         // Invalidate Cache
         await clearDashboardCache(restaurantId, reservation.date);
+
+        // Emit socket event
+        try {
+            getIO().to(`restaurant_${restaurantId}`).emit('reservation:update', {
+                date: reservation.date.toISOString().split('T')[0],
+                slotId: reservation.slotId
+            });
+        } catch (err) {
+            console.error("Socket emit failed", err);
+        }
 
         res.json({ message: 'Reservation cancelled successfully' });
 
