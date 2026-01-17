@@ -12,12 +12,22 @@ import { Label } from "@/components/ui/label";
 import { Plus, Send } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { Reservation } from "@/services/reservation.service";
+
+// Compatible interface for both Reservation and ReservationSummary
+interface ReservationLike {
+  customerName: string;
+  date: string;
+  slot?: { startTime: string; endTime: string };
+  adults: number;
+  kids: number;
+  contact: string;
+  foodPref: string;
+}
 
 interface Props {
   phone: string;
   onSendSuccess: () => void;
-  reservation?: Reservation | null;
+  reservation?: ReservationLike | null;
   trigger?: React.ReactNode;
 }
 
