@@ -53,6 +53,7 @@ export interface UpdateReservationDto {
   foodPref: string;
   specialReq: string;
   addTableIds?: number[];
+  notificationType?: string;
 }
 
 class ReservationService {

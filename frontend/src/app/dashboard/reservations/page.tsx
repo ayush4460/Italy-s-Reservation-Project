@@ -152,6 +152,7 @@ export default function ReservationsPage() {
     kids: "0",
     foodPref: "",
     specialReq: "",
+    notificationType: "RESERVATION_CONFIRMATION",
   });
   const [editMergeTables, setEditMergeTables] = useState<number[]>([]);
 
@@ -288,6 +289,7 @@ export default function ReservationsPage() {
         kids: reservation.kids.toString(),
         foodPref: reservation.foodPref,
         specialReq: reservation.specialReq || "",
+        notificationType: getDefaultTemplate(date, selectedSlot),
       });
       setEditMergeTables([]); // Reset
       setIsEditModalOpen(true);
@@ -373,6 +375,7 @@ export default function ReservationsPage() {
       await reservationService.updateReservation(editingReservation.id, {
         ...editFormData,
         addTableIds: editMergeTables.length > 0 ? editMergeTables : undefined,
+        notificationType: editFormData.notificationType,
       });
       setIsEditModalOpen(false);
       setEditingReservation(null);
@@ -1234,6 +1237,39 @@ export default function ReservationsPage() {
               className="glass-input"
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="editNotificationType">WhatsApp Template</Label>
+            <select
+              id="editNotificationType"
+              value={editFormData.notificationType}
+              onChange={(e) =>
+                setEditFormData({
+                  ...editFormData,
+                  notificationType: e.target.value,
+                })
+              }
+              className="glass-input w-full bg-slate-900 border border-white/10 rounded-md p-2 text-white text-sm"
+            >
+              <option
+                className="bg-slate-900 text-white"
+                value="RESERVATION_CONFIRMATION"
+              >
+                Unlimited Dinner
+              </option>
+              <option
+                className="bg-slate-900 text-white"
+                value="WEEKDAY_BRUNCH"
+              >
+                Weekday Brunch
+              </option>
+              <option
+                className="bg-slate-900 text-white"
+                value="WEEKEND_BRUNCH"
+              >
+                Weekend Brunch
+              </option>
+            </select>
+          </div>
 
           <div className="flex gap-4 pt-4">
             <Button
@@ -2014,6 +2050,10 @@ export default function ReservationsPage() {
                     kids: movingReservation.kids.toString(),
                     foodPref: movingReservation.foodPref,
                     specialReq: movingReservation.specialReq || "",
+                    notificationType: getDefaultTemplate(
+                      date,
+                      selectedSlot || undefined,
+                    ),
                   });
                   setIsEditModalOpen(true);
                 }

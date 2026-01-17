@@ -335,7 +335,7 @@ const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
 };
 
 // Reusable mapper function since all 3 templates share the EXACT SAME parameters in the same order
-const commonReservationMapper = (data: any): string[] => {
+export const commonReservationMapper = (data: any): string[] => {
     // Expecting data to contain: 
     // { customerName, date (Date/Str), slot: { startTime, endTime }, adults, kids, contact, foodPref }
     

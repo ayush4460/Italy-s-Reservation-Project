@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import ExcelJS from 'exceljs';
 import redis from '../lib/redis';
 import { getIO } from '../lib/socket';
+import { commonReservationMapper, sendSmartWhatsAppTemplate } from '../lib/whatsapp';
 
 const clearDashboardCache = async (restaurantId: number, date: Date | string) => {
     try {
@@ -643,6 +644,41 @@ export const updateReservation = async (req: AuthRequest, res: Response) => {
 
         // Invalidate Cache
         await clearDashboardCache(restaurantId, reservation.date);
+
+        // --- Send WhatsApp Notification (Optional) ---
+        const { notificationType } = req.body;
+        if (notificationType) {
+            try {
+                // Fetch fresh data for the notification
+                // If it was a group update, we just need ANY one of the reservations to get the details
+                // If it was a single update, we get that one.
+                const freshRes = await prisma.reservation.findFirst({
+                    where: { id: parseInt(id) },
+                    include: { slot: true } // Need slot for time details
+                });
+
+                if (freshRes && freshRes.slot) {
+                    const templateId = notificationType === 'WEEKDAY_BRUNCH'
+                        ? 'bab0d93c-f4c8-492f-b941-f7515197f68c'
+                        : notificationType === 'WEEKEND_BRUNCH'
+                            ? '3defebf5-4e52-4dca-bb52-07a764c8708b'
+                            : '70c6df04-e22d-45ce-8c70-6927dcc3b378'; // Unlimited Dinner (Native/Default)
+                    
+                    // Native checks are done inside sendSmart or we can just pass the UUID.
+                    // Ideally we should use the TEMPLATE_REGISTRY but that's in lib.
+                    // For now, mapping ID manually or relying on smart sender behavior?
+                    // Smart Sender takes UUID. 
+                    // Let's use the explicit UUIDs we added to lib/whatsapp.ts
+                    
+                    const params = commonReservationMapper(freshRes);
+                    
+                    // NOTE: sendSmartWhatsAppTemplate handles "Native" vs "Cloud" dispatch internally based on ID detection.
+                    await sendSmartWhatsAppTemplate(freshRes.contact, templateId, params);
+                }
+            } catch (err) {
+                console.error("Failed to send WhatsApp update:", err);
+            }
+        }
 
         // Emit socket event
         try {
