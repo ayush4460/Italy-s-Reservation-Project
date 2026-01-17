@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 
 const SMTP_USER = process.env.SMTP_USER || process.env.EMAIL_USER;
 const SMTP_PASS = process.env.SMTP_PASS || process.env.EMAIL_PASSWORD;
+const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER;
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -13,88 +14,25 @@ const transporter = nodemailer.createTransport({
 
 export const EmailService = {
   sendOTP: async (email: string, otp: string, restaurantName: string = "Italy's Reservation") => {
+    // ... HTML content ...
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
         <style>
-          body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            background-color: #f9f9f9;
-            margin: 0;
-            padding: 0;
-            -webkit-font-smoothing: antialiased;
-          }
-          .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            margin-top: 40px;
-            margin-bottom: 40px;
-          }
-          .header {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-            padding: 40px 0;
-            text-align: center;
-          }
-          .header h1 {
-            color: #ffffff;
-            margin: 0;
-            font-size: 28px;
-            letter-spacing: 1px;
-            font-weight: 300;
-          }
-          .content {
-            padding: 40px;
-            text-align: center;
-          }
-          .greeting {
-            color: #333333;
-            font-size: 20px;
-            margin-bottom: 20px;
-          }
-          .message {
-            color: #666666;
-            font-size: 16px;
-            line-height: 1.6;
-            margin-bottom: 30px;
-          }
-          .otp-container {
-            background-color: #f0f4f8;
-            border-radius: 12px;
-            padding: 20px;
-            display: inline-block;
-            margin-bottom: 30px;
-            border: 2px dashed #d1d9e6;
-          }
-          .otp-code {
-            color: #2c3e50;
-            font-size: 36px;
-            font-weight: 700;
-            letter-spacing: 5px;
-            margin: 0;
-          }
-          .warning {
-            color: #e74c3c;
-            font-size: 14px;
-            font-weight: 500;
-            margin-top: 20px;
-          }
-          .footer {
-            background-color: #f9f9f9;
-            padding: 20px;
-            text-align: center;
-            border-top: 1px solid #eeeeee;
-          }
-          .footer p {
-             color: #999999;
-             font-size: 12px;
-             margin: 5px 0;
-          }
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9f9f9; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+          .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-top: 40px; margin-bottom: 40px; }
+          .header { background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); padding: 40px 0; text-align: center; }
+          .header h1 { color: #ffffff; margin: 0; font-size: 28px; letter-spacing: 1px; font-weight: 300; }
+          .content { padding: 40px; text-align: center; }
+          .greeting { color: #333333; font-size: 20px; margin-bottom: 20px; }
+          .message { color: #666666; font-size: 16px; line-height: 1.6; margin-bottom: 30px; }
+          .otp-container { background-color: #f0f4f8; border-radius: 12px; padding: 20px; display: inline-block; margin-bottom: 30px; border: 2px dashed #d1d9e6; }
+          .otp-code { color: #2c3e50; font-size: 36px; font-weight: 700; letter-spacing: 5px; margin: 0; }
+          .warning { color: #e74c3c; font-size: 14px; font-weight: 500; margin-top: 20px; }
+          .footer { background-color: #f9f9f9; padding: 20px; text-align: center; border-top: 1px solid #eeeeee; }
+          .footer p { color: #999999; font-size: 12px; margin: 5px 0; }
         </style>
       </head>
       <body>
@@ -131,7 +69,7 @@ export const EmailService = {
 
     try {
       await transporter.sendMail({
-        from: `"${restaurantName}" <${SMTP_USER}>`,
+        from: `"${restaurantName}" <${SMTP_FROM}>`,
         to: email,
         subject: `Start Password Reset - ${otp}`,
         html,
@@ -144,6 +82,7 @@ export const EmailService = {
   },
 
   sendLoginOTP: async (email: string, otp: string, name: string, restaurantName: string = "Italy's Reservation") => {
+    // ... HTML content ...
     const html = `
       <!DOCTYPE html>
       <html>
@@ -190,7 +129,7 @@ export const EmailService = {
 
     try {
       await transporter.sendMail({
-        from: `"${restaurantName}" <${SMTP_USER}>`,
+        from: `"${restaurantName}" <${SMTP_FROM}>`,
         to: email,
         subject: `Login OTP - ${otp}`,
         html,
@@ -203,6 +142,7 @@ export const EmailService = {
   },
 
   sendSignupOTP: async (email: string, otp: string, restaurantName: string = "Italy's Reservation") => {
+    // ... HTML content ...
     const html = `
       <!DOCTYPE html>
       <html>
@@ -249,7 +189,7 @@ export const EmailService = {
 
     try {
       await transporter.sendMail({
-        from: `"${restaurantName}" <${SMTP_USER}>`,
+        from: `"${restaurantName}" <${SMTP_FROM}>`,
         to: email,
         subject: `Signup OTP - ${otp}`,
         html,
@@ -262,6 +202,7 @@ export const EmailService = {
   },
 
   sendEmailChangeOTP: async (email: string, otp: string, name: string, restaurantName: string = "Italy's Reservation") => {
+    // ... HTML content ...
     const html = `
       <!DOCTYPE html>
       <html>
@@ -309,7 +250,7 @@ export const EmailService = {
 
     try {
       await transporter.sendMail({
-        from: `"${restaurantName}" <${SMTP_USER}>`,
+        from: `"${restaurantName}" <${SMTP_FROM}>`,
         to: email,
         subject: `Verify New Email - ${restaurantName}`,
         html,
@@ -322,6 +263,7 @@ export const EmailService = {
   },
 
   sendStaffRegistrationOTP: async (email: string, otp: string, restaurantName: string = "Italy's Reservation") => {
+    // ... HTML content ...
     const html = `
       <!DOCTYPE html>
       <html>
@@ -370,7 +312,7 @@ export const EmailService = {
 
     try {
       await transporter.sendMail({
-        from: `"${restaurantName}" <${SMTP_USER}>`,
+        from: `"${restaurantName}" <${SMTP_FROM}>`,
         to: email,
         subject: `Verify Your Email - Staff Registration`,
         html,
@@ -383,6 +325,7 @@ export const EmailService = {
   },
 
   sendStaffEmailChangeOTP: async (email: string, otp: string, staffName: string, restaurantName: string = "Italy's Reservation") => {
+    // ... HTML content ...
     const html = `
       <!DOCTYPE html>
       <html>
@@ -431,7 +374,7 @@ export const EmailService = {
 
     try {
       await transporter.sendMail({
-        from: `"${restaurantName}" <${SMTP_USER}>`,
+        from: `"${restaurantName}" <${SMTP_FROM}>`,
         to: email,
         subject: `Confirm Your New Staff Email - ${restaurantName}`,
         html,
@@ -458,7 +401,7 @@ export const EmailService = {
       const ownerName = data.ownerName || "Admin"; // Fallback to Admin
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
       const replyLink = `${frontendUrl}/dashboard/chat`;
-
+    // ... HTML content ...
       const html = `
         <!DOCTYPE html>
         <html>
@@ -521,7 +464,7 @@ export const EmailService = {
 
       try {
         await transporter.sendMail({
-          from: `"${restaurantName}" <${SMTP_USER}>`,
+          from: `"${restaurantName}" <${SMTP_FROM}>`,
           to: email,
           subject: `New Message from ${data.customerName || data.phoneNumber}`,
           html,
