@@ -140,7 +140,7 @@ export const sendTemplateV3 = async (
             type: "template",
             template: {
                 name: templateName,
-                language: { code: "en" },
+                language: { code: "en_IN" },
                 components: [
                     {
                         type: "body",
@@ -159,8 +159,8 @@ export const sendTemplateV3 = async (
                     {
                         type: "location",
                         location: {
-                            latitude: location.latitude,
-                            longitude: location.longitude,
+                            latitude: parseFloat(location.latitude),
+                            longitude: parseFloat(location.longitude),
                             name: location.name,
                             address: location.address
                         }
@@ -169,7 +169,9 @@ export const sendTemplateV3 = async (
             });
         }
 
+
         console.log(`[WhatsApp V3] Sending Cloud Template to ${destination}`);
+        console.log('[WhatsApp V3 Payload]:', JSON.stringify(cloudPayload, null, 2));
         
         // Use the standard Gupshup V1 /msg endpoint which accepts Cloud API payloads 
         // if passed as a stringified JSON in the 'message' field.
@@ -182,6 +184,7 @@ export const sendTemplateV3 = async (
         body.append('message', JSON.stringify(cloudPayload));
 
         const res = await gupshupClient.post('/msg', body);
+        console.log('[Gupshup V3 Response]:', JSON.stringify(res.data, null, 2));
         return res.data;
 
     } catch (error: any) {
@@ -190,9 +193,11 @@ export const sendTemplateV3 = async (
     }
 };
 
-// 5. Template Definitions & Hydration
-// Store known templates here to reconstruct the message content for the DB
-const TEMPLATES: Record<string, string> = {
+
+// ==========================================
+// TEMPLATE DEFINITIONS (For local logging/hydration in DB)
+// ==========================================
+ const TEMPLATES: Record<string, string> = {
   "brunch_di_gala_reservation_confirmation": `Hello {{1}}, 👋  
 
 Your reservation for *Brunch Di Gala All'Italiana* is confirmed!🍕
@@ -204,6 +209,34 @@ Your reservation for *Brunch Di Gala All'Italiana* is confirmed!🍕
 👨‍👩‍👧‍👦 *Guests:* {{6}}  
 📞 *Contact:* {{7}}  
 🍽️ *Food Preparation:* {{8}}
+
+📍 *Location:* Opp. HDFC Bank, Sun Pharma Road, Vadodara  
+🔗 [Google Maps Location](https://maps.app.goo.gl/SXtQ6vkx2ho7KBCF7)
+
+We look forward to serving you *18+ traditional Italian dishes* — including Woodfired Pizza, Pasta, and Risotto — along with *mocktails and desserts (single serve).* 🍝🥗🍰
+
+💳 *Payment Options:*  
+CASH / UPI only via restaurant payment gateways.  
+❌ Payments via Dineout, EazyDiner, or Zomato are *not accepted.*
+
+⚠️ *Note:* Reservations will be held for 15 minutes beyond your scheduled time.  
+If you expect a delay, please inform us in advance so we can accommodate you in the next available slot (subject to availability).  
+
+For more information, contact us at *9909000317*.
+
+Grazie! ❤️  
+See you soon at *Italy’s Traditional Pizzeria*`,
+  "italys_unlimited_dinner_reservation": `Hello {{1}}, 👋  
+
+Your reservation for *Cena All'Italiana* is confirmed!🍕
+
+📅 *Date:* {{2}}  
+🗓️ *Day:* {{3}}  
+🕑 *Batch:* {{4}}  
+⏰ *Time:* {{5}}  
+👨‍👩‍👧‍👦 *Guests:* {{6}} Adults, {{7}} Kids  
+📞 *Contact:* {{8}}  
+🍽️ *Food Preparation:* {{9}}
 
 📍 *Location:* Opp. HDFC Bank, Sun Pharma Road, Vadodara  
 🔗 [Google Maps Location](https://maps.app.goo.gl/SXtQ6vkx2ho7KBCF7)
@@ -239,3 +272,155 @@ export const hydrateTemplate = (templateId: string, params: string[]): string =>
 
   return text;
 };
+
+// ==========================================
+// CENTRALIZED TEMPLATE REGISTRY (SCALABLE)
+// ==========================================
+
+export type WhatsappNotificationType = 'RESERVATION_CONFIRMATION';
+
+interface TemplateConfig {
+    templateId: string;
+    isNative?: boolean; // If true, uses Gupshup Native API (v1/template/msg)
+    // Function that takes any data object and returns the sorted string params array
+    mapper: (data: any) => string[];
+    // Optional static location or function to get location
+    location?: { latitude: string; longitude: string; name: string; address: string };
+}
+
+/* 
+ * REGISTRY
+ * Add new templates here.
+ */
+const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
+    'RESERVATION_CONFIRMATION': {
+        // UUID from user's curl command
+        templateId: "00dc1c69-a790-45ee-8baa-e97379a0891f",
+        isNative: true, // Use the new Native Sender
+        mapper: (data: any) => {
+            // Expecting data to contain: 
+            // { customerName, date (Date/Str), slot: { startTime, endTime }, adults, kids, contact, foodPref }
+            
+            const dateObj = new Date(data.date);
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const dayName = days[dateObj.getDay()]; // {{3}} Day
+            
+            const dayStr = dateObj.getDate().toString().padStart(2, '0');
+            const monthStr = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+            const yearStr = dateObj.getFullYear().toString().slice(-2);
+            const formattedDate = `${dayStr}/${monthStr}/${yearStr}`; // {{2}} Date
+
+            const startTime = data.slot?.startTime || 'Unknown'; // {{5}} Time
+            const endTime = data.slot?.endTime || '';
+            const batch = `${startTime} - ${endTime}`; // {{4}} Batch
+
+            const adultsCount = parseInt(data.adults || '0');
+            const kidsCount = parseInt(data.kids || '0');
+            // const totalGuests = adultsCount + kidsCount; 
+            
+            // {{8}} Food Preparation
+            const foodPreparation = data.foodPref || 'Not Specified';
+
+            return [
+                (data.customerName || 'Guest').trim(),  // {{1}} Name
+                formattedDate,                 // {{2}} Date
+                dayName,                       // {{3}} Day
+                batch,                         // {{4}} Batch
+                startTime,                     // {{5}} Time
+                adultsCount.toString(),        // {{6}} No. of Adults
+                kidsCount.toString(),          // {{7}} No. of Kids
+                data.contact || '',            // {{8}} Contact Number
+                foodPreparation                // {{9}} Food Preparation
+            ];
+        },
+        location: {
+            latitude: "22.270041",
+            longitude: "73.149727",
+            name: "Italy's Traditional Pizzeria",
+            address: "Opp. HDFC Bank, Sun Pharma Road, Vadodara"
+        }
+    }
+};
+
+// NEW: Gupshup Native Template Sender (Mimics user's curl)
+const sendGupshupNativeTemplate = async (
+    destination: string, 
+    templateId: string, 
+    params: string[], 
+    location?: { latitude: string; longitude: string; name: string; address: string }
+) => {
+    try {
+        const source = process.env.GUPSHUP_SRC_PHONE || "919909442317";
+        const appName = process.env.GUPSHUP_APP_NAME || "TheItalysReservation";
+
+        // Construct Body as URL Encoded Form Data
+        const body = new URLSearchParams();
+        body.append('channel', 'whatsapp');
+        body.append('source', source);
+        body.append('destination', destination);
+        body.append('src.name', appName);
+        
+        // Template Param JSON
+        const templateJson = JSON.stringify({
+            id: templateId,
+            params: params
+        });
+        body.append('template', templateJson);
+
+        // Location as 'message' param if exists
+        if (location) {
+            const messageJson = JSON.stringify({
+                type: 'location',
+                location: {
+                    latitude: parseFloat(location.latitude), 
+                    longitude: parseFloat(location.longitude),
+                    name: location.name,
+                    address: location.address
+                }
+            });
+            body.append('message', messageJson);
+        }
+
+        console.log(`[Gupshup Native] Sending Template ${templateId} to ${destination}`);
+        console.log(`[Gupshup Native] Params:`, JSON.stringify(params));
+
+        const res = await gupshupClient.post('/template/msg', body);
+        console.log('[Gupshup Native Response]:', JSON.stringify(res.data, null, 2));
+        return res.data;
+
+    } catch (error: any) {
+        console.error('[Gupshup Native] Error:', error.response?.data || error.message);
+        throw error;
+    }
+}
+
+
+/**
+ * Scalable Wrapper to send any notification by Type
+ */
+export const sendWhatsappNotification = async (
+    phone: string,
+    type: WhatsappNotificationType,
+    data: any
+) => {
+    const config = TEMPLATE_REGISTRY[type];
+    if (!config) {
+        console.error(`[WhatsApp] Unknown notification type: ${type}`);
+        return null;
+    }
+
+    try {
+        const params = config.mapper(data);
+        
+        if (config.isNative) {
+            return await sendGupshupNativeTemplate(phone, config.templateId, params, config.location);
+        } else {
+            // Use sendTemplateV3 which supports location headers (Cloud API style)
+            return await sendTemplateV3(phone, config.templateId, params, config.location);
+        }
+    } catch (error) {
+        console.error(`[WhatsApp] Failed to send centralized notification [${type}]:`, error);
+        return null;
+    }
+};
+

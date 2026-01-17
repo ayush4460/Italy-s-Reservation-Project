@@ -38,6 +38,9 @@ export const handleGupshupWebhook = async (req: Request, res: Response) => {
                         customerName = contact.profile.name;
                     }
                 }
+            } else if (value?.statuses && value.statuses.length > 0) {
+                console.log('[Webhook] Status Update:', JSON.stringify(value.statuses, null, 2));
+                return res.status(200).send('OK');
             } else {
                 // Status update or other event (ignored for now)
                 return res.status(200).send('OK'); 

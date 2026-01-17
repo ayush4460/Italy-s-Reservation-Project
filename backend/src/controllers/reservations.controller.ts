@@ -352,56 +352,25 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
         await clearDashboardCache(restaurantId, date);
 
         // Send WhatsApp Notification (Only once)
-        // Send WhatsApp Notification (Gupshup)
+        // Send WhatsApp Notification (Centralized)
         try {
            console.log(`[CreateReservation] Sending Gupshup msg to ${contact}`);
            if (contact) {
                 const slotObj = await prisma.slot.findUnique({ where: { id: parseInt(slotId) } });
-                const startTime = slotObj ? slotObj.startTime : 'Unknown Time'; // {{5}} Time
-                const endTime = slotObj ? slotObj.endTime : '';
-                const batch = `${startTime} - ${endTime}`; // {{4}} Batch (Time Range)
                 
-                const dateKey = new Date(date);
-                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                const dayName = days[dateKey.getDay()]; // {{3}} Day
-                
-                const dayStr = dateKey.getDate().toString().padStart(2, '0');
-                const monthStr = (dateKey.getMonth() + 1).toString().padStart(2, '0');
-                const yearStr = dateKey.getFullYear();
-                const formattedDate = `${dayStr}/${monthStr}/${yearStr}`; // {{2}} Date
-
-                const totalGuests = parseInt(adults) + parseInt(kids); // {{6}} Guests
-                
-                // {{8}} Food Preparation
-                const foodPreparation = foodPref || 'Not Specified'; 
-
-                // Template Params Array
-                const templateParams = [
-                    customerName,       // {{1}} Name
-                    formattedDate,      // {{2}} Date
-                    dayName,            // {{3}} Day
-                    batch,              // {{4}} Batch
-                    startTime,          // {{5}} Time
-                    totalGuests.toString(), // {{6}} Guests
-                    contact,            // {{7}} Contact
-                    foodPreparation     // {{8}} Food Preparation
-                ];
-                 
-                // Location for header
-                const location = {
-                    latitude: "22.270041",
-                    longitude: "73.149727",
-                    name: "Italy's Traditional Pizzeria",
-                    address: "Opp. HDFC Bank, Sun Pharma Road, Vadodara"
+                // Prepare data object for mapper
+                const notificationData = {
+                    customerName,
+                    date: dateObj, // Date object or string
+                    slot: slotObj, // Contains startTime, endTime
+                    adults,
+                    kids,
+                    contact,
+                    foodPref
                 };
 
-                 const { sendTemplateV3 } = await import('../lib/whatsapp');
-                 await sendTemplateV3(
-                    contact, 
-                    'brunch_di_gala_reservation_confirmation',
-                    templateParams,
-                    location
-                 );
+                const { sendWhatsappNotification } = await import('../lib/whatsapp');
+                await sendWhatsappNotification(contact, 'RESERVATION_CONFIRMATION', notificationData);
            }
         } catch (e) {
             console.error("Error sending Gupshup message:", e);
