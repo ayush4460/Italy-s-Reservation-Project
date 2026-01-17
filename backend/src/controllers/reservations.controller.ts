@@ -369,8 +369,12 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
                     foodPref
                 };
 
-                const { sendWhatsappNotification } = await import('../lib/whatsapp');
-                await sendWhatsappNotification(contact, 'RESERVATION_CONFIRMATION', notificationData);
+                 const { sendWhatsappNotification } = await import('../lib/whatsapp');
+                 
+                 // Use type from body (passed from frontend) OR fallback to default
+                 const typeToSend = req.body.notificationType || 'RESERVATION_CONFIRMATION';
+                 
+                 await sendWhatsappNotification(contact, typeToSend, notificationData);
            }
         } catch (e) {
             console.error("Error sending Gupshup message:", e);

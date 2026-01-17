@@ -169,10 +169,11 @@ export const sendTemplate = async (req: AuthRequest, res: Response) => {
             formattedPhone = `91${formattedPhone}`;
         }
         
-        // 1. Send via Helper (V3 with Location)
-        const { sendTemplateV3, hydrateTemplate } = await import('../lib/whatsapp');
+        // 1. Send via Helper (Smart: Handles Native vs V3)
+        const { sendSmartWhatsAppTemplate, hydrateTemplate } = await import('../lib/whatsapp');
         
         // Define Location for Brunch di Gala (Hardcoded for now as it's the restaurant location)
+        // Note: sendSmartWhatsAppTemplate handles logic to pick correct location or use this fallback
         const location = {
             latitude: "22.270041",
             longitude: "73.149727",
@@ -180,12 +181,7 @@ export const sendTemplate = async (req: AuthRequest, res: Response) => {
             address: "Opp. HDFC Bank, Sun Pharma Road, Vadodara"
         };
 
-        // Only send location if it's this specific template (or generally if we decide later)
-        if (templateId === 'brunch_di_gala_reservation_confirmation') {
-             await sendTemplateV3(formattedPhone, templateId, params || [], location);
-        } else {
-             await sendTemplateV3(formattedPhone, templateId, params || []);
-        }
+        await sendSmartWhatsAppTemplate(formattedPhone, templateId, params || [], location);
 
         // 2. Save to DB (Hydrated content)
         // detailed template text for better UX

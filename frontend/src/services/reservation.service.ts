@@ -28,6 +28,7 @@ export interface Reservation {
   slotId: number;
   status: string;
   groupId?: string;
+  slot?: Slot;
 }
 
 export interface CreateReservationDto {
@@ -41,6 +42,7 @@ export interface CreateReservationDto {
   foodPref: string;
   specialReq: string;
   mergeTableIds?: number[];
+  notificationType?: string; // Optional type override
 }
 
 export interface UpdateReservationDto {

@@ -91,10 +91,36 @@ export default function ReservationsPage() {
     kids: "0",
     foodPref: "Regular",
     specialReq: "",
+    notificationType: "RESERVATION_CONFIRMATION", // Default
   });
   const [bookingLoading, setBookingLoading] = useState(false);
   const [selectedMergeTables, setSelectedMergeTables] = useState<number[]>([]);
   const [isMergingMode, setIsMergingMode] = useState(false);
+
+  // Helper to determine default template based on date/slot
+  const getDefaultTemplate = useCallback((dateStr: string, slot?: Slot) => {
+    if (!slot || !dateStr) return "RESERVATION_CONFIRMATION";
+
+    const dateObj = new Date(dateStr);
+    const day = dateObj.getDay(); // 0=Sun, 6=Sat
+    const isWeekend = day === 0 || day === 6;
+
+    // Parse Time: "11:00" -> 11
+    const startHour = parseInt(slot.startTime.split(":")[0]);
+
+    // Brunch usually ends by 4 PM (16:00).
+    // If slot starts before 4 PM, assume Brunch?
+    // Or if End Time is before 4 PM.
+    // User said "according to timeslot".
+    // Let's assume < 16:00 start is Brunch.
+    const isBrunchTime = startHour < 16;
+
+    if (isBrunchTime) {
+      return isWeekend ? "WEEKEND_BRUNCH" : "WEEKDAY_BRUNCH";
+    } else {
+      return "RESERVATION_CONFIRMATION"; // Unlimited Dinner / Regular
+    }
+  }, []);
 
   const [role, setRole] = useState<string | null>(null);
 
@@ -112,6 +138,7 @@ export default function ReservationsPage() {
     kids: "0",
     foodPref: "Regular",
     specialReq: "",
+    notificationType: "RESERVATION_CONFIRMATION",
   });
 
   // Edit Reservation State
@@ -148,7 +175,7 @@ export default function ReservationsPage() {
 
   // Long Press State
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(
-    null
+    null,
   );
   const [isLongPressModalOpen, setIsLongPressModalOpen] = useState(false);
   const [longPressedTable, setLongPressedTable] = useState<Table | null>(null);
@@ -178,7 +205,7 @@ export default function ReservationsPage() {
         setLoading(false);
       }
     },
-    [date]
+    [date],
   );
 
   // Unified fetcher for Tables + Reservations
@@ -195,7 +222,7 @@ export default function ReservationsPage() {
 
       const data = await reservationService.getTablesWithAvailability(
         date,
-        selectedSlot.id
+        selectedSlot.id,
       );
       setTables(data.tables);
       setReservations(data.reservations);
@@ -267,6 +294,9 @@ export default function ReservationsPage() {
     } else {
       // Open Create Modal
       setSelectedTable(table);
+      // Auto-select template
+      const defaultTemplate = getDefaultTemplate(date, selectedSlot);
+
       setBookingData({
         customerName: "",
         contact: "",
@@ -274,6 +304,7 @@ export default function ReservationsPage() {
         kids: "0",
         foodPref: "Regular",
         specialReq: "",
+        notificationType: defaultTemplate,
       });
       // Reset merge
       setSelectedMergeTables([]);
@@ -314,6 +345,7 @@ export default function ReservationsPage() {
           selectedMergeTables.length > 0 ? selectedMergeTables : undefined,
       });
       setIsBookingModalOpen(false);
+      setIsBookingModalOpen(false);
       setBookingData({
         customerName: "",
         contact: "",
@@ -321,6 +353,7 @@ export default function ReservationsPage() {
         kids: "0",
         foodPref: "Regular",
         specialReq: "",
+        notificationType: "RESERVATION_CONFIRMATION",
       });
       fetchTableData();
     } catch (err) {
@@ -394,7 +427,7 @@ export default function ReservationsPage() {
     try {
       await reservationService.moveReservation(
         movingReservation.id,
-        moveTargetTables.map((t) => t.id)
+        moveTargetTables.map((t) => t.id),
       );
       setIsMoveModalOpen(false);
       setMovingReservation(null);
@@ -436,7 +469,7 @@ export default function ReservationsPage() {
     setGroupSelectedTables((prev) =>
       prev.includes(tableId)
         ? prev.filter((id) => id !== tableId)
-        : [...prev, tableId]
+        : [...prev, tableId],
     );
   };
 
@@ -464,6 +497,7 @@ export default function ReservationsPage() {
         kids: "0",
         foodPref: "Regular",
         specialReq: "",
+        notificationType: "RESERVATION_CONFIRMATION",
       });
       setGroupSelectedTables([]);
       fetchTableData();
@@ -542,7 +576,7 @@ export default function ReservationsPage() {
 
     // Sort tables by tableNumber first to ensure consistent order
     const sortedTables = [...tables].sort(
-      (a, b) => Number(a.tableNumber) - Number(b.tableNumber)
+      (a, b) => Number(a.tableNumber) - Number(b.tableNumber),
     );
 
     sortedTables.forEach((table) => {
@@ -553,7 +587,7 @@ export default function ReservationsPage() {
       if (reservation && reservation.groupId) {
         // Find all tables in this group
         const groupReservations = reservations.filter(
-          (r) => r.groupId === reservation.groupId
+          (r) => r.groupId === reservation.groupId,
         );
         const groupTableIds = groupReservations.map((r) => r.tableId);
         const groupTables = tables.filter((t) => groupTableIds.includes(t.id));
@@ -563,14 +597,14 @@ export default function ReservationsPage() {
 
         // Create merged display table
         const sortedGroupTables = groupTables.sort(
-          (a, b) => Number(a.tableNumber) - Number(b.tableNumber)
+          (a, b) => Number(a.tableNumber) - Number(b.tableNumber),
         );
         const mergedNumbers = sortedGroupTables
           .map((t) => t.tableNumber)
           .join(", ");
         const totalCapacity = groupTables.reduce(
           (sum, t) => sum + t.capacity,
-          0
+          0,
         );
 
         // Use the first table as base but override display props
@@ -608,6 +642,17 @@ export default function ReservationsPage() {
                   onClick={() => {
                     if (!selectedSlot)
                       return alert("Please select a time slot first");
+
+                    // Set default template
+                    const defaultTemplate = getDefaultTemplate(
+                      date,
+                      selectedSlot,
+                    );
+                    setGroupBookingData((prev) => ({
+                      ...prev,
+                      notificationType: defaultTemplate,
+                    }));
+
                     setIsGroupBookingModalOpen(true);
                   }}
                   size="sm"
@@ -656,7 +701,7 @@ export default function ReservationsPage() {
               "relative flex items-center space-x-2 px-4 py-2 rounded-full border transition-all whitespace-nowrap",
               selectedSlot?.id === slot.id
                 ? "bg-blue-500/20 border-blue-400 text-blue-300"
-                : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+                : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10",
             )}
           >
             <Clock className="h-4 w-4" />
@@ -679,7 +724,7 @@ export default function ReservationsPage() {
             Tables for {date.split("-").reverse().join("-")} (
             {selectedSlot
               ? `${formatTo12Hour(selectedSlot.startTime)} - ${formatTo12Hour(
-                  selectedSlot.endTime
+                  selectedSlot.endTime,
                 )}`
               : "Select Slot"}
             )
@@ -702,7 +747,7 @@ export default function ReservationsPage() {
                     "relative aspect-square rounded-xl flex flex-col items-center justify-center p-4 border-2 transition-all cursor-pointer shadow-lg group select-none",
                     isBooked
                       ? "bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/30"
-                      : "bg-green-500/20 border-green-500/50 text-green-300 hover:bg-green-500/30"
+                      : "bg-green-500/20 border-green-500/50 text-green-300 hover:bg-green-500/30",
                   )}
                 >
                   <Armchair className="h-8 w-8 mb-2" />
@@ -828,7 +873,7 @@ export default function ReservationsPage() {
                             "h-4 w-4",
                             totalCapacity >= totalGuests
                               ? "text-green-400"
-                              : "text-red-400"
+                              : "text-red-400",
                           )}
                         />
                         <span
@@ -836,7 +881,7 @@ export default function ReservationsPage() {
                             "text-sm font-medium",
                             totalCapacity >= totalGuests
                               ? "text-green-400"
-                              : "text-red-400"
+                              : "text-red-400",
                           )}
                         >
                           {totalCapacity >= totalGuests
@@ -858,13 +903,13 @@ export default function ReservationsPage() {
                           .filter((t) => {
                             if (t.id === selectedTable.id) return false;
                             return !reservations.some(
-                              (r) => r.tableId === t.id
+                              (r) => r.tableId === t.id,
                             );
                           })
                           .sort((a, b) => b.capacity - a.capacity) // Sort by capacity desc
                           .map((t) => {
                             const isSelected = selectedMergeTables.includes(
-                              t.id
+                              t.id,
                             );
                             return (
                               <div
@@ -874,7 +919,7 @@ export default function ReservationsPage() {
                                   "py-1.5 px-1 rounded text-center cursor-pointer transition-all border",
                                   isSelected
                                     ? "bg-blue-500/20 border-blue-500/50 text-blue-300"
-                                    : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20"
+                                    : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20",
                                 )}
                               >
                                 <div className="text-xs font-bold">
@@ -926,6 +971,41 @@ export default function ReservationsPage() {
               }
               className="glass-input"
             />
+          </div>
+
+          {/* Template Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="notificationType">WhatsApp Template</Label>
+            <select
+              id="notificationType"
+              value={bookingData.notificationType}
+              onChange={(e) =>
+                setBookingData({
+                  ...bookingData,
+                  notificationType: e.target.value,
+                })
+              }
+              className="glass-input w-full bg-slate-900 border border-white/10 rounded-md p-2 text-white text-sm"
+            >
+              <option
+                className="bg-slate-900 text-white"
+                value="RESERVATION_CONFIRMATION"
+              >
+                Unlimited Dinner
+              </option>
+              <option
+                className="bg-slate-900 text-white"
+                value="WEEKDAY_BRUNCH"
+              >
+                Weekday Brunch
+              </option>
+              <option
+                className="bg-slate-900 text-white"
+                value="WEEKEND_BRUNCH"
+              >
+                Weekend Brunch
+              </option>
+            </select>
           </div>
 
           <div className="flex justify-end pt-4">
@@ -1015,30 +1095,30 @@ export default function ReservationsPage() {
                 let currentCapacity = 0;
                 if (editingReservation.groupId) {
                   const groupRes = reservations.filter(
-                    (r) => r.groupId === editingReservation.groupId
+                    (r) => r.groupId === editingReservation.groupId,
                   );
                   const groupTableIds = groupRes.map((r) => r.tableId);
                   const groupTables = tables.filter((t) =>
-                    groupTableIds.includes(t.id)
+                    groupTableIds.includes(t.id),
                   );
                   currentCapacity = groupTables.reduce(
                     (sum, t) => sum + t.capacity,
-                    0
+                    0,
                   );
                 } else {
                   const currentTable = tables.find(
-                    (t) => t.id === editingReservation.tableId
+                    (t) => t.id === editingReservation.tableId,
                   );
                   currentCapacity = currentTable ? currentTable.capacity : 0;
                 }
 
                 // Added capacity
                 const addedTables = tables.filter((t) =>
-                  editMergeTables.includes(t.id)
+                  editMergeTables.includes(t.id),
                 );
                 const addedCapacity = addedTables.reduce(
                   (sum, t) => sum + t.capacity,
-                  0
+                  0,
                 );
                 const totalCapacity = currentCapacity + addedCapacity;
 
@@ -1052,7 +1132,7 @@ export default function ReservationsPage() {
                               "h-4 w-4",
                               totalCapacity >= totalGuests
                                 ? "text-green-400"
-                                : "text-red-400"
+                                : "text-red-400",
                             )}
                           />
                           <span
@@ -1060,7 +1140,7 @@ export default function ReservationsPage() {
                               "text-sm font-medium",
                               totalCapacity >= totalGuests
                                 ? "text-green-400"
-                                : "text-red-400"
+                                : "text-red-400",
                             )}
                           >
                             {totalCapacity >= totalGuests
@@ -1097,14 +1177,14 @@ export default function ReservationsPage() {
                                     setEditMergeTables((prev) =>
                                       prev.includes(t.id)
                                         ? prev.filter((id) => id !== t.id)
-                                        : [...prev, t.id]
+                                        : [...prev, t.id],
                                     );
                                   }}
                                   className={cn(
                                     "py-1.5 px-1 rounded text-center cursor-pointer transition-all border",
                                     isSelected
                                       ? "bg-blue-500/20 border-blue-500/50 text-blue-300"
-                                      : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20"
+                                      : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20",
                                   )}
                                 >
                                   <div className="text-xs font-bold">
@@ -1192,7 +1272,7 @@ export default function ReservationsPage() {
                       .reduce((sum, t) => sum + t.capacity, 0);
                   } else {
                     const t = tables.find(
-                      (t) => t.id === editingReservation.tableId
+                      (t) => t.id === editingReservation.tableId,
                     );
                     currentCapacity = t ? t.capacity : 0;
                   }
@@ -1238,7 +1318,7 @@ export default function ReservationsPage() {
                           startTime: convert12to24(
                             e.target.value,
                             current.minute,
-                            current.period
+                            current.period,
                           ),
                         });
                       }}
@@ -1263,7 +1343,7 @@ export default function ReservationsPage() {
                           startTime: convert12to24(
                             current.hour,
                             e.target.value,
-                            current.period
+                            current.period,
                           ),
                         });
                       }}
@@ -1288,7 +1368,7 @@ export default function ReservationsPage() {
                           startTime: convert12to24(
                             current.hour,
                             current.minute,
-                            e.target.value
+                            e.target.value,
                           ),
                         });
                       }}
@@ -1315,7 +1395,7 @@ export default function ReservationsPage() {
                           endTime: convert12to24(
                             e.target.value,
                             current.minute,
-                            current.period
+                            current.period,
                           ),
                         });
                       }}
@@ -1340,7 +1420,7 @@ export default function ReservationsPage() {
                           endTime: convert12to24(
                             current.hour,
                             e.target.value,
-                            current.period
+                            current.period,
                           ),
                         });
                       }}
@@ -1365,7 +1445,7 @@ export default function ReservationsPage() {
                           endTime: convert12to24(
                             current.hour,
                             current.minute,
-                            e.target.value
+                            e.target.value,
                           ),
                         });
                       }}
@@ -1392,7 +1472,7 @@ export default function ReservationsPage() {
                         "px-3 py-1 text-xs rounded-full border transition-all",
                         newSlot.days.includes(idx)
                           ? "bg-blue-500 text-white border-blue-500"
-                          : "bg-transparent text-gray-400 border-white/20 hover:bg-white/10"
+                          : "bg-transparent text-gray-400 border-white/20 hover:bg-white/10",
                       )}
                     >
                       {day.slice(0, 3)}
@@ -1548,11 +1628,11 @@ export default function ReservationsPage() {
                 (parseInt(groupBookingData.kids) || 0);
 
               const selectedTablesList = tables.filter((t) =>
-                groupSelectedTables.includes(t.id)
+                groupSelectedTables.includes(t.id),
               );
               const totalCapacity = selectedTablesList.reduce(
                 (acc, t) => acc + t.capacity,
-                0
+                0,
               );
 
               return (
@@ -1564,7 +1644,7 @@ export default function ReservationsPage() {
                           "h-4 w-4",
                           totalCapacity >= totalGuests && totalGuests > 0
                             ? "text-green-400"
-                            : "text-red-400"
+                            : "text-red-400",
                         )}
                       />
                       <span
@@ -1572,7 +1652,7 @@ export default function ReservationsPage() {
                           "text-sm font-medium",
                           totalCapacity >= totalGuests && totalGuests > 0
                             ? "text-green-400"
-                            : "text-red-400"
+                            : "text-red-400",
                         )}
                       >
                         {totalCapacity >= totalGuests && totalGuests > 0
@@ -1592,7 +1672,7 @@ export default function ReservationsPage() {
                     <div className="grid grid-cols-4 gap-2 max-h-[200px] overflow-y-auto pr-1">
                       {tables
                         .filter(
-                          (t) => !reservations.some((r) => r.tableId === t.id)
+                          (t) => !reservations.some((r) => r.tableId === t.id),
                         )
                         .sort((a, b) => b.capacity - a.capacity)
                         .map((t) => {
@@ -1605,7 +1685,7 @@ export default function ReservationsPage() {
                                 "py-2 px-1 rounded text-center cursor-pointer transition-all border",
                                 isSelected
                                   ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
-                                  : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20"
+                                  : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20",
                               )}
                             >
                               <div className="text-xs font-bold">
@@ -1665,6 +1745,40 @@ export default function ReservationsPage() {
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="groupNotificationType">WhatsApp Template</Label>
+            <select
+              id="groupNotificationType"
+              value={groupBookingData.notificationType}
+              onChange={(e) =>
+                setGroupBookingData({
+                  ...groupBookingData,
+                  notificationType: e.target.value,
+                })
+              }
+              className="glass-input w-full bg-slate-900 border border-white/10 rounded-md p-2 text-white text-sm"
+            >
+              <option
+                className="bg-slate-900 text-white"
+                value="RESERVATION_CONFIRMATION"
+              >
+                Unlimited Dinner
+              </option>
+              <option
+                className="bg-slate-900 text-white"
+                value="WEEKDAY_BRUNCH"
+              >
+                Weekday Brunch
+              </option>
+              <option
+                className="bg-slate-900 text-white"
+                value="WEEKEND_BRUNCH"
+              >
+                Weekend Brunch
+              </option>
+            </select>
+          </div>
+
           <div className="flex justify-end pt-4">
             <Button
               type="submit"
@@ -1712,7 +1826,7 @@ export default function ReservationsPage() {
               (movingReservation?.adults || 0) + (movingReservation?.kids || 0);
             const totalCapacity = moveTargetTables.reduce(
               (sum, t) => sum + t.capacity,
-              0
+              0,
             );
             const isSufficient = totalCapacity >= totalGuests;
             const remaining = totalGuests - totalCapacity;
@@ -1723,13 +1837,13 @@ export default function ReservationsPage() {
                   <Users
                     className={cn(
                       "h-4 w-4",
-                      isSufficient ? "text-green-400" : "text-red-400"
+                      isSufficient ? "text-green-400" : "text-red-400",
                     )}
                   />
                   <span
                     className={cn(
                       "text-sm font-medium",
-                      isSufficient ? "text-green-400" : "text-red-400"
+                      isSufficient ? "text-green-400" : "text-red-400",
                     )}
                   >
                     {isSufficient
@@ -1757,7 +1871,7 @@ export default function ReservationsPage() {
                   const bookedByCurrentGroup = reservations.some(
                     (r) =>
                       r.tableId === t.id &&
-                      r.groupId === movingReservation.groupId
+                      r.groupId === movingReservation.groupId,
                   );
                   return bookedByCurrentGroup;
                 }
@@ -1769,7 +1883,7 @@ export default function ReservationsPage() {
               })
               .map((table) => {
                 const isSelected = moveTargetTables.some(
-                  (t) => t.id === table.id
+                  (t) => t.id === table.id,
                 );
                 return (
                   <button
@@ -1778,14 +1892,14 @@ export default function ReservationsPage() {
                       setMoveTargetTables((prev) =>
                         isSelected
                           ? prev.filter((t) => t.id !== table.id)
-                          : [...prev, table]
+                          : [...prev, table],
                       );
                     }}
                     className={cn(
                       "flex flex-col items-center justify-center p-3 rounded-lg border transition-all",
                       isSelected
                         ? "bg-blue-500/20 border-blue-400 text-blue-300"
-                        : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+                        : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10",
                     )}
                   >
                     <Armchair className="h-6 w-6 mb-1" />
@@ -1816,7 +1930,7 @@ export default function ReservationsPage() {
                     (movingReservation?.kids || 0);
                   const totalCapacity = moveTargetTables.reduce(
                     (sum, t) => sum + t.capacity,
-                    0
+                    0,
                   );
                   return totalGuests > totalCapacity;
                 })()
@@ -1830,7 +1944,7 @@ export default function ReservationsPage() {
                   (movingReservation?.kids || 0);
                 const totalCapacity = moveTargetTables.reduce(
                   (sum, t) => sum + t.capacity,
-                  0
+                  0,
                 );
                 if (totalGuests > totalCapacity) {
                   return `Select tables to allot remaining ${

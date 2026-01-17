@@ -277,7 +277,10 @@ export const hydrateTemplate = (templateId: string, params: string[]): string =>
 // CENTRALIZED TEMPLATE REGISTRY (SCALABLE)
 // ==========================================
 
-export type WhatsappNotificationType = 'RESERVATION_CONFIRMATION';
+export type WhatsappNotificationType = 
+    | 'RESERVATION_CONFIRMATION' 
+    | 'WEEKDAY_BRUNCH' 
+    | 'WEEKEND_BRUNCH';
 
 interface TemplateConfig {
     templateId: string;
@@ -294,45 +297,34 @@ interface TemplateConfig {
  */
 const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
     'RESERVATION_CONFIRMATION': {
-        // UUID from user's curl command
+        // UUID from user's curl command (Unlimited Dinner)
         templateId: "00dc1c69-a790-45ee-8baa-e97379a0891f",
-        isNative: true, // Use the new Native Sender
-        mapper: (data: any) => {
-            // Expecting data to contain: 
-            // { customerName, date (Date/Str), slot: { startTime, endTime }, adults, kids, contact, foodPref }
-            
-            const dateObj = new Date(data.date);
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const dayName = days[dateObj.getDay()]; // {{3}} Day
-            
-            const dayStr = dateObj.getDate().toString().padStart(2, '0');
-            const monthStr = (dateObj.getMonth() + 1).toString().padStart(2, '0');
-            const yearStr = dateObj.getFullYear().toString().slice(-2);
-            const formattedDate = `${dayStr}/${monthStr}/${yearStr}`; // {{2}} Date
-
-            const startTime = data.slot?.startTime || 'Unknown'; // {{5}} Time
-            const endTime = data.slot?.endTime || '';
-            const batch = `${startTime} - ${endTime}`; // {{4}} Batch
-
-            const adultsCount = parseInt(data.adults || '0');
-            const kidsCount = parseInt(data.kids || '0');
-            // const totalGuests = adultsCount + kidsCount; 
-            
-            // {{8}} Food Preparation
-            const foodPreparation = data.foodPref || 'Not Specified';
-
-            return [
-                (data.customerName || 'Guest').trim(),  // {{1}} Name
-                formattedDate,                 // {{2}} Date
-                dayName,                       // {{3}} Day
-                batch,                         // {{4}} Batch
-                startTime,                     // {{5}} Time
-                adultsCount.toString(),        // {{6}} No. of Adults
-                kidsCount.toString(),          // {{7}} No. of Kids
-                data.contact || '',            // {{8}} Contact Number
-                foodPreparation                // {{9}} Food Preparation
-            ];
-        },
+        isNative: true, 
+        mapper: (data: any) => commonReservationMapper(data),
+        location: {
+            latitude: "22.270041",
+            longitude: "73.149727",
+            name: "Italy's Traditional Pizzeria",
+            address: "Opp. HDFC Bank, Sun Pharma Road, Vadodara"
+        }
+    },
+    'WEEKDAY_BRUNCH': {
+        // UUID for Weekday Brunch
+        templateId: "bab0d93c-f4c8-492f-b941-f7515197f68c",
+        isNative: true,
+        mapper: (data: any) => commonReservationMapper(data),
+        location: {
+            latitude: "22.270041",
+            longitude: "73.149727",
+            name: "Italy's Traditional Pizzeria",
+            address: "Opp. HDFC Bank, Sun Pharma Road, Vadodara"
+        }
+    },
+    'WEEKEND_BRUNCH': {
+        // UUID for Weekend Brunch
+        templateId: "3defebf5-4e52-4dca-bb52-07a764c8708b",
+        isNative: true,
+        mapper: (data: any) => commonReservationMapper(data),
         location: {
             latitude: "22.270041",
             longitude: "73.149727",
@@ -340,6 +332,43 @@ const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
             address: "Opp. HDFC Bank, Sun Pharma Road, Vadodara"
         }
     }
+};
+
+// Reusable mapper function since all 3 templates share the EXACT SAME parameters in the same order
+const commonReservationMapper = (data: any): string[] => {
+    // Expecting data to contain: 
+    // { customerName, date (Date/Str), slot: { startTime, endTime }, adults, kids, contact, foodPref }
+    
+    const dateObj = new Date(data.date);
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayName = days[dateObj.getDay()]; // {{3}} Day
+    
+    const dayStr = dateObj.getDate().toString().padStart(2, '0');
+    const monthStr = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const yearStr = dateObj.getFullYear().toString().slice(-2);
+    const formattedDate = `${dayStr}/${monthStr}/${yearStr}`; // {{2}} Date
+
+    const startTime = data.slot?.startTime || 'Unknown'; // {{5}} Time
+    const endTime = data.slot?.endTime || '';
+    const batch = `${startTime} - ${endTime}`; // {{4}} Batch
+
+    const adultsCount = parseInt(data.adults || '0');
+    const kidsCount = parseInt(data.kids || '0');
+    
+    // {{8}} Food Preparation
+    const foodPreparation = data.foodPref || 'Not Specified';
+
+    return [
+        (data.customerName || 'Guest').trim(),  // {{1}} Name
+        formattedDate,                 // {{2}} Date
+        dayName,                       // {{3}} Day
+        batch,                         // {{4}} Batch
+        startTime,                     // {{5}} Time
+        adultsCount.toString(),        // {{6}} No. of Adults
+        kidsCount.toString(),          // {{7}} No. of Kids
+        data.contact || '',            // {{8}} Contact Number
+        foodPreparation                // {{9}} Food Preparation
+    ];
 };
 
 // NEW: Gupshup Native Template Sender (Mimics user's curl)
@@ -360,7 +389,7 @@ const sendGupshupNativeTemplate = async (
         body.append('destination', destination);
         body.append('src.name', appName);
         
-        // Template Param JSON
+        // Template Param JSON (params array directly)
         const templateJson = JSON.stringify({
             id: templateId,
             params: params
@@ -397,6 +426,7 @@ const sendGupshupNativeTemplate = async (
 
 /**
  * Scalable Wrapper to send any notification by Type
+ * AUTOMATICALLY HANDLES DISPATCH TO NATIVE OR V3
  */
 export const sendWhatsappNotification = async (
     phone: string,
@@ -423,4 +453,30 @@ export const sendWhatsappNotification = async (
         return null;
     }
 };
+
+/**
+ * SMART TEMPLATE SENDER
+ * Use this when you have a template ID (UUID) directly and a params array.
+ * It checks the registry to see if this UUID is known to be a Native template.
+ * If so, it uses the Native API. usage: Dashboard manual send.
+ */
+export const sendSmartWhatsAppTemplate = async (
+    phone: string, 
+    templateId: string, 
+    params: string[], 
+    location?: { latitude: string; longitude: string; name: string; address: string }
+) => {
+    // 1. Check if this templateId exists in our registry and is marked isNative
+    const registryEntry = Object.values(TEMPLATE_REGISTRY).find(c => c.templateId === templateId);
+
+    if (registryEntry && registryEntry.isNative) {
+        // Use Native
+        // Use registry location if not provided
+        const loc = location || registryEntry.location;
+        return await sendGupshupNativeTemplate(phone, templateId, params, loc);
+    } else {
+        // Use V3 (Legacy/Standard)
+        return await sendTemplateV3(phone, templateId, params, location);
+    }
+}
 

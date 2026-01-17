@@ -12,18 +12,19 @@ import { Label } from "@/components/ui/label";
 import { Plus, Send } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { Reservation } from "@/services/reservation.service";
 
 interface Props {
   phone: string;
   onSendSuccess: () => void;
-  reservation?: any;
+  reservation?: Reservation | null;
   trigger?: React.ReactNode;
 }
 
 const TEMPLATES = [
   {
-    id: "brunch_di_gala_reservation_confirmation",
-    name: "Brunch di Gala Confirmation",
+    id: "italys_weekdays_brunch_reservation",
+    name: "Weekday Brunch Confirmation",
     params: [
       "Name",
       "Date",
@@ -31,6 +32,37 @@ const TEMPLATES = [
       "Batch",
       "Time",
       "Guests",
+      "Kids", // Added parameter (it has 7+1 inputs in code)
+      "Contact",
+      "Preparation",
+    ],
+  },
+  {
+    id: "italys_weekend_brunch_reservation",
+    name: "Weekend Brunch Confirmation",
+    params: [
+      "Name",
+      "Date",
+      "Day",
+      "Batch",
+      "Time",
+      "Guests",
+      "Kids",
+      "Contact",
+      "Preparation",
+    ],
+  },
+  {
+    id: "italys_unlimited_dinner_reservation",
+    name: "Unlimited Dinner Confirmation",
+    params: [
+      "Name",
+      "Date",
+      "Day",
+      "Batch",
+      "Time",
+      "Guests",
+      "Kids",
       "Contact",
       "Preparation",
     ],
@@ -52,21 +84,10 @@ export function WhatsAppTemplateSelector({
     setSelectedTemplate(templateId);
 
     // Auto-fill logic
-    if (
-      templateId === "brunch_di_gala_reservation_confirmation" &&
-      reservation
-    ) {
-      // 0: Name {{1}}
-      // 1: Date {{2}}
-      // 2: Day {{3}}
-      // 3: Batch {{4}}
-      // 4: Time {{5}}
-      // 5: Guests {{6}}
-      // 6: Contact {{7}}
-      // 7: Food Preparation {{8}}
+    if (reservation) {
+      // All current templates share very similar parameter structures (9 params)
+      // We can use a unified mapping logic for them.
 
-      // Format Date stats
-      // Assume reservation.date is YYYY-MM-DD or standard
       const dateObj = new Date(reservation.date);
       const days = [
         "Sunday",
@@ -87,12 +108,28 @@ export function WhatsAppTemplateSelector({
         0: reservation.customerName,
         1: formattedDate,
         2: dayName,
-        3: `${reservation.slot.startTime} - ${reservation.slot.endTime}`,
-        4: reservation.slot.startTime,
-        5: (reservation.adults + reservation.kids).toString(),
-        6: reservation.contact,
-        7: reservation.foodPref || "Not Specified",
+        3: reservation.slot
+          ? `${reservation.slot.startTime} - ${reservation.slot.endTime}`
+          : "",
+        4: reservation.slot?.startTime || "",
+        5: reservation.adults.toString(), // Just adults for the 9-param templates
+        6: reservation.kids.toString(), // Kids separate
+        7: reservation.contact,
+        8: reservation.foodPref || "Not Specified",
       };
+
+      // Special case for the old/legacy 'Brunch di Gala' if it had fewer params?
+      // The code viewed earlier showed it had 8 params (Guests merged).
+      // But the USER REQUEST shows 2 new templates also have "No. of Guests ... Nos. of Adults... No. of Kids"
+      // Wait, the user request says: "*No. of Guests:* {{6}} Nos. of Adults, {{7}} No. of Kids"
+      // This means {{6}} is JUST Adults count? Or the full string?
+      // "No. of Guests: 5 Nos. of Adults, 3 No. of Kids" -> Usually {{6}} is "5" and {{7}} is "3".
+      // Let's assume params are individual values.
+
+      // If template is the OLD one (brunch_di_gala...), we might need to adjust?
+      // The user request didn't explicitly ask to KEEP the old one, but asked to Integrate 2 NEW ones + Unlimited Dinner.
+      // I will support the new mappings primarily.
+
       setParamValues(params);
     } else {
       setParamValues({});
@@ -113,7 +150,7 @@ export function WhatsAppTemplateSelector({
 
       // Construct params array in order
       const params = template.params.map(
-        (_, index) => paramValues[index] || ""
+        (_, index) => paramValues[index] || "",
       );
 
       // Ensure phone starts with 91
@@ -217,7 +254,7 @@ export function WhatsAppTemplateSelector({
                       onChange={(e) => handleParamChange(index, e.target.value)}
                     />
                   </div>
-                )
+                ),
               )}
             </div>
 
