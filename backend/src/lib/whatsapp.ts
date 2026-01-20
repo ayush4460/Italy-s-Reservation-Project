@@ -298,7 +298,7 @@ interface TemplateConfig {
 const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
     'RESERVATION_CONFIRMATION': {
         // UUID from user's curl command (Unlimited Dinner)
-        templateId: "00dc1c69-a790-45ee-8baa-e97379a0891f",
+        templateId: "7cdf4e95-3789-485f-931d-7471305996c3",
         isNative: true, 
         mapper: (data: any) => commonReservationMapper(data),
         location: {
