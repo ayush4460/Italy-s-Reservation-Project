@@ -462,21 +462,28 @@ export const sendWhatsappNotification = async (
  */
 export const sendSmartWhatsAppTemplate = async (
     phone: string, 
-    templateId: string, 
+    templateIdOrKey: string, 
     params: string[], 
     location?: { latitude: string; longitude: string; name: string; address: string }
 ) => {
-    // 1. Check if this templateId exists in our registry and is marked isNative
-    const registryEntry = Object.values(TEMPLATE_REGISTRY).find(c => c.templateId === templateId);
-
-    if (registryEntry && registryEntry.isNative) {
-        // Use Native
-        // Use registry location if not provided
-        const loc = location || registryEntry.location;
-        return await sendGupshupNativeTemplate(phone, templateId, params, loc);
-    } else {
-        // Use V3 (Legacy/Standard)
-        return await sendTemplateV3(phone, templateId, params, location);
+    // 1. Check if input matches a Registry Key (e.g. "WEEKDAY_BRUNCH")
+    // Explicitly type config to allow undefined (since find can return undefined)
+    let config: TemplateConfig | undefined = TEMPLATE_REGISTRY[templateIdOrKey as WhatsappNotificationType];
+    
+    // 2. If not a key, check if it matches a UUID in the registry
+    if (!config) {
+        config = Object.values(TEMPLATE_REGISTRY).find(c => c.templateId === templateIdOrKey);
     }
-}
+
+    if (config && config.isNative) {
+        // Use Native
+        const loc = location || config.location;
+        console.log(`[SmartWhatsApp] Resolved '${templateIdOrKey}' to UUID '${config.templateId}' (Native)`);
+        return await sendGupshupNativeTemplate(phone, config.templateId, params, loc);
+    } else {
+        // Fallback or V3
+        console.log(`[SmartWhatsApp] Sending '${templateIdOrKey}' via V3 (Cloud API)`);
+        return await sendTemplateV3(phone, templateIdOrKey, params, location);
+    }
+};
 

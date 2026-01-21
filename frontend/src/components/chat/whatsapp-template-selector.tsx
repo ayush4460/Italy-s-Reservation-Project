@@ -33,7 +33,7 @@ interface Props {
 
 const TEMPLATES = [
   {
-    id: "italys_weekdays_brunch_reservation",
+    id: "WEEKDAY_BRUNCH",
     name: "Weekday Brunch Confirmation",
     params: [
       "Name",
@@ -42,13 +42,13 @@ const TEMPLATES = [
       "Batch",
       "Time",
       "Guests",
-      "Kids", // Added parameter (it has 7+1 inputs in code)
+      "Kids",
       "Contact",
       "Preparation",
     ],
   },
   {
-    id: "italys_weekend_brunch_reservation",
+    id: "WEEKEND_BRUNCH",
     name: "Weekend Brunch Confirmation",
     params: [
       "Name",
@@ -63,7 +63,7 @@ const TEMPLATES = [
     ],
   },
   {
-    id: "italys_unlimited_dinner_reservation",
+    id: "RESERVATION_CONFIRMATION",
     name: "Unlimited Dinner Confirmation",
     params: [
       "Name",
