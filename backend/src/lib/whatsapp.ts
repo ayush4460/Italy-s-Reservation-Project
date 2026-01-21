@@ -310,7 +310,7 @@ const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
     },
     'WEEKDAY_BRUNCH': {
         // UUID for Weekday Brunch
-        templateId: "bab0d93c-f4c8-492f-b941-f7515197f68c",
+        templateId: "4dbf5ed7-cc67-4dc0-ab5a-c75e3c0950e4",
         isNative: true,
         mapper: (data: any) => commonReservationMapper(data),
         location: {
@@ -322,7 +322,7 @@ const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
     },
     'WEEKEND_BRUNCH': {
         // UUID for Weekend Brunch
-        templateId: "3defebf5-4e52-4dca-bb52-07a764c8708b",
+        templateId: "191c6096-d9b5-432e-ab90-f3a2e86f6046",
         isNative: true,
         mapper: (data: any) => commonReservationMapper(data),
         location: {
