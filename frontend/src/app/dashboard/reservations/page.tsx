@@ -25,6 +25,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const DAYS = [
   "Sunday",
@@ -70,6 +71,26 @@ const getISTDate = () => {
   const istOffset = 5.5 * 60 * 60 * 1000;
   const istTime = new Date(now.getTime() + istOffset);
   return istTime.toISOString().split("T")[0];
+};
+
+const isSlotPast = (date: string, slot: Slot) => {
+  const today = getISTDate();
+  if (date < today) return true;
+  if (date > today) return false;
+
+  // Date is today, compare time
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istTime = new Date(now.getTime() + istOffset);
+  const currentH = istTime.getUTCHours();
+  const currentM = istTime.getUTCMinutes();
+
+  const [startH, startM] = slot.startTime.split(":").map(Number);
+
+  if (currentH > startH) return true;
+  if (currentH === startH && currentM >= startM) return true;
+
+  return false;
 };
 
 export default function ReservationsPage() {
@@ -294,6 +315,12 @@ export default function ReservationsPage() {
       setEditMergeTables([]); // Reset
       setIsEditModalOpen(true);
     } else {
+      // Check for past time
+      if (isSlotPast(date, selectedSlot)) {
+        toast.error("Booking limit Reached: Time already lost.");
+        return;
+      }
+
       // Open Create Modal
       setSelectedTable(table);
       // Auto-select template
