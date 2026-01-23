@@ -112,9 +112,11 @@ class ReservationService {
     return response.data;
   }
 
-  async moveReservation(id: number, newTableIds: number[]) {
+  async moveReservation(id: number, newTableIds: number[], newDate?: string, newSlotId?: number) {
     const response = await api.put<Reservation>(`/reservations/${id}/move`, {
       newTableIds,
+      newDate,
+      newSlotId
     });
     return response.data;
   }

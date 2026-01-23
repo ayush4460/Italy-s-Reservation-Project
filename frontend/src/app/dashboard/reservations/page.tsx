@@ -191,9 +191,15 @@ export default function ReservationsPage() {
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [movingReservation, setMovingReservation] =
     useState<Reservation | null>(null);
-  const [moveTargetTables, setMoveTargetTables] = useState<Table[]>([]);
+  const [moveAvailableTables, setMoveAvailableTables] = useState<Table[]>([]);
+  const [moveSelectedTables, setMoveSelectedTables] = useState<Table[]>([]);
   const [moveLoading, setMoveLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+
+  // Expanded Move State
+  const [moveDate, setMoveDate] = useState<string>("");
+  const [moveSlots, setMoveSlots] = useState<Slot[]>([]);
+  const [moveSelectedSlot, setMoveSelectedSlot] = useState<Slot | null>(null);
 
   // Long Press State
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(
@@ -447,26 +453,96 @@ export default function ReservationsPage() {
   // --- Move Reservation Logic ---
 
   const handleMoveClick = (reservation: Reservation, e?: React.MouseEvent) => {
-    e?.stopPropagation(); // Prevent opening table details
+    e?.stopPropagation();
     setMovingReservation(reservation);
-    setMoveTargetTables([]);
+    setMoveDate(date); // Default to current view date
+    setMoveSelectedSlot(selectedSlot); // Default to current slot
+
+    // Ensure slots are populated for the current date
+    setMoveSlots(slots);
+
+    setMoveAvailableTables([]);
+    setMoveSelectedTables([]);
     setIsMoveModalOpen(true);
-    setIsLongPressModalOpen(false); // Close long press modal if open
+    setIsLongPressModalOpen(false);
+    // fetchMoveTargets will be triggered by useEffect
   };
 
+  const fetchMoveTargets = useCallback(
+    async (d: string, sId?: number) => {
+      if (!sId) return;
+      setMoveLoading(true);
+      try {
+        const data = await reservationService.getTablesWithAvailability(d, sId);
+        // Exclude tables occupied by OTHER reservations
+        // If we are moving, we ignore our OWN reservation's blocking if present (though usually we move to new tables)
+        // If we move to same slot, our own reservation is in 'data.reservations'. We should ignore it so we can "select" other tables or even our own if we want to change table combo.
+        // Actually, current logic was: filter r.id !== movingReservation.id
+        const occupiedTableIds = data.reservations
+          .filter(
+            (r) => r.id !== movingReservation?.id && r.status !== "CANCELLED",
+          )
+          .map((r) => r.tableId);
+
+        const freeTables = data.tables.filter(
+          (t) => !occupiedTableIds.includes(t.id),
+        );
+        setMoveAvailableTables(freeTables);
+        setMoveSelectedTables([]); // Reset selection when targets change
+      } catch (e) {
+        console.error("Failed to fetch move targets", e);
+      } finally {
+        setMoveLoading(false);
+      }
+    },
+    [movingReservation],
+  );
+
+  // Effect to refetch targets when moveDate/moveSelectedSlot changes
+  useEffect(() => {
+    if (isMoveModalOpen && moveDate && moveSelectedSlot) {
+      fetchMoveTargets(moveDate, moveSelectedSlot.id);
+    }
+  }, [moveDate, moveSelectedSlot, isMoveModalOpen, fetchMoveTargets]);
+
+  // Fetch slots when moveDate changes
+  useEffect(() => {
+    if (!isMoveModalOpen || !moveDate) return;
+    const loadSlots = async () => {
+      if (moveDate === date) {
+        setMoveSlots(slots);
+      } else {
+        try {
+          const s = await reservationService.getSlots(moveDate);
+          setMoveSlots(s);
+          // Auto select first if not selected or invalid?
+          // If we changed date, current slot might be invalid.
+          // For simplicity, auto-select first slot available.
+          if (s.length > 0) setMoveSelectedSlot(s[0]);
+          else setMoveSelectedSlot(null);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    };
+    loadSlots();
+  }, [moveDate, isMoveModalOpen, date, slots]);
+
   const handleMoveSubmit = async () => {
-    if (!movingReservation || moveTargetTables.length === 0) return;
+    if (!movingReservation || moveSelectedTables.length === 0) return;
 
     setMoveLoading(true);
     try {
       await reservationService.moveReservation(
         movingReservation.id,
-        moveTargetTables.map((t) => t.id),
+        moveSelectedTables.map((t) => t.id),
+        moveDate,
+        moveSelectedSlot?.id,
       );
       setIsMoveModalOpen(false);
       setMovingReservation(null);
-      setMoveTargetTables([]);
-      fetchTableData();
+      setMoveSelectedTables([]);
+      fetchTableData(); // Refresh current view
     } catch (err) {
       console.error("Move failed", err);
       alert("Failed to move reservation. Targets might be taken.");
@@ -1883,15 +1959,54 @@ export default function ReservationsPage() {
             Moving reservation for{" "}
             <span className="text-white font-bold">
               {movingReservation?.customerName}
-            </span>{" "}
-            from current table. Select new table(s) below:
+            </span>
           </p>
+
+          {/* Date and Slot Selection */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500">New Date</label>
+              <Input
+                type="date"
+                value={moveDate}
+                onChange={(e) => setMoveDate(e.target.value)}
+                className="glass-input dark:scheme-dark"
+                min={new Date().toISOString().split("T")[0]}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500">New Slot</label>
+              <select
+                value={moveSelectedSlot?.id || ""}
+                onChange={(e) => {
+                  const s = moveSlots.find(
+                    (slot) => slot.id === parseInt(e.target.value),
+                  );
+                  setMoveSelectedSlot(s || null);
+                }}
+                className="w-full h-10 rounded-md border border-white/10 bg-black/50 px-3 py-2 text-sm text-white focus:border-purple-500 focus:outline-none"
+              >
+                {moveSlots.map((slot) => (
+                  <option
+                    key={slot.id}
+                    value={slot.id}
+                    className="bg-slate-900 text-white"
+                  >
+                    {formatTo12Hour(slot.startTime)} -{" "}
+                    {formatTo12Hour(slot.endTime)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <p className="text-sm text-gray-400">Select new table(s):</p>
 
           {/* Validation Status */}
           {(() => {
             const totalGuests =
               (movingReservation?.adults || 0) + (movingReservation?.kids || 0);
-            const totalCapacity = moveTargetTables.reduce(
+            const totalCapacity = moveSelectedTables.reduce(
               (sum, t) => sum + t.capacity,
               0,
             );
@@ -1925,38 +2040,18 @@ export default function ReservationsPage() {
             );
           })()}
 
-          <div className="grid grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto p-1">
-            {tables
-              .filter((t) => {
-                // 1. If table is available (not booked), always show
-                const isBooked = reservations.some((r) => r.tableId === t.id);
-                if (!isBooked) return true;
-
-                // 2. If table is booked:
-                // Check if it belongs to the CURRENT merging group
-                if (movingReservation?.groupId) {
-                  const bookedByCurrentGroup = reservations.some(
-                    (r) =>
-                      r.tableId === t.id &&
-                      r.groupId === movingReservation.groupId,
-                  );
-                  return bookedByCurrentGroup;
-                }
-
-                // If single reservation, do not show booked tables (even its own, usually)
-                // Unless we want to allow "staying" on same table + adding others?
-                // User requirement: "in individual moves only available tables"
-                return false;
-              })
-              .map((table) => {
-                const isSelected = moveTargetTables.some(
+          {/* Available Tables List */}
+          <div className="grid grid-cols-3 gap-3 max-h-[40vh] overflow-y-auto p-1">
+            {moveAvailableTables.length > 0 ? (
+              moveAvailableTables.map((table) => {
+                const isSelected = moveSelectedTables.some(
                   (t) => t.id === table.id,
                 );
                 return (
                   <button
                     key={table.id}
                     onClick={() => {
-                      setMoveTargetTables((prev) =>
+                      setMoveSelectedTables((prev) =>
                         isSelected
                           ? prev.filter((t) => t.id !== table.id)
                           : [...prev, table],
@@ -1976,11 +2071,10 @@ export default function ReservationsPage() {
                     </span>
                   </button>
                 );
-              })}
-            {tables.filter((t) => !reservations.find((r) => r.tableId === t.id))
-              .length === 0 && (
+              })
+            ) : (
               <div className="col-span-3 text-center text-gray-500 py-4">
-                No available tables for this slot.
+                No available tables for this date/slot.
               </div>
             )}
           </div>
@@ -1989,13 +2083,13 @@ export default function ReservationsPage() {
             <Button
               className="glass-button w-full"
               disabled={
-                moveTargetTables.length === 0 ||
+                moveSelectedTables.length === 0 ||
                 moveLoading ||
                 (() => {
                   const totalGuests =
                     (movingReservation?.adults || 0) +
                     (movingReservation?.kids || 0);
-                  const totalCapacity = moveTargetTables.reduce(
+                  const totalCapacity = moveSelectedTables.reduce(
                     (sum, t) => sum + t.capacity,
                     0,
                   );
@@ -2009,7 +2103,7 @@ export default function ReservationsPage() {
                 const totalGuests =
                   (movingReservation?.adults || 0) +
                   (movingReservation?.kids || 0);
-                const totalCapacity = moveTargetTables.reduce(
+                const totalCapacity = moveSelectedTables.reduce(
                   (sum, t) => sum + t.capacity,
                   0,
                 );
@@ -2018,7 +2112,7 @@ export default function ReservationsPage() {
                     totalGuests - totalCapacity
                   } guests`;
                 }
-                return `Confirm Move to ${moveTargetTables
+                return `Confirm Move to ID: ${moveSelectedTables
                   .map((t) => t.tableNumber)
                   .join(", ")}`;
               })()}

@@ -407,7 +407,7 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
         if (req.user?.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
 
         const { id } = req.params;
-        const { newTableIds } = req.body; // Expect array of table IDs
+        const { newTableIds, newDate, newSlotId } = req.body; // Expect array of table IDs, optional new Date/Slot
 
         if (!newTableIds || !Array.isArray(newTableIds) || newTableIds.length === 0) {
             return res.status(400).json({ message: 'New Table IDs are required' });
@@ -415,16 +415,25 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
 
         // 1. Get current reservation (to find group)
         const currentRes = await prisma.reservation.findFirst({
-            where: { id: parseInt(id), table: { restaurantId } }
+            where: { id: parseInt(id), table: { restaurantId } },
+            include: { slot: true }
         });
 
         if (!currentRes) return res.status(404).json({ message: 'Reservation not found' });
+
+        // DETERMINE TARGET DATE/SLOT
+        const targetDate = newDate ? new Date(newDate) : currentRes.date;
+        const targetSlotId = newSlotId ? parseInt(newSlotId) : currentRes.slotId;
+        
+        // Check if date/time actually changed
+        const isTimeChanged = newDate || (newSlotId && newSlotId !== currentRes.slotId);
 
         // 2. Identify all "Old" reservations (if grouped)
         let oldReservations = [currentRes];
         if (currentRes.groupId) {
             oldReservations = await prisma.reservation.findMany({
-                where: { groupId: currentRes.groupId, table: { restaurantId } }
+                where: { groupId: currentRes.groupId, table: { restaurantId } },
+                include: { slot: true }
             });
         }
 
@@ -441,7 +450,6 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
         }
 
         // 4. Validate Capacity
-        // Use guest count from the *primary* old reservation (assuming duplicated info)
         const totalGuests = (currentRes.adults || 0) + (currentRes.kids || 0);
         const newTotalCapacity = newTables.reduce((sum, t) => sum + t.capacity, 0);
 
@@ -451,43 +459,43 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
              });
         }
 
-        // 5. Check Availability of New Tables
-        // (Must not be booked in same slot/date, EXCLUDING the current reservations if we supported moving to subset, 
-        // but here we assume moving to *completely different* tables usually. 
-        // If moving to overlapping tables, we'd need to be careful. 
-        // Simple check: Is anyone ELSE sitting there?)
-        
-        const oldTableIds = oldReservations.map(r => r.tableId);
+        // 5. Check Availability of New Tables AT TARGET DATE/SLOT
+        const oldReservationIds = oldReservations.map(r => r.id);
         
         const conflicts = await prisma.reservation.findFirst({
             where: {
                 tableId: { in: newTableIds },
-                slotId: currentRes.slotId,
-                date: currentRes.date,
+                slotId: targetSlotId,
+                date: targetDate,
                 status: { not: 'CANCELLED' },
-                // AND NOT in oldTableIds? 
-                // If I am moving from T1->T1 (silly) or T1->T1+T2. 
-                // Any table in 'newTableIds' that is ALSO in 'oldTableIds' is technically "available" because we are about to free it.
-                // So strictly we check if there is a reservation on newTableId that is NOT in [oldReservationIds]
-                id: { notIn: oldReservations.map(r => r.id) } 
+                // If moving to same date/slot, exclude self. If moving to new date/slot, all booked tables there are conflicts.
+                // Exception: If we are keeping some tables? "newTableIds" usually means the *complete set* of new tables.
+                // So if we are sitting at T1 and move to T1 (CHANGE TIME), T1 is available "for us" but blocked by "us" in old time?
+                // Wait, if changing time:
+                // Old: T1 at 2PM. New: T1 at 5PM.
+                // Is T1 at 5PM free? Yes, unless someone else booked it.
+                // Our old T1 at 2PM doesn't conflict with T1 at 5PM.
+                // So we just check if *anyone other than us* (if same slot) is there.
+                // But if same slot: We are T1. New T1. conflict? No, we are replacing.
+                // So strictly: exclude oldReservationIds IF targetSlot == currentRes.slotId && targetDate == currentRes.date.
+                // If target is different, we don't need to exclude oldReservationIds because they are at a different time!
+                id: (targetSlotId === currentRes.slotId && targetDate.getTime() === currentRes.date.getTime()) 
+                    ? { notIn: oldReservationIds } 
+                    : undefined 
             }
         });
 
         if (conflicts) {
-             return res.status(400).json({ message: 'One or more target tables are already booked by another customer' });
+             return res.status(400).json({ message: 'One or more target tables are already booked for the selected time' });
         }
 
         // 6. Execute Move (Transaction)
-        // Strategy: Delete Old -> Create New (Cleanest for Group Logic)
-        
-        // Prepare Group ID
         const newGroupId = newTables.length > 1 
             ? `GRP-${Date.now()}-${Math.floor(Math.random() * 1000)}` 
             : null;
 
         await prisma.$transaction(async (tx) => {
             // A. Delete Old
-            // We use deleteMany with IDs
             await tx.reservation.deleteMany({
                 where: {
                     id: { in: oldReservations.map(r => r.id) }
@@ -499,15 +507,15 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
                 await tx.reservation.create({
                     data: {
                         tableId: table.id,
-                        slotId: currentRes.slotId,
-                        date: currentRes.date,
+                        slotId: targetSlotId,
+                        date: targetDate,
                         customerName: currentRes.customerName,
                         contact: currentRes.contact,
                         adults: currentRes.adults,
                         kids: currentRes.kids,
                         foodPref: currentRes.foodPref,
                         specialReq: currentRes.specialReq,
-                        status: 'BOOKED', // or keep old status?
+                        status: 'BOOKED',
                         groupId: newGroupId
                     }
                 });
@@ -516,15 +524,55 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
 
         // 7. Invalidate Cache
         await clearDashboardCache(restaurantId, currentRes.date);
+        if (targetDate.getTime() !== currentRes.date.getTime()) {
+             await clearDashboardCache(restaurantId, targetDate);
+        }
 
-        // Emit socket event
+        // Emit socket event (Update both old and new dates if different)
         try {
-            getIO().to(`restaurant_${restaurantId}`).emit('reservation:update', {
+            const io = getIO().to(`restaurant_${restaurantId}`);
+            io.emit('reservation:update', {
                 date: currentRes.date.toISOString().split('T')[0],
                 slotId: currentRes.slotId
             });
+            if (isTimeChanged) {
+                 io.emit('reservation:update', {
+                    date: targetDate.toISOString().split('T')[0],
+                    slotId: targetSlotId
+                });
+            }
         } catch (err) {
             console.error("Socket emit failed", err);
+        }
+
+        // 8. SEND WHATSAPP NOTIFICATION IF TIME CHANGED
+        if (isTimeChanged && currentRes.contact) {
+            try {
+                const targetSlot = await prisma.slot.findUnique({ where: { id: targetSlotId } });
+                if (targetSlot) {
+                    const notificationData = {
+                        customerName: currentRes.customerName,
+                        date: targetDate,
+                        slot: targetSlot,
+                        adults: currentRes.adults.toString(),
+                        kids: currentRes.kids.toString(),
+                        contact: currentRes.contact,
+                        foodPref: currentRes.foodPref
+                    };
+
+                    const { sendWhatsappNotification } = await import('../lib/whatsapp');
+                    // Use a specific template for reschedule if available, or just confirmation
+                    // Common practice: "Your reservation has been updated/rescheduled to..."
+                    // We'll use RESERVATION_CONFIRMATION for now as it contains the new details.
+                    // Or if there is a 'RESERVATION_UPDATE' type?
+                    // User didn't specify, so confirmation with new details is good.
+                     // The user previously added types in frontend (WEEKDAY_BRUNCH etc).
+                     // We can try to infer or just use default.
+                    await sendWhatsappNotification(currentRes.contact, 'RESERVATION_CONFIRMATION', notificationData);
+                }
+            } catch (e) {
+                console.error("[Move] WhatsApp Update Failed", e);
+            }
         }
 
         res.json({ message: 'Reservation moved successfully' });
@@ -658,22 +706,14 @@ export const updateReservation = async (req: AuthRequest, res: Response) => {
                 });
 
                 if (freshRes && freshRes.slot) {
-                    const templateId = notificationType === 'WEEKDAY_BRUNCH'
-                        ? 'bab0d93c-f4c8-492f-b941-f7515197f68c'
-                        : notificationType === 'WEEKEND_BRUNCH'
-                            ? '3defebf5-4e52-4dca-bb52-07a764c8708b'
-                            : '70c6df04-e22d-45ce-8c70-6927dcc3b378'; // Unlimited Dinner (Native/Default)
+                    const { sendWhatsappNotification } = await import('../lib/whatsapp');
                     
-                    // Native checks are done inside sendSmart or we can just pass the UUID.
-                    // Ideally we should use the TEMPLATE_REGISTRY but that's in lib.
-                    // For now, mapping ID manually or relying on smart sender behavior?
-                    // Smart Sender takes UUID. 
-                    // Let's use the explicit UUIDs we added to lib/whatsapp.ts
-                    
-                    const params = commonReservationMapper(freshRes);
-                    
-                    // NOTE: sendSmartWhatsAppTemplate handles "Native" vs "Cloud" dispatch internally based on ID detection.
-                    await sendSmartWhatsAppTemplate(freshRes.contact, templateId, params);
+                    // Use the centralized sender which handles ID mapping via TEMPLATE_REGISTRY
+                    await sendWhatsappNotification(
+                        freshRes.contact, 
+                        notificationType, // 'WEEKDAY_BRUNCH' | 'WEEKEND_BRUNCH' | 'RESERVATION_CONFIRMATION'
+                        freshRes
+                    );
                 }
             } catch (err) {
                 console.error("Failed to send WhatsApp update:", err);
