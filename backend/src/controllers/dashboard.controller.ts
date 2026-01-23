@@ -55,7 +55,12 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         // Determine Day of Week for Slot Filtering
         const dayOfWeek = startOfDay.getDay(); // 0-6
 
-        const [totalTables, allSlots, dayReservations] = await Promise.all([
+        // Calculate Yesterday's Range
+        const yesterdayStart = new Date(startOfDay);
+        yesterdayStart.setUTCDate(yesterdayStart.getUTCDate() - 1);
+        const yesterdayEnd = new Date(startOfDay);
+
+        const [totalTables, allSlots, dayReservations, yesterdayReservations] = await Promise.all([
             prisma.table.count({ where: { restaurantId } }),
             prisma.slot.findMany({ 
                 where: { 
@@ -101,8 +106,42 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
                 orderBy: {
                     slot: { startTime: 'asc' }
                 }
+            }),
+            prisma.reservation.findMany({
+                where: {
+                    table: { restaurantId },
+                    date: {
+                        gte: yesterdayStart,
+                        lt: yesterdayEnd
+                    },
+                    status: { not: 'CANCELLED' } // Only count active for comparison stats
+                },
+                select: {
+                    id: true,
+                    adults: true,
+                    kids: true,
+                    groupId: true
+                }
             })
         ]);
+
+        // --- PROCESSING YESTERDAY STATS ---
+        // We must deduplicate groups to avoid double counting guests/bookings
+        let yesterdayBookings = 0;
+        let yesterdayGuests = 0;
+        const yGroups = new Set<string>();
+
+        yesterdayReservations.forEach(r => {
+             const key = r.groupId || `ID-${r.id}`;
+             if (!yGroups.has(key)) {
+                 yGroups.add(key);
+                 yesterdayBookings++;
+                 yesterdayGuests += (r.adults || 0) + (r.kids || 0);
+             }
+        });
+
+        // Today's Stats will be calculated in the main loop below (bookingsCount, guestsCount)
+        // We will compute percentages after that loop.
 
         // Process Reservations for Stats
         let bookingsCount = 0;
@@ -265,10 +304,21 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
             };
         }).sort((a, b) => a.date.localeCompare(b.date));
 
+        // Calculate Growth Percentage
+        const calcGrowth = (current: number, previous: number) => {
+            if (previous === 0) return current > 0 ? 100 : 0;
+            return Math.round(((current - previous) / previous) * 100);
+        };
+
+        const bookingsChangePct = calcGrowth(bookingsCount, yesterdayBookings);
+        const guestsChangePct = calcGrowth(guestsCount, yesterdayGuests);
+
         const responseData = {
             totalTables,
             todayBookings: bookingsCount,
             guestsExpected: guestsCount,
+            bookingsChangePct,
+            guestsChangePct,
             recentReservations,
             analyticsData,
             slotAnalytics,

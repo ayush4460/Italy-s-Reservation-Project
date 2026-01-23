@@ -73,6 +73,8 @@ interface DashboardStats {
   guestsExpected: number;
   recentReservations: ReservationSummary[];
   cancelledReservations?: ReservationSummary[];
+  bookingsChangePct?: number;
+  guestsChangePct?: number;
   analyticsData: {
     date: string;
     display: string;
@@ -169,12 +171,16 @@ export default function DashboardPage() {
       value: stats.todayBookings.toString(),
       icon: CalendarCheck,
       color: "text-green-400",
+      change: stats.bookingsChangePct,
+      trendLabel: "from yesterday",
     },
     {
       label: "Guests Expected",
       value: stats.guestsExpected.toString(),
       icon: Users,
       color: "text-purple-400",
+      change: stats.guestsChangePct,
+      trendLabel: "from yesterday",
     },
   ];
 
@@ -284,6 +290,24 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stat.value}</div>
+                {stat.change !== undefined && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <span
+                      className={cn(
+                        "font-bold",
+                        stat.change > 0
+                          ? "text-emerald-500"
+                          : stat.change < 0
+                            ? "text-red-500"
+                            : "text-gray-400",
+                      )}
+                    >
+                      {stat.change > 0 ? "+" : ""}
+                      {stat.change}%
+                    </span>{" "}
+                    <span className="text-gray-500">{stat.trendLabel}</span>
+                  </p>
+                )}
               </CardContent>
             </Card>
           );
