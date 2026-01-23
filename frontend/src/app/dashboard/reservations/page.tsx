@@ -1971,7 +1971,7 @@ export default function ReservationsPage() {
                 value={moveDate}
                 onChange={(e) => setMoveDate(e.target.value)}
                 className="glass-input dark:scheme-dark"
-                min={new Date().toISOString().split("T")[0]}
+                min={getISTDate()}
               />
             </div>
             <div className="space-y-1">
