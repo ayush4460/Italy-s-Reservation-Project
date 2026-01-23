@@ -8,10 +8,10 @@ import { commonReservationMapper, sendSmartWhatsAppTemplate } from '../lib/whats
 const clearDashboardCache = async (restaurantId: number, date: Date | string) => {
     try {
         const dateKey = typeof date === 'string' ? date : date.toISOString().split('T')[0];
-        // The dashboard cache key is complex: dashboard:stats:v10:restaurantId:dateKey:chartStart:chartEnd
+        // The dashboard cache key is complex: dashboard:stats:v12:restaurantId:dateKey:chartStart:chartEnd
         // We need to clear all keys for this restaurant that might contain stats for this day.
-        // Easiest is to clear all dashboard:stats:v10:restaurantId:*
-        const pattern = `dashboard:stats:v10:${restaurantId}:*`;
+        // Easiest is to clear all dashboard:stats:v12:restaurantId:*
+        const pattern = `dashboard:stats:v12:${restaurantId}:*`;
         
         let cursor = '0';
         do {
@@ -707,6 +707,7 @@ export const cancelReservation = async (req: AuthRequest, res: Response) => {
         if (req.user?.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
 
         const { id } = req.params;
+        const { reason } = req.body; // Extract reason
 
         const reservation = await prisma.reservation.findFirst({
             where: { id: parseInt(id), table: { restaurantId } }
@@ -718,13 +719,19 @@ export const cancelReservation = async (req: AuthRequest, res: Response) => {
         if (reservation.groupId) {
             await prisma.reservation.updateMany({
                 where: { groupId: reservation.groupId, table: { restaurantId } },
-                data: { status: 'CANCELLED' }
+                data: { 
+                    status: 'CANCELLED',
+                    cancellationReason: reason || null
+                }
             });
         } else {
             // Soft Delete (Status = CANCELLED) for single table
             await prisma.reservation.update({
                 where: { id: parseInt(id) },
-                data: { status: 'CANCELLED' }
+                data: { 
+                    status: 'CANCELLED',
+                    cancellationReason: reason || null
+                }
             });
         }
  

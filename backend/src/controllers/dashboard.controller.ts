@@ -35,7 +35,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         const chartEndStr = (req.query.chartEnd as string) || "";
 
         // CHECKS CACHE
-        const cacheKey = `dashboard:stats:v10:${restaurantId}:${dateKey}:${chartStartStr}:${chartEndStr}`;
+        const cacheKey = `dashboard:stats:v12:${restaurantId}:${dateKey}:${chartStartStr}:${chartEndStr}`;
         let cachedData = null;
         try {
             cachedData = await redis.get(cacheKey);
@@ -46,6 +46,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         if (cachedData) {
             return res.json(JSON.parse(cachedData));
         }
+        
+        console.log(`[Dashboard] Fetching fresh stats (v12) for ${dateKey} (Restaurant: ${restaurantId})`);
 
         // Efficiently aggregate data
         // Fetch ALL reservations for the day to aggregate in memory (avoids complex SQL group logic for now)
@@ -73,7 +75,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
                         gte: startOfDay,
                         lt: endOfDay
                     },
-                    status: { not: 'CANCELLED' }
+                    // Fetch ALL statuses, we will filter in memory
                 },
                 select: {
                     id: true,
@@ -86,6 +88,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
                     foodPref: true,
                     specialReq: true,
                     status: true,
+                    // @ts-ignore
+                    cancellationReason: true,
                     groupId: true,
                     table: {
                         select: { tableNumber: true }
@@ -104,10 +108,10 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         let bookingsCount = 0;
         let guestsCount = 0;
         const processedGroups = new Set<string>();
-        const groupedReservationsMap = new Map<string, any>(); // Key can be groupId or "ID-<id>"
-        const standaloneReservations = [];
-
-        // --- SLOT ANALYTICS SETUP ---
+        const groupedReservationsMap = new Map<string, any>(); 
+        const cancelledReservationsMap = new Map<string, any>(); // Group cancelled ones too
+        
+        // ... (slotMap setup remains)
         const slotMap = new Map<string, { timeDisplay: string, bookings: Set<string>, guests: number, startTime: string }>();
 
         // Pre-fill with empty slots
@@ -129,7 +133,22 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         });
 
         dayReservations.forEach(res => {
-            // Stats Group Logic (existing)
+            if (res.status === 'CANCELLED') {
+                // Cancelled Logic
+                if (res.groupId) {
+                     if (!cancelledReservationsMap.has(res.groupId)) {
+                        cancelledReservationsMap.set(res.groupId, { ...res, table: { tableNumber: res.table.tableNumber.toString() } });
+                     } else {
+                        const existing = cancelledReservationsMap.get(res.groupId);
+                        if (existing) existing.table.tableNumber += `+${res.table.tableNumber}`;
+                     }
+                } else {
+                    cancelledReservationsMap.set(`ID-${res.id}`, { ...res, table: { tableNumber: res.table.tableNumber.toString() } });
+                }
+                return; // Skip stats for cancelled
+            }
+
+            // Active Stats Group Logic
             if (res.groupId) {
                 if (!processedGroups.has(res.groupId)) {
                     processedGroups.add(res.groupId);
@@ -147,10 +166,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
             }
 
             // --- SLOT ANALYTICS UPDATE ---
-            const slotKey = res.slot.startTime; // Use startTime as key for sorting
+            const slotKey = res.slot.startTime;
             
-            // If slot in reservation is not in active slots (maybe deleted?), add strictly or ignore? 
-            // Better to add it to show data logic correctness
             if (!slotMap.has(slotKey)) {
                 slotMap.set(slotKey, {
                     timeDisplay: `${formatTime(res.slot.startTime)} - ${formatTime(res.slot.endTime)}`,
@@ -163,7 +180,6 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
             const slotData = slotMap.get(slotKey)!;
             const bookingKey = res.groupId || `ID-${res.id}`;
             
-            // Avoid double counting merged tables for guest count in the same slot
             if (!slotData.bookings.has(bookingKey)) {
                 slotData.guests += (res.adults + res.kids);
                 slotData.bookings.add(bookingKey);
@@ -179,6 +195,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
             }));
 
         const recentReservations = Array.from(groupedReservationsMap.values());
+        const cancelledReservations = Array.from(cancelledReservationsMap.values());
 
         // --- NEW: ANALYTICS TREND DATA ---
         let aStart: Date, aEnd: Date;
@@ -254,7 +271,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
             guestsExpected: guestsCount,
             recentReservations,
             analyticsData,
-            slotAnalytics // NEW FIELD
+            slotAnalytics,
+            cancelledReservations
         };
 
         // SET CACHE (Expire in 5 minutes)

@@ -81,6 +81,7 @@ model Reservation {
   groupId     String?  // For merged tables
   date        DateTime 
   status      String   
+  cancellationReason String? // Reason for cancellation
   table       Table    @relation(fields: [tableId], references: [id])
   slot        Slot     @relation(fields: [slotId], references: [id])
   createdAt   DateTime @default(now())

@@ -13,7 +13,9 @@ import {
   TrendingUp,
   Calendar,
   Image as ImageIcon,
+  XCircle,
 } from "lucide-react";
+import { reservationService } from "@/services/reservation.service";
 import { useProfile } from "@/context/profile-context";
 import {
   LineChart,
@@ -62,6 +64,7 @@ interface ReservationSummary {
   };
   adults: number;
   kids: number;
+  cancellationReason?: string;
 }
 
 interface DashboardStats {
@@ -69,6 +72,7 @@ interface DashboardStats {
   todayBookings: number;
   guestsExpected: number;
   recentReservations: ReservationSummary[];
+  cancelledReservations?: ReservationSummary[];
   analyticsData: {
     date: string;
     display: string;
@@ -97,10 +101,11 @@ export default function DashboardPage() {
   const defaultStart = new Date();
   defaultStart.setDate(defaultStart.getDate() - 6);
   const [chartStart, setChartStart] = useState<string>(
-    defaultStart.toISOString().split("T")[0]
+    defaultStart.toISOString().split("T")[0],
   );
   const [chartEnd, setChartEnd] = useState<string>(getISTDate());
   const [downloading, setDownloading] = useState(false);
+  const [viewMode, setViewMode] = useState<"active" | "cancelled">("active");
   const { user: profileUser } = useProfile();
   const role = profileUser?.role || null;
   const chartRef = useRef<HTMLDivElement>(null);
@@ -110,23 +115,46 @@ export default function DashboardPage() {
     // Role is now derived from profile context
   }, []);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await api.get("/dashboard/stats", {
-          params: {
-            date,
-            chartStart,
-            chartEnd,
-          },
-        });
-        setStats(res.data);
-      } catch (err) {
-        console.error("Failed to fetch stats", err);
-      }
-    };
-    fetchStats();
+  const fetchStats = React.useCallback(async () => {
+    try {
+      const res = await api.get("/dashboard/stats", {
+        params: {
+          date,
+          chartStart,
+          chartEnd,
+        },
+      });
+      setStats(res.data);
+    } catch (err) {
+      console.error("Failed to fetch stats", err);
+    }
   }, [date, chartStart, chartEnd]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  const handleCancelReservation = async (reservationId: number) => {
+    if (role !== "ADMIN") return;
+
+    // We can't distinguish merged vs single easily here without full object inspection,
+    // but dashboard list items are single reservation summaries.
+    // The previous implementation in reservations page handled merged logic.
+    // Here we will just ask for reason and cancel.
+
+    if (!confirm("Are you sure you want to cancel this reservation?")) return;
+
+    const reason = prompt("Enter cancellation reason (optional):");
+    if (reason === null) return;
+
+    try {
+      await reservationService.cancelReservation(reservationId, reason);
+      fetchStats(); // Refresh data
+    } catch (err) {
+      console.error("Cancel failed", err);
+      alert("Failed to cancel reservation");
+    }
+  };
 
   const statItems = [
     {
@@ -331,7 +359,7 @@ export default function DashboardPage() {
                         value={
                           stats.analyticsData.length > 0
                             ? new Date(
-                                `${stats.analyticsData[0].date}T00:00:00.000Z`
+                                `${stats.analyticsData[0].date}T00:00:00.000Z`,
                               ).toLocaleString("en-US", { month: "long" })
                             : "Month"
                         }
@@ -432,12 +460,39 @@ export default function DashboardPage() {
 
       <div className="mt-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <h3 className="text-xl font-semibold text-white">
-            {date === new Date().toISOString().split("T")[0]
-              ? "Today's Bookings"
-              : `Bookings for ${formatDate(date)}`}
-          </h3>
-          {role === "ADMIN" && (
+          <div className="flex items-center gap-4">
+            <h3 className="text-xl font-semibold text-white">
+              {date === new Date().toISOString().split("T")[0]
+                ? "Today's Bookings"
+                : `Bookings for ${formatDate(date)}`}
+            </h3>
+            <div className="flex bg-white/5 p-1 rounded-lg">
+              <button
+                onClick={() => setViewMode("active")}
+                className={cn(
+                  "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                  viewMode === "active"
+                    ? "bg-blue-500/20 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.2)]"
+                    : "text-gray-400 hover:text-white",
+                )}
+              >
+                Active
+              </button>
+              <button
+                onClick={() => setViewMode("cancelled")}
+                className={cn(
+                  "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                  viewMode === "cancelled"
+                    ? "bg-red-500/20 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
+                    : "text-gray-400 hover:text-white",
+                )}
+              >
+                Cancelled
+              </button>
+            </div>
+          </div>
+
+          {role === "ADMIN" && viewMode === "active" && (
             <button
               onClick={handleDownloadExcel}
               disabled={downloading}
@@ -452,28 +507,133 @@ export default function DashboardPage() {
             </button>
           )}
         </div>
+
         <Card className="glass-panel border-none text-white min-h-[300px]">
           <CardContent className="p-0">
-            {stats.recentReservations.length === 0 ? (
+            {viewMode === "active" ? (
+              /* ACTIVE BOOKINGS VIEW */
+              stats.recentReservations.length === 0 ? (
+                <div className="p-6 text-gray-400 text-center">
+                  No bookings for today.
+                </div>
+              ) : (
+                <div className="divide-y divide-white/10">
+                  {stats.recentReservations.map((res: ReservationSummary) => (
+                    <div
+                      key={res.id}
+                      className="p-4 flex items-center justify-between hover:bg-white/5 cursor-pointer transition-colors"
+                      onClick={() => {
+                        const dateStr = res.date
+                          ? res.date.toString().split("T")[0]
+                          : new Date().toISOString().split("T")[0];
+                        window.location.href = `/dashboard/reservations?date=${dateStr}&slotId=${res.slotId}`;
+                      }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex bg-blue-500/20 text-blue-300 font-bold px-3 py-2 rounded-lg items-center justify-center min-w-12">
+                          <span className="text-lg">
+                            {res.table.tableNumber
+                              .split("+")
+                              .sort((a, b) => Number(a) - Number(b))
+                              .join(", ")}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="font-semibold text-white">
+                            {res.customerName}
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            {res.contact}
+                          </div>
+                          {role === "ADMIN" && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-1 flex items-center gap-2"
+                            >
+                              <WhatsAppTemplateSelector
+                                phone={res.contact}
+                                onSendSuccess={() => {}}
+                                reservation={res}
+                                trigger={
+                                  <button className="text-[10px] bg-green-500/20 hover:bg-green-500/30 text-green-400 px-2 py-0.5 rounded border border-green-500/20 transition-colors uppercase font-bold tracking-wider">
+                                    Send WhatsApp
+                                  </button>
+                                }
+                              />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelReservation(res.id);
+                                }}
+                                className="p-0.5 hover:bg-red-500/20 rounded-md transition-all group/cancel"
+                                title="Cancel Reservation"
+                              >
+                                <XCircle className="h-4 w-4 text-red-400/50 group-hover/cancel:text-red-400" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 flex-1 justify-end">
+                        <div className="text-right max-w-[200px]">
+                          <div
+                            className={cn(
+                              "text-xs font-medium",
+                              res.foodPref === "Regular"
+                                ? "text-gray-400"
+                                : "text-yellow-400",
+                            )}
+                          >
+                            Diet: {res.foodPref}
+                          </div>
+                          {res.specialReq && (
+                            <div
+                              className="text-xs text-blue-300 italic truncate"
+                              title={res.specialReq}
+                            >
+                              &quot;{res.specialReq}&quot;
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="text-right min-w-[100px]">
+                          <div className="text-xs text-gray-400 uppercase tracking-wider">
+                            Time
+                          </div>
+                          <div className="text-sm font-medium">
+                            {res.slot.startTime} - {res.slot.endTime}
+                          </div>
+                        </div>
+                        <div className="text-right min-w-[100px]">
+                          <div className="text-xs text-gray-400 uppercase tracking-wider">
+                            Guests
+                          </div>
+                          <div className="text-sm font-medium">
+                            {res.adults} Adults, {res.kids} Kids
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : /* CANCELLED BOOKINGS VIEW */
+            !stats.cancelledReservations ||
+              stats.cancelledReservations.length === 0 ? (
               <div className="p-6 text-gray-400 text-center">
-                No bookings for today.
+                No cancelled bookings for this date.
               </div>
             ) : (
               <div className="divide-y divide-white/10">
-                {stats.recentReservations.map((res: ReservationSummary) => (
+                {stats.cancelledReservations.map((res: ReservationSummary) => (
                   <div
                     key={res.id}
-                    className="p-4 flex items-center justify-between hover:bg-white/5 cursor-pointer transition-colors"
-                    onClick={() => {
-                      const dateStr = res.date
-                        ? res.date.toString().split("T")[0]
-                        : new Date().toISOString().split("T")[0];
-                      window.location.href = `/dashboard/reservations?date=${dateStr}&slotId=${res.slotId}`;
-                    }}
+                    className="p-4 flex items-center justify-between bg-red-500/5 hover:bg-red-500/10 cursor-pointer transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="flex bg-blue-500/20 text-blue-300 font-bold px-3 py-2 rounded-lg items-center justify-center min-w-12">
-                        <span className="text-lg">
+                      <div className="flex bg-red-500/20 text-red-300 font-bold px-3 py-2 rounded-lg items-center justify-center min-w-12 border border-red-500/20">
+                        <span className="text-lg line-through decoration-red-400/50">
                           {res.table.tableNumber
                             .split("+")
                             .sort((a, b) => Number(a) - Number(b))
@@ -481,67 +641,46 @@ export default function DashboardPage() {
                         </span>
                       </div>
                       <div>
-                        <div className="font-semibold text-white">
+                        <div className="font-semibold text-white/70 line-through decoration-white/30">
                           {res.customerName}
                         </div>
-                        <div className="text-sm text-gray-400">
+                        <div className="text-sm text-gray-500">
                           {res.contact}
                         </div>
-                        {role === "ADMIN" && (
-                          <div
-                            onClick={(e) => e.stopPropagation()} // Prevent row click
-                            className="mt-1"
-                          >
-                            <WhatsAppTemplateSelector
-                              phone={res.contact}
-                              onSendSuccess={() => {}}
-                              reservation={res}
-                              trigger={
-                                <button className="text-[10px] bg-green-500/20 hover:bg-green-500/30 text-green-400 px-2 py-0.5 rounded border border-green-500/20 transition-colors uppercase font-bold tracking-wider">
-                                  Send WhatsApp
-                                </button>
-                              }
-                            />
-                          </div>
-                        )}
+                        <div className="mt-1">
+                          <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/20 uppercase font-bold tracking-wider">
+                            Cancelled
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 flex-1 justify-end">
+                    <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 flex-1 justify-end opacity-75">
                       <div className="text-right max-w-[200px]">
-                        <div
-                          className={cn(
-                            "text-xs font-medium",
-                            res.foodPref === "Regular"
-                              ? "text-gray-400"
-                              : "text-yellow-400"
-                          )}
-                        >
-                          Diet: {res.foodPref}
+                        <div className="text-xs text-gray-500 uppercase tracking-wider">
+                          Reason
                         </div>
-                        {res.specialReq && (
-                          <div
-                            className="text-xs text-blue-300 italic truncate"
-                            title={res.specialReq}
-                          >
-                            &quot;{res.specialReq}&quot;
-                          </div>
-                        )}
+                        <div
+                          className="text-sm font-medium text-gray-400"
+                          title={res.cancellationReason || "Customer Cancelled"}
+                        >
+                          {res.cancellationReason || "Customer Cancelled"}
+                        </div>
                       </div>
 
                       <div className="text-right min-w-[100px]">
-                        <div className="text-xs text-gray-400 uppercase tracking-wider">
-                          Time
+                        <div className="text-xs text-gray-500 uppercase tracking-wider">
+                          Original Time
                         </div>
-                        <div className="text-sm font-medium">
+                        <div className="text-sm font-medium text-gray-400">
                           {res.slot.startTime} - {res.slot.endTime}
                         </div>
                       </div>
                       <div className="text-right min-w-[100px]">
-                        <div className="text-xs text-gray-400 uppercase tracking-wider">
+                        <div className="text-xs text-gray-500 uppercase tracking-wider">
                           Guests
                         </div>
-                        <div className="text-sm font-medium">
+                        <div className="text-sm font-medium text-gray-400">
                           {res.adults} Adults, {res.kids} Kids
                         </div>
                       </div>

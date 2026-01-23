@@ -395,9 +395,13 @@ export default function ReservationsPage() {
       : "Are you sure you want to cancel this reservation? This will make the table available immediately.";
 
     if (!confirm(message)) return;
+
+    const reason = prompt("Enter cancellation reason (optional):");
+    if (reason === null) return; // User cancelled the prompt
+
     setCancelLoading(true);
     try {
-      await reservationService.cancelReservation(reservation.id);
+      await reservationService.cancelReservation(reservation.id, reason);
       setIsEditModalOpen(false); // Close edit modal if open
       setIsLongPressModalOpen(false); // Close long press modal if open
       setEditingReservation(null);

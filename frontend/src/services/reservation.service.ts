@@ -105,8 +105,10 @@ class ReservationService {
     return response.data;
   }
 
-  async cancelReservation(id: number) {
-    const response = await api.delete<{ message: string }>(`/reservations/${id}`);
+  async cancelReservation(id: number, reason?: string) {
+    const response = await api.delete<{ message: string }>(`/reservations/${id}`, {
+      data: { reason },
+    });
     return response.data;
   }
 
