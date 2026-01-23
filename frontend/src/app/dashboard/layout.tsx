@@ -119,8 +119,8 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
           {/* Left: Logo & Brand (Restaurant Info) */}
           <div className="flex items-center gap-4">
             <Image
-              src="/Italys-removebg-preview.png"
-              alt="Logo"
+              src="/italy_logo_white.png"
+              alt="Italy's Logo"
               width={120}
               height={40}
               className="h-10 w-auto object-contain max-w-[120px] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]"
@@ -248,7 +248,7 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
                   "p-3 rounded-full transition-all duration-300 relative",
                   pathname === item.href
                     ? "text-white bg-linear-to-tr from-cyan-500 to-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)] scale-110"
-                    : "text-gray-400 hover:text-white hover:bg-white/10"
+                    : "text-gray-400 hover:text-white hover:bg-white/10",
                 )}
               >
                 <item.icon className="h-6 w-6" />
@@ -267,7 +267,13 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function NavItem({ item, pathname }: { item: any; pathname: string }) {
+interface NavItemData {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+}
+
+function NavItem({ item, pathname }: { item: NavItemData; pathname: string }) {
   const Icon = item.icon;
   const isActive = pathname === item.href;
   const { unreadCount } = useUnread();
@@ -279,7 +285,7 @@ function NavItem({ item, pathname }: { item: any; pathname: string }) {
           "relative flex items-center space-x-2 px-5 py-2.5 rounded-full transition-all duration-300 text-sm font-semibold group", // Removed overflow-hidden
           isActive
             ? "text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]"
-            : "text-gray-400 hover:text-white"
+            : "text-gray-400 hover:text-white",
         )}
       >
         {isActive && (
@@ -301,7 +307,7 @@ function NavItem({ item, pathname }: { item: any; pathname: string }) {
             "h-4 w-4 relative z-10 transition-transform duration-300",
             isActive
               ? "scale-110 text-cyan-300"
-              : "group-hover:scale-110 group-hover:text-purple-300"
+              : "group-hover:scale-110 group-hover:text-purple-300",
           )}
         />
         <span className="relative z-10">{item.label}</span>
