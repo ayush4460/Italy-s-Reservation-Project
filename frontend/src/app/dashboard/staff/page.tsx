@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
-import { Plus, Trash2, User, Loader2, Pencil } from "lucide-react";
+import { Plus, Trash2, User, Loader2, Pencil, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface Staff {
@@ -42,6 +42,12 @@ export default function StaffPage() {
   const [addStep, setAddStep] = useState(1); // 1: Form, 2: OTP
   const [otp, setOtp] = useState("");
   const [timer, setTimer] = useState(0);
+
+  // Password Visibility State
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [showEditConfirmPassword, setShowEditConfirmPassword] = useState(false);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -362,34 +368,60 @@ export default function StaffPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  placeholder="••••••••"
-                  required
-                  className="glass-input"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                    placeholder="••••••••"
+                    required
+                    className="glass-input pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      confirmPassword: e.target.value,
-                    })
-                  }
-                  placeholder="••••••••"
-                  required
-                  className="glass-input"
-                />
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={formData.confirmPassword}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        confirmPassword: e.target.value,
+                      })
+                    }
+                    placeholder="••••••••"
+                    required
+                    className="glass-input pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
             </>
           ) : (
@@ -498,37 +530,65 @@ export default function StaffPage() {
                 </p>
                 <div className="space-y-2">
                   <Label htmlFor="edit-password">New Password</Label>
-                  <Input
-                    id="edit-password"
-                    type="password"
-                    value={editFormData.password}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        password: e.target.value,
-                      })
-                    }
-                    placeholder="Leave blank to keep current"
-                    className="glass-input"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="edit-password"
+                      type={showEditPassword ? "text" : "password"}
+                      value={editFormData.password}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          password: e.target.value,
+                        })
+                      }
+                      placeholder="Leave blank to keep current"
+                      className="glass-input pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowEditPassword(!showEditPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    >
+                      {showEditPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-2 mt-2">
                   <Label htmlFor="edit-confirmPassword">
                     Confirm New Password
                   </Label>
-                  <Input
-                    id="edit-confirmPassword"
-                    type="password"
-                    value={editFormData.confirmPassword}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        confirmPassword: e.target.value,
-                      })
-                    }
-                    placeholder="Leave blank to keep current"
-                    className="glass-input"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="edit-confirmPassword"
+                      type={showEditConfirmPassword ? "text" : "password"}
+                      value={editFormData.confirmPassword}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          confirmPassword: e.target.value,
+                        })
+                      }
+                      placeholder="Leave blank to keep current"
+                      className="glass-input pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowEditConfirmPassword(!showEditConfirmPassword)
+                      }
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    >
+                      {showEditConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </>

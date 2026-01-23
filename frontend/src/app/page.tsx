@@ -14,7 +14,7 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import api from "@/lib/api";
 import { Modal } from "@/components/ui/modal";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ export default function LoginPage() {
     email: "",
     password: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -59,6 +60,8 @@ export default function LoginPage() {
 
   // Forgot Password State
   const [showForgotModal, setShowForgotModal] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [forgotStep, setForgotStep] = useState(1); // 1: Email, 2: OTP & New Password
   const [forgotEmail, setForgotEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -164,7 +167,14 @@ export default function LoginPage() {
         }
       }
     } catch (err: unknown) {
-      setError((err as ApiError).response?.data?.message || "Login failed");
+      const msg = (err as ApiError).response?.data?.message || "Login failed";
+
+      if (msg === "Email not registered") {
+        toast.error(msg);
+        setError("");
+      } else {
+        setError(msg);
+      }
       setLoading(false);
     }
   };
@@ -255,16 +265,29 @@ export default function LoginPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    className="glass-input"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                      className="glass-input pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </>
             )}
@@ -336,8 +359,8 @@ export default function LoginPage() {
               {loginMode === "password"
                 ? "Login"
                 : loginStep === 1
-                ? "Send OTP"
-                : "Verify & Login"}
+                  ? "Send OTP"
+                  : "Verify & Login"}
             </Button>
           </form>
         </CardContent>
@@ -418,29 +441,55 @@ export default function LoginPage() {
                 <Label htmlFor="newPass" className="text-white">
                   New Password
                 </Label>
-                <Input
-                  id="newPass"
-                  type="password"
-                  placeholder="••••••••"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  className="glass-input"
-                />
+                <div className="relative">
+                  <Input
+                    id="newPass"
+                    type={showNewPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    className="glass-input pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confPass" className="text-white">
                   Confirm Password
                 </Label>
-                <Input
-                  id="confPass"
-                  type="password"
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  className="glass-input"
-                />
+                <div className="relative">
+                  <Input
+                    id="confPass"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    className="glass-input pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center justify-between text-sm">

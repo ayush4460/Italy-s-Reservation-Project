@@ -94,8 +94,12 @@ export const login = async (req: Request, res: Response) => {
         role = 'STAFF';
     }
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+    if (!user) {
+      return res.status(404).json({ message: 'Email not registered' });
+    }
+
+    if (!(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ message: 'Invalid password' });
     }
 
     const tokenPayload = { 
