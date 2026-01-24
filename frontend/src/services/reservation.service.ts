@@ -29,6 +29,8 @@ export interface Reservation {
   status: string;
   groupId?: string;
   slot?: Slot;
+  startTime?: string;
+  endTime?: string;
 }
 
 export interface CreateReservationDto {
@@ -43,6 +45,7 @@ export interface CreateReservationDto {
   specialReq: string;
   mergeTableIds?: number[];
   notificationType?: string; // Optional type override
+  customStartTime?: string; // Flexible sub-slot booking
 }
 
 export interface UpdateReservationDto {
@@ -85,11 +88,11 @@ class ReservationService {
   }
 
   // Unified fetching
-  async getTablesWithAvailability(date: string, slotId: number) {
+  async getTablesWithAvailability(date: string, slotId: number, customStartTime?: string) {
     const response = await api.get<{ tables: Table[]; reservations: Reservation[] }>(
       "/reservations/availability",
       {
-        params: { date, slotId },
+        params: { date, slotId, customStartTime },
       }
     );
     return response.data;

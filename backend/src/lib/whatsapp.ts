@@ -210,7 +210,7 @@ Your reservation for *Brunch Di Gala All'Italiana* is confirmed!🍕
 📞 *Contact:* {{7}}  
 🍽️ *Food Preparation:* {{8}}
 
-📍 *Location:* Opp. HDFC Bank, Sun Pharma Road, Vadodara  
+📍 *Location:* Opp Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara-390012  
 🔗 [Google Maps Location](https://maps.app.goo.gl/SXtQ6vkx2ho7KBCF7)
 
 We look forward to serving you *18+ traditional Italian dishes* — including Woodfired Pizza, Pasta, and Risotto — along with *mocktails and desserts (single serve).* 🍝🥗🍰
@@ -238,7 +238,7 @@ Your reservation for *Cena All'Italiana* is confirmed!🍕
 📞 *Contact:* {{8}}  
 🍽️ *Food Preparation:* {{9}}
 
-📍 *Location:* Opp. HDFC Bank, Sun Pharma Road, Vadodara  
+📍 *Location:* Opp Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara-390012
 🔗 [Google Maps Location](https://maps.app.goo.gl/SXtQ6vkx2ho7KBCF7)
 
 We look forward to serving you *18+ traditional Italian dishes* — including Woodfired Pizza, Pasta, and Risotto — along with *mocktails and desserts (single serve).* 🍝🥗🍰
@@ -305,7 +305,7 @@ const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
             latitude: "22.270041",
             longitude: "73.149727",
             name: "Italy's Traditional Pizzeria",
-            address: "Opp. HDFC Bank, Sun Pharma Road, Vadodara"
+            address: "Opp Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara-390012"
         }
     },
     'WEEKDAY_BRUNCH': {
@@ -317,7 +317,7 @@ const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
             latitude: "22.270041",
             longitude: "73.149727",
             name: "Italy's Traditional Pizzeria",
-            address: "Opp. HDFC Bank, Sun Pharma Road, Vadodara"
+            address: "Opp Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara-390012"
         }
     },
     'WEEKEND_BRUNCH': {
@@ -329,7 +329,7 @@ const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
             latitude: "22.270041",
             longitude: "73.149727",
             name: "Italy's Traditional Pizzeria",
-            address: "Opp. HDFC Bank, Sun Pharma Road, Vadodara"
+            address: "Opp Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara-390012"
         }
     }
 };

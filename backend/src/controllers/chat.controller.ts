@@ -178,7 +178,7 @@ export const sendTemplate = async (req: AuthRequest, res: Response) => {
             latitude: "22.270041",
             longitude: "73.149727",
             name: "Italy's Traditional Pizzeria",
-            address: "Opp. HDFC Bank, Sun Pharma Road, Vadodara"
+            address: "Opp Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara-390012"
         };
 
         await sendSmartWhatsAppTemplate(formattedPhone, templateId, params || [], location);

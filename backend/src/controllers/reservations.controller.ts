@@ -181,13 +181,13 @@ export const deleteSlot = async (req: AuthRequest, res: Response) => {
 }
 
 
-// Get Tables WITH Reservations for a specific slot (Merged Endpoint)
+// Get Tables WITH Reservations (Flexible Overlap Logic)
 export const getTablesWithReservations = async (req: AuthRequest, res: Response) => {
     try {
         const restaurantId = req.user?.restaurantId;
         if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
 
-        const { date, slotId } = req.query;
+        const { date, slotId, customStartTime } = req.query;
 
         if (!date || !slotId) {
             return res.status(400).json({ message: 'Date and Slot ID required' });
@@ -197,33 +197,75 @@ export const getTablesWithReservations = async (req: AuthRequest, res: Response)
         const startOfDay = new Date(dateObj); startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(dateObj); endOfDay.setHours(23, 59, 59, 999);
 
-        // Run queries in parallel
-        const [tables, reservations] = await Promise.all([
-            prisma.table.findMany({
-                where: { restaurantId }
-            }),
-            prisma.reservation.findMany({
-                where: {
-                    table: { restaurantId },
-                    slotId: parseInt(slotId as string),
-                    date: {
-                        gte: startOfDay,
-                        lt: endOfDay,
-                    },
-                    status: { not: 'CANCELLED' }
-                },
-                include: {
-                    table: true
-                }
-            })
-        ]);
+        // Calculate Target Time Range
+        let targetStartStr = "";
+        let targetEndStr = "";
+        let isCustom = false;
 
-        // Sort tables numerically
+        if (customStartTime) {
+            isCustom = true;
+            targetStartStr = customStartTime as string;
+            const [sh, sm] = targetStartStr.split(':').map(Number);
+            const endDate = new Date();
+            endDate.setHours(sh, sm + 90, 0, 0); 
+            const eh = endDate.getHours().toString().padStart(2, '0');
+            const em = endDate.getMinutes().toString().padStart(2, '0');
+            targetEndStr = `${eh}:${em}`;
+        } else {
+             const slot = await prisma.slot.findUnique({ where: { id: parseInt(slotId as string) } });
+             if (slot) {
+                 targetStartStr = slot.startTime;
+                 targetEndStr = slot.endTime;
+             }
+        }
+
+        const timeToMins = (t: string) => {
+            const [h, m] = t.split(':').map(Number);
+            return h * 60 + m;
+        };
+
+        const targetStartMins = timeToMins(targetStartStr);
+        const targetEndMins = timeToMins(targetEndStr);
+
+        // Fetch Tables
+        const tables = await prisma.table.findMany({
+            where: { restaurantId },
+            orderBy: { tableNumber: 'asc' } // alphanumeric sort done below if needed, but db sort is mostly fine
+        });
+
+        // Fetch Potentially Conflicting Reservations
+        const rawReservations = await prisma.reservation.findMany({
+            where: {
+                table: { restaurantId },
+                // We must check ANY reservation on this date, not just this slot, 
+                // because a custom time might overlap with adjacent slots.
+                date: {
+                    gte: startOfDay,
+                    lt: endOfDay,
+                },
+                status: { not: 'CANCELLED' }
+            },
+            include: {
+                table: true,
+                slot: true
+            }
+        });
+
+        // Filter Reservations that actually overlap with our Target Time
+        const conflictingReservations = rawReservations.filter(res => {
+            const resStart = timeToMins(res.startTime || res.slot.startTime);
+            const resEnd = timeToMins(res.endTime || res.slot.endTime);
+            
+            // Check Intersect
+            return (targetStartMins < resEnd) && (targetEndMins > resStart);
+        });
+
+        // Sort tables numerically (manual to be safe)
         tables.sort((a, b) => {
             return a.tableNumber.localeCompare(b.tableNumber, undefined, { numeric: true, sensitivity: 'base' });
         });
 
-        res.json({ tables, reservations });
+        res.json({ tables, reservations: conflictingReservations });
 
     } catch(error) {
         console.error('Error fetching tables with reservations:', error);
@@ -300,32 +342,69 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
              return res.status(400).json({ message: `Total guests (${totalGuests}) exceeds combined capacity (${totalCapacity})` });
         }
 
-        // 3. Check Availability for ALL tables
+        // 3. Check Availability for ALL tables (Time-Based Overlap)
         const dateObj = new Date(date);
-        const existing = await prisma.reservation.findFirst({
+        
+        let startStr = "";
+        let endStr = "";
+
+        // Calculate Start/End for the NEW Reservation
+        const targetSlot = await prisma.slot.findUnique({ where: { id: parseInt(slotId) } });
+        if (!targetSlot) return res.status(404).json({ message: 'Slot not found' });
+
+        if (req.body.customStartTime) {
+            startStr = req.body.customStartTime;
+            // Calculate End Time (Start + 90 mins)
+            const [sh, sm] = startStr.split(':').map(Number);
+            const endDate = new Date();
+            endDate.setHours(sh, sm + 90, 0, 0); 
+            // Format back to HH:mm
+            const eh = endDate.getHours().toString().padStart(2, '0');
+            const em = endDate.getMinutes().toString().padStart(2, '0');
+            endStr = `${eh}:${em}`;
+        } else {
+            startStr = targetSlot.startTime;
+            endStr = targetSlot.endTime;
+        }
+
+        // Fetch existing reservations for these tables on this date
+        // We need to check distinct overlaps
+        const existingReservations = await prisma.reservation.findMany({
             where: {
                 tableId: { in: allTableIds },
-                slotId: parseInt(slotId),
                 date: dateObj,
                 status: { not: 'CANCELLED' }
-            }
+            },
+            include: { slot: true }
         });
 
-        if (existing) {
-             return res.status(400).json({ message: 'One or more tables already booked for this slot' });
+        // Helper to convert time string "HH:mm" to minutes since midnight for easy comparison
+        const timeToMins = (t: string) => {
+            const [h, m] = t.split(':').map(Number);
+            return h * 60 + m;
+        };
+
+        const newStart = timeToMins(startStr);
+        const newEnd = timeToMins(endStr);
+
+        const conflict = existingReservations.find(res => {
+            // Determine existing reservation time range
+            // Fallback to slot time if specific time not set
+            const existingStart = timeToMins(res.startTime || res.slot.startTime);
+            const existingEnd = timeToMins(res.endTime || res.slot.endTime);
+
+            // Check Overlap: (StartA < EndB) && (EndA > StartB)
+            return (newStart < existingEnd) && (newEnd > existingStart);
+        });
+
+        if (conflict) {
+             return res.status(400).json({ message: 'One or more tables are already booked for this time interval' });
         }
 
         // 4. Generate Group ID if merging
         const groupId = allTableIds.length > 1 ? `GRP-${Date.now()}-${Math.floor(Math.random() * 1000)}` : null;
 
-        // 5. Create Reservations (Transaction ideally, but loop is okay for MVP)
-        const createdReservations = [];
-        
-        // We'll optimize with a transaction if possible, but let's just loop for now or use createMany if data identical?
-        // Data is identical except tableId. createMany doesn't support relation connections easily in all cases, but here it's simple fields.
-        // However, we need 'slot' relation? No, slotId is just an int field usually.
-        // Let's use loop to be safe with individual record creation or Promise.all
-
+        // 5. Create Reservations
         await prisma.$transaction(
             allTableIds.map(tid => 
                 prisma.reservation.create({
@@ -333,13 +412,12 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
                         tableId: tid,
                         slotId: parseInt(slotId),
                         date: dateObj,
+                        startTime: startStr,
+                        endTime: endStr,
                         customerName,
                         contact,
-                        adults: parseInt(adults), // We store full count on all? Or split? User said "same member details". Usually full count implies redundant info, but fine for display.
-                        // Or should we split guests? "4 members to table 2 and 2 members to table 3".
-                        // The user said "in dashboard... show table 1+2+3 are merged with same member details".
-                        // So arguably we just duplicate the reservation info.
-                        kids: parseInt(kids), 
+                        adults: parseInt(adults),
+                        kids: parseInt(kids),
                         foodPref,
                         specialReq,
                         groupId,
@@ -360,10 +438,13 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
                 const slotObj = await prisma.slot.findUnique({ where: { id: parseInt(slotId) } });
                 
                 // Prepare data object for mapper
+                // Override slot times if custom ones were used (startStr/endStr calculated above)
+                const overrideSlot = slotObj ? { ...slotObj, startTime: startStr || slotObj.startTime, endTime: endStr || slotObj.endTime } : undefined;
+
                 const notificationData = {
                     customerName,
                     date: dateObj, // Date object or string
-                    slot: slotObj, // Contains startTime, endTime
+                    slot: overrideSlot, // Contains startTime, endTime (custom if provided)
                     adults,
                     kids,
                     contact,

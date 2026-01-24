@@ -196,6 +196,11 @@ export default function ReservationsPage() {
   const [moveLoading, setMoveLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
 
+  // Custom Time / Sub-Slot Booking State
+  const [customStartTime, setCustomStartTime] = useState<string | null>(null);
+  const [isTimeSelectorOpen, setIsTimeSelectorOpen] = useState(false);
+  const [customTimeSlot, setCustomTimeSlot] = useState<Slot | null>(null);
+
   // Expanded Move State
   const [moveDate, setMoveDate] = useState<string>("");
   const [moveSlots, setMoveSlots] = useState<Slot[]>([]);
@@ -208,6 +213,46 @@ export default function ReservationsPage() {
   const [isLongPressModalOpen, setIsLongPressModalOpen] = useState(false);
   const [longPressedTable, setLongPressedTable] = useState<Table | null>(null);
 
+  // Helper to generate 15-min intervals for a slot
+  const generateTimeIntervals = useCallback((slot: Slot) => {
+    const times: string[] = [];
+    const [startH, startM] = slot.startTime.split(":").map(Number);
+    const [endH, endM] = slot.endTime.split(":").map(Number);
+
+    let currentH = startH;
+    let currentM = startM;
+
+    // For safety loop
+    let loops = 0;
+    while (loops < 50) {
+      // Format
+      const timeStr = `${currentH.toString().padStart(2, "0")}:${currentM.toString().padStart(2, "0")}`;
+      times.push(timeStr);
+
+      // Stop if we reached end time
+      if (currentH > endH || (currentH === endH && currentM >= endM)) break;
+
+      // Add 15 mins
+      currentM += 15;
+      if (currentM >= 60) {
+        currentH += 1;
+        currentM -= 60;
+      }
+      loops++;
+    }
+    return times;
+  }, []);
+
+  const handleTimeSelect = (time: string | null) => {
+    setCustomStartTime(time);
+    setIsTimeSelectorOpen(false);
+    // Explicitly refetch with new time context if active
+    if (selectedSlot) {
+      // We need to trigger fetch via effect or direct call.
+      // Since customStartTime is in dependency of fetchTableData, it will trigger effect if we rely on it.
+    }
+  };
+
   // Refactored to fetch slots first, then tables+reservations together
   const fetchInitialData = useCallback(
     async (preserveSelection = false) => {
@@ -219,9 +264,11 @@ export default function ReservationsPage() {
         if (slotsData.length > 0) {
           if (!preserveSelection) {
             setSelectedSlot(slotsData[0]);
+            setCustomStartTime(null); // Reset custom time on date change
           }
         } else {
           setSelectedSlot(null);
+          setCustomStartTime(null);
           // Fallback: If no slots, just show empty tables (old method)
           const tablesData = await reservationService.getTables();
           setTables(tablesData);
@@ -240,17 +287,10 @@ export default function ReservationsPage() {
   const fetchTableData = useCallback(async () => {
     if (!selectedSlot) return;
     try {
-      // Don't set global loading here to avoid full page spinner flicker if just switching slots?
-      // User wants "load together". If we don't show spinner, user sees old state.
-      // Better to show spinner or overlay.
-      // But we have 'loading' state which hides everything?
-      // Existing 'loading' state hides the whole page.
-      // Let's use it for likely first load, but for slot switching maybe just opacity?
-      // For now, let's keep it simple.
-
       const data = await reservationService.getTablesWithAvailability(
         date,
         selectedSlot.id,
+        customStartTime || undefined,
       );
       setTables(data.tables);
       setReservations(data.reservations);
@@ -262,7 +302,7 @@ export default function ReservationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [date, selectedSlot]);
+  }, [date, selectedSlot, customStartTime]);
 
   useEffect(() => {
     fetchInitialData();
@@ -322,6 +362,10 @@ export default function ReservationsPage() {
       setIsEditModalOpen(true);
     } else {
       // Check for past time
+      // If custom time is set, check against that?
+      // isSlotPast uses slot start time. We should update isSlotPast to handle customTime if we want consistency,
+      // but slot level check is "safe enough".
+      // Let's rely on standard slot check or update it.
       if (isSlotPast(date, selectedSlot)) {
         toast.error("Booking limit Reached: Time already lost.");
         return;
@@ -376,6 +420,7 @@ export default function ReservationsPage() {
         slotId: selectedSlot.id,
         date,
         ...bookingData,
+        customStartTime: customStartTime || undefined, // Pass custom time
         mergeTableIds:
           selectedMergeTables.length > 0 ? selectedMergeTables : undefined,
       });
@@ -393,7 +438,9 @@ export default function ReservationsPage() {
       fetchTableData();
     } catch (err) {
       console.error("Booking failed", err);
-      alert("Failed to create reservation");
+      // Explicit conflict message from backend
+      // @ts-expect-error - Response type not fully typed
+      alert(err.response?.data?.message || "Failed to create reservation");
     } finally {
       setBookingLoading(false);
     }
@@ -803,28 +850,67 @@ export default function ReservationsPage() {
             No slots available for this day.
           </div>
         )}
-        {slots.map((slot) => (
-          <button
-            key={slot.id}
-            onClick={() => setSelectedSlot(slot)}
-            className={cn(
-              "relative flex items-center space-x-2 px-4 py-2 rounded-full border transition-all whitespace-nowrap",
-              selectedSlot?.id === slot.id
-                ? "bg-blue-500/20 border-blue-400 text-blue-300"
-                : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10",
-            )}
-          >
-            <Clock className="h-4 w-4" />
-            <span>
-              {formatTo12Hour(slot.startTime)} - {formatTo12Hour(slot.endTime)}
-            </span>
-            {slot.reservedCount && slot.reservedCount > 0 ? (
-              <span className="absolute -top-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
-                {slot.reservedCount}
-              </span>
-            ) : null}
-          </button>
-        ))}
+        {slots.map((slot) => {
+          const isSelected = selectedSlot?.id === slot.id;
+          const isCustomActive = isSelected && customStartTime;
+
+          // Format displayed time
+          let displayTime = `${formatTo12Hour(slot.startTime)} - ${formatTo12Hour(slot.endTime)}`;
+          if (isCustomActive) {
+            const [sh, sm] = customStartTime.split(":").map(Number);
+            const endD = new Date();
+            endD.setHours(sh, sm + 90, 0, 0); // +90 mins
+            const endStr = `${endD.getHours().toString().padStart(2, "0")}:${endD.getMinutes().toString().padStart(2, "0")}`;
+            displayTime = `${formatTo12Hour(customStartTime)} - ${formatTo12Hour(endStr)}`;
+          }
+
+          return (
+            <div key={slot.id} className="relative group">
+              <div
+                className={cn(
+                  "relative flex items-center rounded-full border transition-all whitespace-nowrap overflow-hidden pr-2", // Unified container styling
+                  isSelected
+                    ? "bg-blue-500/20 border-blue-400 text-blue-300"
+                    : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10",
+                )}
+              >
+                {/* Left Clock - Triggers Custom Time Modal */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCustomTimeSlot(slot);
+                    setIsTimeSelectorOpen(true);
+                  }}
+                  className={cn(
+                    "p-2 hover:bg-white/10 transition-colors h-full flex items-center justify-center",
+                    isCustomActive ? "text-amber-400" : "",
+                  )}
+                  title="Select Custom Time"
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Main Text - Triggers Standard Slot Selection */}
+                <button
+                  onClick={() => {
+                    setSelectedSlot(slot);
+                    setCustomStartTime(null);
+                  }}
+                  className="flex-1 py-2 px-2 text-sm font-medium text-left"
+                >
+                  {displayTime}
+                </button>
+              </div>
+
+              {/* Badge - Outside overflow-hidden container */}
+              {slot.reservedCount !== undefined && slot.reservedCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white shadow-sm z-10">
+                  {slot.reservedCount}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Tables Grid */}
@@ -832,11 +918,17 @@ export default function ReservationsPage() {
         <CardHeader>
           <CardTitle>
             Tables for {date.split("-").reverse().join("-")} (
-            {selectedSlot
-              ? `${formatTo12Hour(selectedSlot.startTime)} - ${formatTo12Hour(
-                  selectedSlot.endTime,
-                )}`
-              : "Select Slot"}
+            {customStartTime
+              ? (() => {
+                  const [sh, sm] = customStartTime.split(":").map(Number);
+                  const endD = new Date();
+                  endD.setHours(sh, sm + 90, 0, 0);
+                  const endStr = `${endD.getHours().toString().padStart(2, "0")}:${endD.getMinutes().toString().padStart(2, "0")}`;
+                  return `${formatTo12Hour(customStartTime)} - ${formatTo12Hour(endStr)}`;
+                })()
+              : selectedSlot
+                ? `${formatTo12Hour(selectedSlot.startTime)} - ${formatTo12Hour(selectedSlot.endTime)}`
+                : "Select Slot"}
             )
           </CardTitle>
         </CardHeader>
@@ -916,7 +1008,6 @@ export default function ReservationsPage() {
           onSubmit={handleBookingSubmit}
           className="space-y-4 max-h-[70vh] overflow-y-auto pr-2"
         >
-          {/* ... existing form fields ... */}
           <div className="space-y-2">
             <Label htmlFor="customerName">Customer Name</Label>
             <Input
@@ -1143,6 +1234,23 @@ export default function ReservationsPage() {
           onSubmit={handleEditSubmit}
           className="space-y-4 max-h-[70vh] overflow-y-auto pr-2"
         >
+          <div className="space-y-2">
+            <Label>Booked Slot</Label>
+            <Input
+              value={
+                editingReservation
+                  ? editingReservation.startTime && editingReservation.endTime
+                    ? `${formatTo12Hour(editingReservation.startTime)} - ${formatTo12Hour(editingReservation.endTime)}`
+                    : editingReservation.slot
+                      ? `${formatTo12Hour(editingReservation.slot.startTime)} - ${formatTo12Hour(editingReservation.slot.endTime)}`
+                      : "N/A"
+                  : ""
+              }
+              readOnly
+              className="glass-input bg-white/5 border-white/10 text-gray-300 cursor-not-allowed"
+            />
+          </div>
+
           <div className="space-y-2">
             <Label>Customer Name</Label>
             <Input
@@ -2116,6 +2224,54 @@ export default function ReservationsPage() {
                   .map((t) => t.tableNumber)
                   .join(", ")}`;
               })()}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Time Selector Modal */}
+      <Modal
+        isOpen={isTimeSelectorOpen}
+        onClose={() => setIsTimeSelectorOpen(false)}
+        title={`Select Time for ${customTimeSlot ? formatTo12Hour(customTimeSlot.startTime) : "Slot"}`}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-400">
+            Select a specific start time. Duration will be automatically set to
+            1.5 hours.
+          </p>
+          <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto">
+            {customTimeSlot &&
+              generateTimeIntervals(customTimeSlot).map((time) => (
+                <Button
+                  key={time}
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedSlot(customTimeSlot); // Switch to this slot
+                    handleTimeSelect(time);
+                  }}
+                  className={cn(
+                    "glass-button border-white/10 hover:bg-purple-500/20 hover:border-purple-500",
+                    customStartTime === time &&
+                      selectedSlot?.id === customTimeSlot.id
+                      ? "bg-purple-500/30 border-purple-500 text-white"
+                      : "text-gray-300",
+                  )}
+                >
+                  {formatTo12Hour(time)}
+                </Button>
+              ))}
+          </div>
+          <div className="flex justify-end pt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-400 hover:text-white"
+              onClick={() => {
+                handleTimeSelect(null); // Clear custom time
+              }}
+            >
+              Clear Custom Selection
             </Button>
           </div>
         </div>
