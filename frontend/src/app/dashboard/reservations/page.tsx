@@ -1574,15 +1574,15 @@ export default function ReservationsPage() {
         onClose={() => setIsManageSlotsOpen(false)}
         title="Manage Reservation Slots"
       >
-        <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+        <div className="space-y-6">
           {/* Add New Slot */}
           <div className="bg-white/5 p-4 rounded-lg border border-white/10 space-y-4">
             <h3 className="font-semibold text-lg">Add New Slot</h3>
             <form onSubmit={handleAddSlot} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Start Time</Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1 sm:gap-2">
                     <select
                       className="glass-input w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1 text-sm text-white"
                       value={parseTime(newSlot.startTime).hour}
@@ -1659,7 +1659,7 @@ export default function ReservationsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>End Time</Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1 sm:gap-2">
                     <select
                       className="glass-input w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1 text-sm text-white"
                       value={parseTime(newSlot.endTime).hour}
