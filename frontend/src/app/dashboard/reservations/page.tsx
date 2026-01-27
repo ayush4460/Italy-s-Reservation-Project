@@ -903,12 +903,12 @@ export default function ReservationsPage() {
                     setIsTimeSelectorOpen(true);
                   }}
                   className={cn(
-                    "p-2 hover:bg-white/10 transition-colors h-full flex items-center justify-center",
+                    "p-1.5 md:p-2 hover:bg-white/10 transition-colors h-full flex items-center justify-center",
                     isCustomActive ? "text-amber-400" : "",
                   )}
                   title="Select Custom Time"
                 >
-                  <Clock className="w-3.5 h-3.5" />
+                  <Clock className="w-3 h-3 md:w-3.5 md:h-3.5" />
                 </button>
 
                 {/* Main Text - Triggers Standard Slot Selection */}
@@ -917,7 +917,7 @@ export default function ReservationsPage() {
                     setSelectedSlot(slot);
                     setCustomStartTime(null);
                   }}
-                  className="flex-1 py-2 px-2 text-sm font-medium text-left"
+                  className="flex-1 py-1.5 px-1.5 md:py-2 md:px-2 text-xs md:text-sm font-medium text-left truncate"
                 >
                   {displayTime}
                 </button>
@@ -953,8 +953,8 @@ export default function ReservationsPage() {
             )
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
             {processedTables.map(({ table, reservation }) => {
               const isBooked = !!reservation;
 
@@ -967,18 +967,18 @@ export default function ReservationsPage() {
                   // Prevent default context menu on mobile long press
                   onContextMenu={(e) => isBooked && e.preventDefault()}
                   className={cn(
-                    "relative aspect-square rounded-xl flex flex-col items-center justify-center p-4 border-2 transition-all cursor-pointer shadow-lg group select-none",
+                    "relative aspect-square rounded-xl flex flex-col items-center justify-center p-2 md:p-4 border-2 transition-all cursor-pointer shadow-lg group select-none",
                     isBooked
                       ? "bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/30"
                       : "bg-green-500/20 border-green-500/50 text-green-300 hover:bg-green-500/30",
                   )}
                 >
-                  <Armchair className="h-8 w-8 mb-2" />
-                  <span className="font-bold text-xl text-center leading-tight">
+                  <Armchair className="h-5 w-5 md:h-8 md:w-8 mb-1 md:mb-2" />
+                  <span className="font-bold text-base md:text-xl text-center leading-tight">
                     {table.tableNumber}
                   </span>
-                  <div className="flex items-center text-xs mt-1 opacity-70">
-                    <Users className="h-3 w-3 mr-1" />
+                  <div className="flex items-center text-[10px] md:text-xs mt-0.5 md:mt-1 opacity-70">
+                    <Users className="h-2.5 w-2.5 md:h-3 md:w-3 mr-0.5 md:mr-1" />
                     {isBooked && reservation
                       ? `${
                           (reservation.adults || 0) + (reservation.kids || 0)
@@ -989,11 +989,11 @@ export default function ReservationsPage() {
                     <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                   )}
                   {isBooked && reservation && (
-                    <div className="absolute bottom-2 text-xs font-semibold truncate max-w-[90%]">
-                      {reservation.customerName}
+                    <div className="mt-1 md:mt-2 text-[10px] md:text-xs font-semibold truncate max-w-[95%] text-center leading-none">
+                      {reservation.customerName.split(" ")[0]}
                       {reservation.groupId && (
-                        <span className="text-[10px] ml-1 opacity-70">
-                          (Merged)
+                        <span className="text-[8px] md:text-[10px] ml-0.5 opacity-70 block">
+                          (Mrg)
                         </span>
                       )}
                     </div>

@@ -50,7 +50,7 @@ export default function ChatPage() {
     (chat) =>
       chat.phoneNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (chat.customerName &&
-        chat.customerName.toLowerCase().includes(searchQuery.toLowerCase()))
+        chat.customerName.toLowerCase().includes(searchQuery.toLowerCase())),
   );
 
   const { user, loading } = useProfile();
@@ -203,7 +203,7 @@ export default function ChatPage() {
         // 2. Update Chat List by fetching fresh data (Single Source of Truth)
         // This ensures unread counts and sorting are always correct based on DB
         fetchChats(true);
-      }
+      },
     );
 
     return () => {
@@ -224,8 +224,8 @@ export default function ChatPage() {
     // Reset local unread count
     setChats((prev) =>
       prev.map((c) =>
-        c.phoneNumber === selectedPhone ? { ...c, unreadCount: 0 } : c
-      )
+        c.phoneNumber === selectedPhone ? { ...c, unreadCount: 0 } : c,
+      ),
     );
 
     fetchMessages(selectedPhone);
@@ -245,7 +245,7 @@ export default function ChatPage() {
         className={cn(
           "glass-panel border-none flex flex-col h-full transition-all duration-300",
           "w-full md:w-1/3", // Full width on mobile, 1/3 on desktop
-          selectedPhone ? "hidden md:flex" : "flex" // Hide on mobile if chat selected
+          selectedPhone ? "hidden md:flex" : "flex", // Hide on mobile if chat selected
         )}
       >
         <CardHeader className="pb-4 border-b border-white/10 space-y-4">
@@ -265,10 +265,10 @@ export default function ChatPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search by number or name..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 glass-input"
+              className="pl-9 glass-input h-9 text-sm"
             />
           </div>
         </CardHeader>
@@ -287,13 +287,13 @@ export default function ChatPage() {
                     key={chat.phoneNumber}
                     onClick={() => setSelectedPhone(chat.phoneNumber)}
                     className={cn(
-                      "flex items-start gap-3 p-4 text-left transition-colors border-b border-white/5",
+                      "flex items-start gap-3 p-3 text-left transition-colors border-b border-white/5",
                       selectedPhone === chat.phoneNumber
                         ? "bg-white/10"
-                        : "hover:bg-white/5"
+                        : "hover:bg-white/5",
                     )}
                   >
-                    <Avatar>
+                    <Avatar className="w-8 h-8 md:w-10 md:h-10">
                       <AvatarImage
                         src={`https://api.dicebear.com/7.x/initials/svg?seed=${chat.phoneNumber}`}
                       />
@@ -302,12 +302,12 @@ export default function ChatPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0 overflow-hidden text-left">
-                      <div className="grid grid-cols-[1fr_auto] items-center gap-2 mb-1 w-full">
+                      <div className="grid grid-cols-[1fr_auto] items-center gap-2 mb-0.5 w-full">
                         <div className="min-w-0">
-                          <p className="font-medium text-white truncate">
+                          <p className="font-medium text-white truncate text-sm md:text-base">
                             {chat.phoneNumber}
                             {chat.customerName && (
-                              <span className="text-gray-400 font-normal ml-2 text-sm">
+                              <span className="text-gray-400 font-normal ml-2 text-xs md:text-sm">
                                 ~ {chat.customerName}
                               </span>
                             )}
@@ -315,11 +315,11 @@ export default function ChatPage() {
                         </div>
                         <div className="flex items-center gap-2 justify-end">
                           {(Number(chat.unreadCount) || 0) > 0 && (
-                            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center inline-flex items-center justify-center">
+                            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center inline-flex items-center justify-center">
                               {chat.unreadCount}
                             </span>
                           )}
-                          <span className="text-xs text-gray-400 whitespace-nowrap">
+                          <span className="text-[10px] md:text-xs text-gray-400 whitespace-nowrap">
                             {chat.timestamp
                               ? new Date(chat.timestamp).toLocaleTimeString(
                                   [],
@@ -327,13 +327,13 @@ export default function ChatPage() {
                                     hour: "2-digit",
                                     minute: "2-digit",
                                     hour12: true,
-                                  }
+                                  },
                                 )
                               : ""}
                           </span>
                         </div>
                       </div>
-                      <p className="text-sm text-gray-400 truncate block w-full">
+                      <p className="text-xs md:text-sm text-gray-400 truncate block w-full">
                         {chat.direction === "outbound" && "You: "}
                         {chat.content.length > 30
                           ? chat.content.slice(0, 30) + "..."
@@ -353,7 +353,7 @@ export default function ChatPage() {
         className={cn(
           "glass-panel border-none flex-col h-full",
           "flex-1",
-          !selectedPhone ? "hidden md:flex" : "flex w-full md:w-auto" // Show only on desktop if no selection, full width on mobile if selected
+          !selectedPhone ? "hidden md:flex" : "flex w-full md:w-auto", // Show only on desktop if no selection, full width on mobile if selected
         )}
       >
         {selectedPhone ? (
@@ -372,7 +372,7 @@ export default function ChatPage() {
                   {/* Using X as back or we can import ChevronLeft */}
                 </Button>
 
-                <Avatar>
+                <Avatar className="h-8 w-8 md:h-10 md:w-10">
                   <AvatarImage
                     src={`https://api.dicebear.com/7.x/initials/svg?seed=${selectedPhone}`}
                   />
@@ -381,10 +381,10 @@ export default function ChatPage() {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <CardTitle className="text-lg text-white">
+                  <CardTitle className="text-base md:text-lg text-white">
                     {selectedPhone}
                   </CardTitle>
-                  <div className="flex items-center gap-1 text-xs text-green-400">
+                  <div className="flex items-center gap-1 text-[10px] md:text-xs text-green-400">
                     <Phone className="h-3 w-3" /> WhatsApp
                   </div>
                 </div>
@@ -408,19 +408,19 @@ export default function ChatPage() {
                     "flex w-full",
                     msg.direction === "outbound"
                       ? "justify-end"
-                      : "justify-start"
+                      : "justify-start",
                   )}
                 >
                   <div
                     className={cn(
-                      "max-w-[75%] md:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm text-sm md:text-base", // Adjust text size/width for mobile
+                      "max-w-[85%] md:max-w-[70%] rounded-2xl px-3 py-1.5 md:px-4 md:py-2 shadow-sm text-sm md:text-base", // Adjust text size/width for mobile
                       msg.direction === "outbound"
                         ? "bg-blue-600 text-white rounded-br-none"
-                        : "bg-white/10 text-white rounded-bl-none"
+                        : "bg-white/10 text-white rounded-bl-none",
                     )}
                   >
                     <MessageFormatter content={msg.content} />
-                    <span className="text-[10px] opacity-70 block text-right mt-1">
+                    <span className="text-[9px] md:text-[10px] opacity-70 block text-right mt-0.5 md:mt-1">
                       {new Date(msg.timestamp).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -437,7 +437,7 @@ export default function ChatPage() {
             </CardContent>
 
             {/* Input Area */}
-            <div className="p-4 border-t border-white/10 bg-black/20">
+            <div className="p-2 md:p-4 border-t border-white/10 bg-black/20">
               <div className="flex flex-row items-center gap-2">
                 <div className="shrink-0">
                   <WhatsAppTemplateSelector

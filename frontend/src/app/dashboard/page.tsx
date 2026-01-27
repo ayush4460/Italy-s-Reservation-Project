@@ -344,29 +344,29 @@ export default function DashboardPage() {
       {/* Analytics Chart Section */}
       {role === "ADMIN" && (
         <div className="mt-12">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 md:mb-6">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-blue-400" />
-              <h3 className="text-xl font-semibold text-white">
+              <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-blue-400" />
+              <h3 className="text-lg md:text-xl font-semibold text-white">
                 Reservation Analysis
               </h3>
             </div>
 
-            <div className="flex items-center gap-2 sm:justify-end">
+            <div className="flex items-center justify-between md:justify-end gap-2 text-xs">
               <button
                 onClick={handleDownloadChart}
                 title="Download Analysis as Image"
-                className="flex items-center justify-center p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-all shadow-lg hover:scale-105 active:scale-95"
+                className="flex items-center justify-center p-1.5 md:p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-all shadow-lg hover:scale-105 active:scale-95 shrink-0"
               >
-                <ImageIcon className="h-4 w-4" />
+                <ImageIcon className="h-3.5 w-3.5 md:h-4 md:w-4" />
               </button>
-              <div className="flex items-center gap-1.5 bg-white/10 rounded-xl px-2.5 py-1.5 border border-white/20 shadow-inner w-fit">
-                <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+              <div className="flex items-center gap-1 bg-white/10 rounded-xl px-2 py-1.5 border border-white/20 shadow-inner w-full md:w-fit justify-between">
+                <Calendar className="h-3 w-3 md:h-3.5 md:w-3.5 text-gray-400 shrink-0" />
                 <input
                   type="date"
                   value={chartStart}
                   onChange={(e) => setChartStart(e.target.value)}
-                  className="bg-transparent text-white text-[11px] sm:text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[100px] sm:w-[120px] p-0"
+                  className="bg-transparent text-white text-[10px] md:text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[75px] md:w-[120px] p-0"
                 />
                 <span className="text-gray-500 font-bold text-[10px] px-0.5">
                   →
@@ -375,15 +375,15 @@ export default function DashboardPage() {
                   type="date"
                   value={chartEnd}
                   onChange={(e) => setChartEnd(e.target.value)}
-                  className="bg-transparent text-white text-[11px] sm:text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[100px] sm:w-[120px] p-0"
+                  className="bg-transparent text-white text-[10px] md:text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[75px] md:w-[120px] p-0"
                 />
               </div>
             </div>
           </div>
 
           <div ref={chartRef}>
-            <Card className="glass-panel border-none p-4 sm:p-6 overflow-hidden">
-              <div className="h-[280px] sm:h-[350px] md:h-[400px] w-full -ml-4 sm:ml-0">
+            <Card className="glass-panel border-none p-2 md:p-6 overflow-hidden">
+              <div className="h-[200px] md:h-[400px] w-full -ml-2 md:ml-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={stats.analyticsData}
@@ -510,18 +510,18 @@ export default function DashboardPage() {
       )}
 
       <div className="mt-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-4">
-            <h3 className="text-xl font-semibold text-white">
+        <div className="flex flex-row items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2 md:gap-4 overflow-hidden">
+            <h3 className="text-lg md:text-xl font-semibold text-white whitespace-nowrap truncate">
               {date === new Date().toISOString().split("T")[0]
                 ? "Today's Bookings"
                 : `Bookings for ${formatDate(date)}`}
             </h3>
-            <div className="flex bg-white/5 p-1 rounded-lg">
+            <div className="flex bg-white/5 p-0.5 md:p-1 rounded-lg shrink-0">
               <button
                 onClick={() => setViewMode("active")}
                 className={cn(
-                  "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                  "px-2 py-0.5 md:px-3 md:py-1 rounded-md text-[10px] md:text-xs font-medium transition-all",
                   viewMode === "active"
                     ? "bg-blue-500/20 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.2)]"
                     : "text-gray-400 hover:text-white",
@@ -532,7 +532,7 @@ export default function DashboardPage() {
               <button
                 onClick={() => setViewMode("cancelled")}
                 className={cn(
-                  "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                  "px-2 py-0.5 md:px-3 md:py-1 rounded-md text-[10px] md:text-xs font-medium transition-all",
                   viewMode === "cancelled"
                     ? "bg-red-500/20 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
                     : "text-gray-400 hover:text-white",
@@ -547,14 +547,15 @@ export default function DashboardPage() {
             <button
               onClick={handleDownloadExcel}
               disabled={downloading}
-              className="flex items-center justify-center gap-2 px-4 py-2 sm:px-3 sm:py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-sm font-medium rounded-lg sm:rounded-md border border-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+              className="flex items-center justify-center gap-1.5 px-2 py-1.5 md:px-3 md:py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-[10px] md:text-sm font-medium rounded-lg md:rounded-md border border-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
             >
               {downloading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-3 w-3 md:h-4 md:w-4 animate-spin" />
               ) : (
-                <Download className="h-4 w-4" />
+                <Download className="h-3 w-3 md:h-4 md:w-4" />
               )}
-              Download Excel
+              <span className="hidden xs:inline">Download Excel</span>
+              <span className="xs:hidden">Excel</span>
             </button>
           )}
         </div>
@@ -572,7 +573,7 @@ export default function DashboardPage() {
                   {stats.recentReservations.map((res: ReservationSummary) => (
                     <div
                       key={res.id}
-                      className="p-3 md:p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 md:gap-4 hover:bg-white/5 cursor-pointer transition-colors"
+                      className="p-3 md:p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 md:gap-4 hover:bg-white/5 cursor-pointer transition-colors"
                       onClick={() => {
                         const dateStr = res.date
                           ? res.date.toString().split("T")[0]
@@ -580,9 +581,9 @@ export default function DashboardPage() {
                         window.location.href = `/dashboard/reservations?date=${dateStr}&slotId=${res.slotId}`;
                       }}
                     >
-                      <div className="flex items-start justify-between md:justify-start gap-4">
-                        <div className="flex bg-blue-500/20 text-blue-300 font-bold px-3 py-2 rounded-lg items-center justify-center min-w-12">
-                          <span className="text-lg">
+                      <div className="flex items-start justify-between md:justify-start gap-3 md:gap-4">
+                        <div className="flex bg-blue-500/20 text-blue-300 font-bold px-2 py-1.5 md:px-3 md:py-2 rounded-lg items-center justify-center min-w-10 md:min-w-12">
+                          <span className="text-base md:text-lg">
                             {res.table.tableNumber
                               .split("+")
                               .sort((a, b) => Number(a) - Number(b))
@@ -590,10 +591,10 @@ export default function DashboardPage() {
                           </span>
                         </div>
                         <div>
-                          <div className="font-semibold text-white">
+                          <div className="font-semibold text-white text-sm md:text-base">
                             {res.customerName}
                           </div>
-                          <div className="text-sm text-gray-400">
+                          <div className="text-xs md:text-sm text-gray-400">
                             {res.contact}
                           </div>
                           {role === "ADMIN" && (
@@ -606,8 +607,8 @@ export default function DashboardPage() {
                                 onSendSuccess={fetchStats}
                                 reservation={res}
                                 trigger={
-                                  <button className="text-[10px] bg-green-500/20 hover:bg-green-500/30 text-green-400 px-2 py-0.5 rounded border border-green-500/20 transition-colors uppercase font-bold tracking-wider">
-                                    Send WhatsApp
+                                  <button className="text-[9px] md:text-[10px] bg-green-500/20 hover:bg-green-500/30 text-green-400 px-1.5 py-0.5 rounded border border-green-500/20 transition-colors uppercase font-bold tracking-wider">
+                                    WhatsApp
                                   </button>
                                 }
                               />
@@ -628,11 +629,11 @@ export default function DashboardPage() {
 
                       <div className="flex flex-row md:flex-1 items-center justify-start md:justify-center px-0 md:px-4">
                         {res.notificationType && (
-                          <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg px-2 py-1 md:px-3 md:py-1.5 flex items-center gap-2 md:flex-col md:gap-0">
-                            <span className="text-[10px] text-purple-300 font-bold uppercase tracking-widest leading-none">
+                          <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg px-2 py-0.5 md:px-3 md:py-1.5 flex items-center gap-2 md:flex-col md:gap-0">
+                            <span className="text-[9px] md:text-[10px] text-purple-300 font-bold uppercase tracking-widest leading-none">
                               Package:
                             </span>
-                            <span className="text-sm font-semibold text-purple-100 whitespace-nowrap">
+                            <span className="text-xs md:text-sm font-semibold text-purple-100 whitespace-nowrap">
                               {formatTemplateName(res.notificationType)}
                             </span>
                           </div>
@@ -643,7 +644,7 @@ export default function DashboardPage() {
                         <div className="text-left md:text-right md:max-w-[200px]">
                           <div
                             className={cn(
-                              "text-xs font-medium",
+                              "text-[10px] md:text-xs font-medium",
                               res.foodPref === "Regular"
                                 ? "text-gray-400"
                                 : "text-yellow-400",
@@ -653,7 +654,7 @@ export default function DashboardPage() {
                           </div>
                           {res.specialReq && (
                             <div
-                              className="text-xs text-blue-300 italic truncate"
+                              className="text-[10px] md:text-xs text-blue-300 italic truncate"
                               title={res.specialReq}
                             >
                               &quot;{res.specialReq}&quot;
@@ -661,19 +662,19 @@ export default function DashboardPage() {
                           )}
                         </div>
 
-                        <div className="text-center md:text-right min-w-[80px]">
-                          <div className="text-xs text-gray-400 uppercase tracking-wider">
+                        <div className="text-center md:text-right min-w-[70px] md:min-w-[80px]">
+                          <div className="text-[10px] md:text-xs text-gray-400 uppercase tracking-wider">
                             Time
                           </div>
-                          <div className="text-sm font-medium">
+                          <div className="text-xs md:text-sm font-medium">
                             {res.slot.startTime} - {res.slot.endTime}
                           </div>
                         </div>
-                        <div className="text-right min-w-[80px]">
-                          <div className="text-xs text-gray-400 uppercase tracking-wider">
+                        <div className="text-right min-w-[70px] md:min-w-[80px]">
+                          <div className="text-[10px] md:text-xs text-gray-400 uppercase tracking-wider">
                             Guests
                           </div>
-                          <div className="text-sm font-medium">
+                          <div className="text-xs md:text-sm font-medium">
                             {res.adults} Adults, {res.kids} Kids
                           </div>
                         </div>
@@ -693,59 +694,61 @@ export default function DashboardPage() {
                 {stats.cancelledReservations?.map((res: ReservationSummary) => (
                   <div
                     key={res.id}
-                    className="p-4 flex items-center justify-between bg-red-500/5 hover:bg-red-500/10 cursor-pointer transition-colors"
+                    className="p-3 md:p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 md:gap-4 bg-red-500/5 hover:bg-red-500/10 cursor-pointer transition-colors"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="flex bg-red-500/20 text-red-300 font-bold px-3 py-2 rounded-lg items-center justify-center min-w-12 border border-red-500/20">
-                        <span className="text-lg line-through decoration-red-400/50">
+                    <div className="flex items-start justify-between md:justify-start gap-3 md:gap-4">
+                      <div className="flex bg-red-500/20 text-red-300 font-bold px-2 py-1.5 md:px-3 md:py-2 rounded-lg items-center justify-center min-w-10 md:min-w-12 border border-red-500/20">
+                        <span className="text-base md:text-lg line-through decoration-red-400/50">
                           {res.table.tableNumber
                             .split("+")
                             .sort((a, b) => Number(a) - Number(b))
                             .join(", ")}
                         </span>
                       </div>
-                      <div>
-                        <div className="font-semibold text-white/70 line-through decoration-white/30">
+                      <div className="flex flex-col">
+                        <div className="font-semibold text-white/70 text-sm md:text-base line-through decoration-white/30">
                           {res.customerName}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-xs md:text-sm text-gray-500">
                           {res.contact}
                         </div>
-                        <div className="mt-1">
-                          <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/20 uppercase font-bold tracking-wider">
+                        <div className="mt-0.5 md:mt-1">
+                          <span className="text-[9px] md:text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded border border-red-500/20 uppercase font-bold tracking-wider">
                             Cancelled
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 flex-1 justify-end opacity-75">
-                      <div className="text-right max-w-[200px]">
-                        <div className="text-xs text-gray-500 uppercase tracking-wider">
+                    <div className="flex flex-row items-start justify-between md:justify-end gap-2 md:gap-8 flex-1 opacity-75 mt-1 md:mt-0 border-t border-white/5 md:border-none pt-2 md:pt-0">
+                      <div className="text-left md:text-right max-w-[120px] md:max-w-[200px]">
+                        <div className="text-[9px] md:text-xs text-gray-500 uppercase tracking-wider">
                           Reason
                         </div>
                         <div
-                          className="text-sm font-medium text-gray-400"
+                          className="text-xs md:text-sm font-medium text-gray-400 whitespace-normal break-all leading-tight"
                           title={res.cancellationReason || "Customer Cancelled"}
                         >
                           {res.cancellationReason || "Customer Cancelled"}
                         </div>
                       </div>
 
-                      <div className="text-right min-w-[100px]">
-                        <div className="text-xs text-gray-500 uppercase tracking-wider">
-                          Original Time
+                      <div className="flex gap-4">
+                        <div className="text-right min-w-[60px] md:min-w-[100px]">
+                          <div className="text-[9px] md:text-xs text-gray-500 uppercase tracking-wider">
+                            Time
+                          </div>
+                          <div className="text-xs md:text-sm font-medium text-gray-400 whitespace-nowrap">
+                            {res.slot.startTime} - {res.slot.endTime}
+                          </div>
                         </div>
-                        <div className="text-sm font-medium text-gray-400">
-                          {res.slot.startTime} - {res.slot.endTime}
-                        </div>
-                      </div>
-                      <div className="text-right min-w-[100px]">
-                        <div className="text-xs text-gray-500 uppercase tracking-wider">
-                          Guests
-                        </div>
-                        <div className="text-sm font-medium text-gray-400">
-                          {res.adults} Adults, {res.kids} Kids
+                        <div className="text-right min-w-[60px] md:min-w-[100px]">
+                          <div className="text-[9px] md:text-xs text-gray-500 uppercase tracking-wider">
+                            Guests
+                          </div>
+                          <div className="text-xs md:text-sm font-medium text-gray-400">
+                            {res.adults} Adults, {res.kids} Kids
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -761,50 +764,50 @@ export default function DashboardPage() {
       {role === "ADMIN" && (
         <div className="mt-8">
           <Card className="glass-panel border-none text-white">
-            <CardHeader>
-              <CardTitle className="text-lg font-medium flex items-center justify-between">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base md:text-lg font-medium flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <CalendarCheck className="h-5 w-5 text-purple-400" />
-                  Daily Time Slot Analysis
+                  <CalendarCheck className="h-4 w-4 md:h-5 md:w-5 text-purple-400" />
+                  <span>Daily Time Slot Analysis</span>
                 </div>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={handleDownloadSlotChart}
-                    title="Download Analysis as Image"
-                    className="flex items-center justify-center p-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 transition-all shadow-lg hover:scale-105 active:scale-95"
-                  >
-                    <ImageIcon className="h-4 w-4" />
-                  </button>
-                  <div className="flex items-center gap-4 text-sm font-normal">
+                <div className="flex items-center w-full md:w-auto justify-between md:justify-end gap-3 md:gap-4">
+                  <div className="flex items-center gap-3 text-xs md:text-sm font-normal">
                     <div className="flex flex-col items-end">
-                      <span className="text-gray-400 text-xs">
-                        Total Bookings
+                      <span className="text-gray-400 text-[10px] md:text-xs">
+                        Bookings
                       </span>
-                      <span className="text-purple-400 font-bold">
+                      <span className="text-purple-400 font-bold text-sm md:text-base">
                         {stats.todayBookings}
                       </span>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className="text-gray-400 text-xs text-right">
-                        Total Guests
+                      <span className="text-gray-400 text-[10px] md:text-xs text-right">
+                        Guests
                       </span>
-                      <span className="text-blue-400 font-bold">
+                      <span className="text-blue-400 font-bold text-sm md:text-base">
                         {stats.guestsExpected}
                       </span>
                     </div>
                   </div>
+                  <button
+                    onClick={handleDownloadSlotChart}
+                    title="Download Analysis as Image"
+                    className="flex items-center justify-center p-1.5 md:p-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 transition-all shadow-lg hover:scale-105 active:scale-95 shrink-0"
+                  >
+                    <ImageIcon className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                  </button>
                 </div>
               </CardTitle>
-              <p className="text-xs text-gray-500">
+              <p className="text-[10px] md:text-xs text-gray-500 mt-1">
                 Breakdown for {formatDate(date)}
               </p>
             </CardHeader>
             <div ref={slotChartRef}>
-              <CardContent className="h-[350px]">
+              <CardContent className="h-[250px] md:h-[350px] p-2 md:p-6">
                 {!stats.slotAnalytics || stats.slotAnalytics.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                    <CalendarCheck className="h-10 w-10 mb-2 opacity-20" />
-                    <p>No slot data available for today</p>
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400 text-sm">
+                    <CalendarCheck className="h-8 w-8 mb-2 opacity-20" />
+                    <p>No slot data available</p>
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
