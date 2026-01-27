@@ -2104,7 +2104,7 @@ export default function ReservationsPage() {
           </p>
 
           {/* Date and Slot Selection */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-1">
               <label className="text-xs text-gray-500">New Date</label>
               <Input
@@ -2140,7 +2140,7 @@ export default function ReservationsPage() {
               </select>
             </div>
 
-            <div className="space-y-1 col-span-2 sm:col-span-1">
+            <div className="space-y-1 col-span-1 sm:col-span-1">
               <label className="text-xs text-gray-500">WhatsApp Template</label>
               <select
                 value={moveNotificationType}
@@ -2207,7 +2207,7 @@ export default function ReservationsPage() {
           })()}
 
           {/* Available Tables List */}
-          <div className="grid grid-cols-3 gap-3 max-h-[40vh] overflow-y-auto p-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 max-h-[35vh] sm:max-h-[40vh] overflow-y-auto p-1">
             {moveAvailableTables.length > 0 ? (
               moveAvailableTables.map((table) => {
                 const isSelected = moveSelectedTables.some(
@@ -2247,7 +2247,7 @@ export default function ReservationsPage() {
 
           <div className="flex justify-end pt-4">
             <Button
-              className="glass-button w-full"
+              className="glass-button w-full h-auto py-3 whitespace-normal break-all"
               disabled={
                 moveSelectedTables.length === 0 ||
                 moveLoading ||
