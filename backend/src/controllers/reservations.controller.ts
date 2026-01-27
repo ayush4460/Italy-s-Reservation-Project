@@ -8,10 +8,8 @@ import { commonReservationMapper, sendSmartWhatsAppTemplate } from '../lib/whats
 const clearDashboardCache = async (restaurantId: number, date: Date | string) => {
     try {
         const dateKey = typeof date === 'string' ? date : date.toISOString().split('T')[0];
-        // The dashboard cache key is complex: dashboard:stats:v13:restaurantId:dateKey:chartStart:chartEnd
-        // We need to clear all keys for this restaurant that might contain stats for this day.
-        // Easiest is to clear all dashboard:stats:v13:restaurantId:*
-        const pattern = `dashboard:stats:v13:${restaurantId}:*`;
+        const env = process.env.NODE_ENV || 'dev';
+        const pattern = `${env}:dashboard:stats:v13:${restaurantId}:*`;
         
         let cursor = '0';
         do {
@@ -253,8 +251,8 @@ export const getTablesWithReservations = async (req: AuthRequest, res: Response)
 
         // Filter Reservations that actually overlap with our Target Time
         const conflictingReservations = rawReservations.filter(res => {
-            const resStart = timeToMins(res.startTime || res.slot.startTime);
-            const resEnd = timeToMins(res.endTime || res.slot.endTime);
+            const resStart = timeToMins(res.startTime || (res as any).slot.startTime);
+            const resEnd = timeToMins(res.endTime || (res as any).slot.endTime);
             
             // Check Intersect
             return (targetStartMins < resEnd) && (targetEndMins > resStart);
