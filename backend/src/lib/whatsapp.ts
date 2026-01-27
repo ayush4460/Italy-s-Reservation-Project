@@ -328,7 +328,8 @@ export type WhatsappNotificationType =
     | 'RESERVATION_CONFIRMATION' 
     | 'WEEKDAY_BRUNCH' 
     | 'WEEKEND_BRUNCH'
-    | 'A_LA_CARTE';
+    | 'A_LA_CARTE'
+    | 'RESERVATION_REQUEST';
 
 interface TemplateConfig {
     templateId: string;
@@ -390,6 +391,36 @@ const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
             longitude: "73.149727",
             name: "Italy's Traditional Pizzeria",
             address: "Opp Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara-390012"
+        }
+    },
+    'RESERVATION_REQUEST': {
+        // New Public Request Template
+        templateId: "ff499d97-597f-4828-8e81-f0d2a4b53e41",
+        isNative: true,
+        mapper: (data: any) => {
+            // Data: { name, contact, date(Str/Date), slot(Str), adults, kids, menu, foodPref, specialReq }
+            const dateObj = new Date(data.date);
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayName = days[dateObj.getDay()]; // {{4}}
+            
+            // Format Date DD-MM-YYYY {{3}}
+            const dayStr = dateObj.getDate().toString().padStart(2, '0');
+            const monthStr = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+            const yearStr = dateObj.getFullYear().toString();
+            const formattedDate = `${dayStr}-${monthStr}-${yearStr}`;
+
+            return [
+                data.name,                      // {{1}} Name
+                data.contact,                   // {{2}} Contact
+                formattedDate,                  // {{3}} Date
+                dayName,                        // {{4}} Day
+                data.slot,                      // {{5}} Slot
+                String(data.adults),            // {{6}} Adults
+                String(data.kids || '0'),       // {{7}} Kids
+                data.menu,                      // {{8}} Menu
+                data.foodPref,                  // {{9}} Food Prep
+                data.specialReq || '-'          // {{10}} Special Req (Optional: send '-' if empty)
+            ];
         }
     }
 };

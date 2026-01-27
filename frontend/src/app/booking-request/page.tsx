@@ -1,0 +1,447 @@
+"use client";
+
+import { useState } from "react";
+import { useForm, type FieldValues } from "react-hook-form";
+import { toast } from "sonner";
+
+import { Clock, Users, CheckCircle2, Phone, User } from "lucide-react";
+import { motion } from "framer-motion";
+
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+
+// Sample Slots (You might want to fetch these or keep static for request)
+const TIMESLOTS = [
+  "11:00 AM - 12:30 PM",
+  "12:30 PM - 02:00 PM",
+  "02:00 PM - 03:30 PM",
+  "07:00 PM - 08:30 PM",
+  "08:30 PM - 10:00 PM",
+  "10:00 PM - 11:30 PM",
+];
+
+const MENUS = [
+  "Cena All'Italiana",
+  "Brunch All'Italiana",
+  "Brunch Di Gala All'Italiana",
+  "A La Carte",
+];
+const PREPARATIONS = [
+  "Regular",
+  "Jain",
+  "Swaminarayan",
+  "Vegan",
+  "Gluten Free",
+];
+
+export default function BookingRequestPage() {
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const form = useForm({
+    defaultValues: {
+      name: "",
+      contact: "",
+      date: "",
+      slot: "",
+      adults: "2",
+      kids: "0",
+      menu: "",
+      foodPref: "",
+      specialReq: "",
+    },
+  });
+
+  const onSubmit = async (data: FieldValues) => {
+    try {
+      const payload = {
+        ...data,
+      };
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/public/request-reservation`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (res.ok) {
+        setIsSubmitted(true);
+        toast.success("Request sent successfully!");
+      } else {
+        const err = await res.json();
+        toast.error(err.message || "Failed to send request");
+      }
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+    }
+  };
+
+  if (isSubmitted) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center p-4 bg-black relative overflow-hidden">
+        {/* Background */}
+        <div
+          className="absolute inset-0 z-0 opacity-40 bg-cover bg-center"
+          style={{ backgroundImage: "url('/pizza_bg_dark.png')" }}
+        />
+        <div className="absolute inset-0 z-0 bg-linear-to-t from-black via-black/80 to-transparent" />
+
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="relative z-10 max-w-lg w-full bg-zinc-950/80 backdrop-blur-md border border-amber-500/20 rounded-2xl p-8 text-center space-y-6 shadow-2xl"
+        >
+          <div className="mx-auto w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mb-4 border border-green-500/20">
+            <CheckCircle2 className="w-10 h-10 text-green-500" />
+          </div>
+          <h2 className="text-3xl font-bold text-white font-serif">
+            Request Received
+          </h2>
+          <p className="text-zinc-400">
+            Grazies! We have received your reservation request. Our team will
+            check availability and confirm your booking shortly on WhatsApp.
+          </p>
+          <Button
+            variant="outline"
+            className="mt-6 border-amber-600/50 text-amber-500 hover:bg-amber-950 hover:text-amber-400 w-full h-12"
+            onClick={() => {
+              setIsSubmitted(false);
+              form.reset();
+            }}
+          >
+            Make Another Request
+          </Button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-black relative overflow-visible py-12 px-4 sm:px-6 lg:px-8 font-sans">
+      {/* Background Image & Overlay */}
+      <div
+        className="fixed inset-0 z-0 bg-contain bg-center bg-no-repeat sm:bg-cover"
+        style={{ backgroundImage: "url('/pizza_bg_dark.png')" }}
+      />
+      {/* Gradient Overlay for Readability */}
+      <div className="fixed inset-0 z-0 bg-linear-to-b from-black/80 via-black/60 to-black/90 sm:bg-black/70" />
+
+      {/* Main Container */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="relative z-10 w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-start"
+      >
+        {/* Left Side: Branding / Intro */}
+        <div className="space-y-6 pt-10 text-center lg:text-left">
+          <motion.div
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-white tracking-tight font-serif">
+              <span className="text-amber-500">Italy&apos;s</span> <br />
+              Waitlist & <br />
+              Reservations
+            </h1>
+          </motion.div>
+
+          <p className="text-lg text-zinc-300 max-w-md mx-auto lg:mx-0 leading-relaxed">
+            Experience the authentic taste of wood-fired pizzas and Italian
+            heritage. Reserve your table request below and let us serve you an
+            unforgettable meal.
+          </p>
+
+          <div className="hidden lg:flex flex-col gap-4 text-zinc-400 mt-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
+                <Clock className="w-5 h-5 text-amber-500" />
+              </div>
+              <div>
+                <p className="font-medium text-white">Opening Hours</p>
+                <p className="text-sm">Tue - Sun: 11:00 AM - 11:00 PM</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
+                <Phone className="w-5 h-5 text-amber-500" />
+              </div>
+              <div>
+                <p className="font-medium text-white">Contact</p>
+                <p className="text-sm">+91 99090 00317</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Form Card */}
+        <div className="w-full bg-zinc-950/70 backdrop-blur-xl border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl ring-1 ring-white/5">
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold text-white">Book a Table</h2>
+            <p className="text-zinc-500 text-sm">
+              Fill in your details to request a reservation.
+            </p>
+          </div>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {/* Personal Details Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-400">Your Name</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <User className="absolute left-3 top-3 h-4 w-4 text-zinc-500" />
+                          <Input
+                            placeholder="John Doe"
+                            className="pl-9 bg-white/5 border-white/10 text-white focus:border-amber-500/50 focus:ring-amber-500/20"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="contact"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-400">
+                        Phone Number
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-3 h-4 w-4 text-zinc-500" />
+                          <Input
+                            placeholder="9876543210"
+                            className="pl-9 bg-white/5 border-white/10 text-white focus:border-amber-500/50 focus:ring-amber-500/20"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Date & Slot Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel className="text-zinc-400">Date</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          min={new Date().toLocaleDateString("en-CA", {
+                            timeZone: "Asia/Kolkata",
+                          })}
+                          className="bg-white/5 border-white/10 text-white focus:border-amber-500/50 focus:ring-amber-500/20 scheme-dark relative w-full [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="slot"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-400">Time Slot</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="bg-white/5 border-white/10 text-white hover:bg-white/10 focus:ring-amber-500/20">
+                            <SelectValue placeholder="Select Slot" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {TIMESLOTS.map((slot) => (
+                            <SelectItem key={slot} value={slot}>
+                              {slot}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Guests Row */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="adults"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-400">Adults</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Users className="absolute left-3 top-3 h-4 w-4 text-zinc-500" />
+                          <Input
+                            type="number"
+                            min="1"
+                            className="pl-9 bg-white/5 border-white/10 text-white focus:border-amber-500/50"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="kids"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-400">
+                        Kids (5-10 yrs)
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Users className="absolute left-3 top-3 h-4 w-4 text-zinc-500" />
+                          <Input
+                            type="number"
+                            min="0"
+                            className="pl-9 bg-white/5 border-white/10 text-white focus:border-amber-500/50"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Preferences Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="menu"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-400">
+                        Preferred Menu
+                      </FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="bg-white/5 border-white/10 text-white hover:bg-white/10 focus:ring-amber-500/20">
+                            <SelectValue placeholder="Select Menu" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {MENUS.map((m) => (
+                            <SelectItem key={m} value={m}>
+                              {m}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="foodPref"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-400">
+                        Food Preparation
+                      </FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="bg-white/5 border-white/10 text-white hover:bg-white/10 focus:ring-amber-500/20">
+                            <SelectValue placeholder="Select Prep" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {PREPARATIONS.map((p) => (
+                            <SelectItem key={p} value={p}>
+                              {p}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="specialReq"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-zinc-400">
+                      Special Request (Optional)
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Any allergies or special requests..."
+                        className="bg-white/5 border-white/10 text-white focus:border-amber-500/50 min-h-[80px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button
+                type="submit"
+                className="w-full h-12 text-lg bg-linear-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-medium rounded-xl shadow-lg shadow-amber-900/20 transition-all duration-300 hover:scale-[1.02]"
+              >
+                Send Request
+              </Button>
+            </form>
+          </Form>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
