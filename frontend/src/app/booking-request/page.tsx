@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, type FieldValues } from "react-hook-form";
+import { useForm, useWatch, type FieldValues } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Clock, Users, CheckCircle2, Phone, User } from "lucide-react";
@@ -26,8 +26,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-// Sample Slots (You might want to fetch these or keep static for request)
-const TIMESLOTS = [
+// Slot Configurations
+const WEEKEND_SLOTS = [
   "11:00 AM - 12:30 PM",
   "12:30 PM - 02:00 PM",
   "02:00 PM - 03:30 PM",
@@ -36,19 +36,16 @@ const TIMESLOTS = [
   "10:00 PM - 11:30 PM",
 ];
 
-const MENUS = [
-  "Cena All'Italiana",
-  "Brunch All'Italiana",
-  "Brunch Di Gala All'Italiana",
-  "A La Carte",
+const WEEKDAY_SLOTS = [
+  "12:00 PM - 01:30 PM",
+  "01:30 PM - 03:00 PM",
+  "07:00 PM - 08:30 PM",
+  "08:30 PM - 10:00 PM",
+  "10:00 PM - 11:30 PM",
 ];
-const PREPARATIONS = [
-  "Regular",
-  "Jain",
-  "Swaminarayan",
-  "Vegan",
-  "Gluten Free",
-];
+
+const MENUS = ["Unlimited Dinner", "Brunch", "Menu Based Ordering"];
+const PREPARATIONS = ["Regular", "Jain", "Swaminarayan"];
 
 export default function BookingRequestPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -59,13 +56,73 @@ export default function BookingRequestPage() {
       contact: "",
       date: "",
       slot: "",
-      adults: "2",
-      kids: "0",
+      adults: "",
+      kids: "",
       menu: "",
       foodPref: "",
       specialReq: "",
     },
   });
+
+  // Dynamic Slot Logic
+  // Dynamic Slot Logic
+  const selectedDate = useWatch({
+    control: form.control,
+    name: "date",
+  });
+
+  const getAvailableSlots = () => {
+    if (!selectedDate) return [];
+
+    const date = new Date(selectedDate);
+    // Get day of week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+    const day = date.getDay();
+    const isWeekend = day === 0 || day === 6; // Sunday or Saturday
+
+    const slots = isWeekend ? WEEKEND_SLOTS : WEEKDAY_SLOTS;
+
+    // Filter by time if the date is TODAY
+    const now = new Date();
+    // Convert current time to IST string to check date
+    const istDateString = now.toLocaleDateString("en-CA", {
+      timeZone: "Asia/Kolkata",
+    });
+
+    if (selectedDate === istDateString) {
+      // It's today, filter passed slots
+      const istTime = now.toLocaleTimeString("en-US", {
+        timeZone: "Asia/Kolkata",
+        hour12: false,
+      });
+      const [currentHour, currentMinute] = istTime.split(":").map(Number);
+      const currentTotalMinutes = currentHour * 60 + currentMinute;
+
+      return slots.filter((slot) => {
+        const startTime = slot.split(" - ")[0]; // e.g., "11:00 AM"
+
+        // Parse start time to minutes
+        const [time, modifier] = startTime.split(" ");
+        const [rawHours, minutes] = time.split(":").map(Number);
+        let hours = rawHours;
+
+        if (hours === 12) {
+          hours = modifier === "PM" ? 12 : 0;
+        } else if (modifier === "PM") {
+          hours += 12;
+        }
+
+        const slotStartMinutes = hours * 60 + minutes;
+
+        // Allow booking if slot hasn't started yet (or strictly passed)
+        // Adding a small buffer (e.g., 30 mins) could be good, but strict for now
+        return slotStartMinutes > currentTotalMinutes;
+      });
+    }
+
+    return slots;
+  };
+
+  const availableSlots = getAvailableSlots();
 
   const onSubmit = async (data: FieldValues) => {
     try {
@@ -178,7 +235,7 @@ export default function BookingRequestPage() {
               </div>
               <div>
                 <p className="font-medium text-white">Opening Hours</p>
-                <p className="text-sm">Tue - Sun: 11:00 AM - 11:00 PM</p>
+                <p className="text-sm">All Days: 11:00 AM - 11:00 PM</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -289,11 +346,19 @@ export default function BookingRequestPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {TIMESLOTS.map((slot) => (
-                            <SelectItem key={slot} value={slot}>
-                              {slot}
-                            </SelectItem>
-                          ))}
+                          {availableSlots.length > 0 ? (
+                            availableSlots.map((time) => (
+                              <SelectItem key={time} value={time}>
+                                {time}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="p-2 text-sm text-zinc-400 text-center">
+                              {selectedDate
+                                ? "No slots available"
+                                : "Select a date first"}
+                            </div>
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -316,6 +381,7 @@ export default function BookingRequestPage() {
                           <Input
                             type="number"
                             min="1"
+                            placeholder="2"
                             className="pl-9 bg-white/5 border-white/10 text-white focus:border-amber-500/50"
                             {...field}
                           />
@@ -339,6 +405,7 @@ export default function BookingRequestPage() {
                           <Input
                             type="number"
                             min="0"
+                            placeholder="0"
                             className="pl-9 bg-white/5 border-white/10 text-white focus:border-amber-500/50"
                             {...field}
                           />
@@ -418,11 +485,11 @@ export default function BookingRequestPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-zinc-400">
-                      Special Request (Optional)
+                      Special Requirements (Optional)
                     </FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Any allergies or special requests..."
+                        placeholder="Any special requests..."
                         className="bg-white/5 border-white/10 text-white focus:border-amber-500/50 min-h-[80px]"
                         {...field}
                       />
