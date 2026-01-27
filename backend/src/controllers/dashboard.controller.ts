@@ -35,7 +35,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         const chartEndStr = (req.query.chartEnd as string) || "";
 
         // CHECKS CACHE
-        const cacheKey = `dashboard:stats:v13:${restaurantId}:${dateKey}:${chartStartStr}:${chartEndStr}`;
+        const cacheKey = `${process.env.NODE_ENV || 'dev'}:dashboard:stats:v13:${restaurantId}:${dateKey}:${chartStartStr}:${chartEndStr}`;
         let cachedData = null;
         try {
             cachedData = await redis.get(cacheKey);
