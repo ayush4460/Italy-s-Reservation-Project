@@ -65,7 +65,34 @@ interface ReservationSummary {
   adults: number;
   kids: number;
   cancellationReason?: string;
+  notificationType?: string;
 }
+
+const formatTemplateName = (type?: string) => {
+  if (!type) return "";
+  // Check for known types
+  switch (type) {
+    case "WEEKDAY_BRUNCH":
+      return "Weekday Brunch";
+    case "WEEKEND_BRUNCH":
+      return "Weekend Brunch";
+    case "UNLIMITED_DINNER":
+      return "Unlimited Dinner";
+    case "A_LA_CARTE":
+      return "A La Carte";
+    case "RESERVATION_CONFIRMATION":
+      return "Unlimited Dinner";
+    default:
+      // If it looks like a code, try to make it readable
+      if (type.includes("_")) {
+        return type
+          .split("_")
+          .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+          .join(" ");
+      }
+      return type;
+  }
+};
 
 interface DashboardStats {
   totalTables: number;
@@ -576,7 +603,7 @@ export default function DashboardPage() {
                             >
                               <WhatsAppTemplateSelector
                                 phone={res.contact}
-                                onSendSuccess={() => {}}
+                                onSendSuccess={fetchStats}
                                 reservation={res}
                                 trigger={
                                   <button className="text-[10px] bg-green-500/20 hover:bg-green-500/30 text-green-400 px-2 py-0.5 rounded border border-green-500/20 transition-colors uppercase font-bold tracking-wider">
@@ -599,7 +626,20 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 flex-1 justify-end">
+                      <div className="hidden md:flex flex-col flex-1 items-center justify-center px-4">
+                        {res.notificationType && (
+                          <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg px-3 py-1.5 flex flex-col items-center">
+                            <span className="text-[10px] text-purple-300 font-bold uppercase tracking-widest leading-none mb-0.5">
+                              Package
+                            </span>
+                            <span className="text-sm font-semibold text-purple-100 whitespace-nowrap">
+                              {formatTemplateName(res.notificationType)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 justify-end">
                         <div className="text-right max-w-[200px]">
                           <div
                             className={cn(
@@ -650,7 +690,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="divide-y divide-white/10">
-                {stats.cancelledReservations.map((res: ReservationSummary) => (
+                {stats.cancelledReservations?.map((res: ReservationSummary) => (
                   <div
                     key={res.id}
                     className="p-4 flex items-center justify-between bg-red-500/5 hover:bg-red-500/10 cursor-pointer transition-colors"

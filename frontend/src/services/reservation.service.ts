@@ -31,6 +31,7 @@ export interface Reservation {
   slot?: Slot;
   startTime?: string;
   endTime?: string;
+  notificationType?: string;
 }
 
 export interface CreateReservationDto {
@@ -115,11 +116,12 @@ class ReservationService {
     return response.data;
   }
 
-  async moveReservation(id: number, newTableIds: number[], newDate?: string, newSlotId?: number) {
+  async moveReservation(id: number, newTableIds: number[], newDate?: string, newSlotId?: number, notificationType?: string) {
     const response = await api.put<Reservation>(`/reservations/${id}/move`, {
       newTableIds,
       newDate,
-      newSlotId
+      newSlotId,
+      notificationType
     });
     return response.data;
   }

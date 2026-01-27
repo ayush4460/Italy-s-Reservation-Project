@@ -93,6 +93,21 @@ const isSlotPast = (date: string, slot: Slot) => {
   return false;
 };
 
+// Helper to determine default template
+const getTemplateTypeForSlot = (date: string, startTime: string) => {
+  if (!startTime) return "RESERVATION_CONFIRMATION";
+  const hour = parseInt(startTime.split(":")[0]);
+  const dateObj = new Date(date);
+  const day = dateObj.getDay();
+  const isWeekend = day === 0 || day === 6;
+
+  // Assuming Brunch is before 4 PM (16:00)
+  if (hour < 16) {
+    return isWeekend ? "WEEKEND_BRUNCH" : "WEEKDAY_BRUNCH";
+  }
+  return "RESERVATION_CONFIRMATION";
+};
+
 export default function ReservationsPage() {
   const [date, setDate] = useState<string>(getISTDate());
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -118,30 +133,14 @@ export default function ReservationsPage() {
   const [selectedMergeTables, setSelectedMergeTables] = useState<number[]>([]);
   const [isMergingMode, setIsMergingMode] = useState(false);
 
-  // Helper to determine default template based on date/slot
-  const getDefaultTemplate = useCallback((dateStr: string, slot?: Slot) => {
-    if (!slot || !dateStr) return "RESERVATION_CONFIRMATION";
-
-    const dateObj = new Date(dateStr);
-    const day = dateObj.getDay(); // 0=Sun, 6=Sat
-    const isWeekend = day === 0 || day === 6;
-
-    // Parse Time: "11:00" -> 11
-    const startHour = parseInt(slot.startTime.split(":")[0]);
-
-    // Brunch usually ends by 4 PM (16:00).
-    // If slot starts before 4 PM, assume Brunch?
-    // Or if End Time is before 4 PM.
-    // User said "according to timeslot".
-    // Let's assume < 16:00 start is Brunch.
-    const isBrunchTime = startHour < 16;
-
-    if (isBrunchTime) {
-      return isWeekend ? "WEEKEND_BRUNCH" : "WEEKDAY_BRUNCH";
-    } else {
-      return "RESERVATION_CONFIRMATION"; // Unlimited Dinner / Regular
-    }
-  }, []);
+  // Helper for notification template default
+  const getDefaultTemplate = useCallback(
+    (dateStr: string, slot: Slot | null) => {
+      if (!slot) return "RESERVATION_CONFIRMATION";
+      return getTemplateTypeForSlot(dateStr, slot.startTime);
+    },
+    [],
+  );
 
   const [role, setRole] = useState<string | null>(null);
 
@@ -191,6 +190,9 @@ export default function ReservationsPage() {
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [movingReservation, setMovingReservation] =
     useState<Reservation | null>(null);
+  const [moveNotificationType, setMoveNotificationType] = useState<string>(
+    "RESERVATION_CONFIRMATION",
+  );
   const [moveAvailableTables, setMoveAvailableTables] = useState<Table[]>([]);
   const [moveSelectedTables, setMoveSelectedTables] = useState<Table[]>([]);
   const [moveLoading, setMoveLoading] = useState(false);
@@ -356,7 +358,13 @@ export default function ReservationsPage() {
         kids: reservation.kids.toString(),
         foodPref: reservation.foodPref,
         specialReq: reservation.specialReq || "",
-        notificationType: getDefaultTemplate(date, selectedSlot),
+        notificationType:
+          reservation.notificationType ||
+          getTemplateTypeForSlot(
+            reservation.date,
+            reservation.startTime ||
+              (reservation.slot ? reservation.slot.startTime : "19:00"),
+          ),
       });
       setEditMergeTables([]); // Reset
       setIsEditModalOpen(true);
@@ -374,7 +382,6 @@ export default function ReservationsPage() {
       // Open Create Modal
       setSelectedTable(table);
       // Auto-select template
-      const defaultTemplate = getDefaultTemplate(date, selectedSlot);
 
       setBookingData({
         customerName: "",
@@ -383,7 +390,11 @@ export default function ReservationsPage() {
         kids: "0",
         foodPref: "Regular",
         specialReq: "",
-        notificationType: defaultTemplate,
+        notificationType: customStartTime
+          ? getTemplateTypeForSlot(date, customStartTime)
+          : selectedSlot
+            ? getTemplateTypeForSlot(date, selectedSlot.startTime)
+            : "RESERVATION_CONFIRMATION",
       });
       // Reset merge
       setSelectedMergeTables([]);
@@ -499,17 +510,25 @@ export default function ReservationsPage() {
 
   // --- Move Reservation Logic ---
 
-  const handleMoveClick = (reservation: Reservation, e?: React.MouseEvent) => {
-    e?.stopPropagation();
+  const handleMoveClick = (reservation: Reservation) => {
     setMovingReservation(reservation);
-    setMoveDate(date); // Default to current view date
-    setMoveSelectedSlot(selectedSlot); // Default to current slot
+    setMoveDate(
+      reservation.date
+        ? new Date(reservation.date).toISOString().split("T")[0]
+        : getISTDate(),
+    );
+    // Set default slot
+    const slot =
+      slots.find((s) => s.id === reservation.slotId) ||
+      slots.find((s) => s.id === 26) || // 8:30 PM
+      slots[0];
+    setMoveSelectedSlot(slot || null);
 
-    // Ensure slots are populated for the current date
-    setMoveSlots(slots);
+    // Set default template
+    setMoveNotificationType(
+      reservation.notificationType || "RESERVATION_CONFIRMATION",
+    );
 
-    setMoveAvailableTables([]);
-    setMoveSelectedTables([]);
     setIsMoveModalOpen(true);
     setIsLongPressModalOpen(false);
     // fetchMoveTargets will be triggered by useEffect
@@ -576,7 +595,12 @@ export default function ReservationsPage() {
   }, [moveDate, isMoveModalOpen, date, slots]);
 
   const handleMoveSubmit = async () => {
-    if (!movingReservation || moveSelectedTables.length === 0) return;
+    if (
+      !movingReservation ||
+      moveSelectedTables.length === 0 ||
+      !moveSelectedSlot
+    )
+      return;
 
     setMoveLoading(true);
     try {
@@ -584,7 +608,8 @@ export default function ReservationsPage() {
         movingReservation.id,
         moveSelectedTables.map((t) => t.id),
         moveDate,
-        moveSelectedSlot?.id,
+        moveSelectedSlot.id,
+        moveNotificationType, // Pass selected template
       );
       setIsMoveModalOpen(false);
       setMovingReservation(null);
@@ -801,13 +826,9 @@ export default function ReservationsPage() {
                       return alert("Please select a time slot first");
 
                     // Set default template
-                    const defaultTemplate = getDefaultTemplate(
-                      date,
-                      selectedSlot,
-                    );
                     setGroupBookingData((prev) => ({
                       ...prev,
-                      notificationType: defaultTemplate,
+                      notificationType: getDefaultTemplate(date, selectedSlot),
                     }));
 
                     setIsGroupBookingModalOpen(true);
@@ -981,7 +1002,10 @@ export default function ReservationsPage() {
                   {role === "ADMIN" && isBooked && reservation && (
                     <div
                       className="absolute top-2 right-2 hidden group-hover:block z-10 p-1 bg-white/10 rounded-full hover:bg-white/20 transition-all"
-                      onClick={(e) => handleMoveClick(reservation, e)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMoveClick(reservation);
+                      }}
                     >
                       <ArrowLeftRight className="h-4 w-4 text-white" />
                     </div>
@@ -1205,6 +1229,9 @@ export default function ReservationsPage() {
                 value="WEEKEND_BRUNCH"
               >
                 Weekend Brunch
+              </option>
+              <option className="bg-slate-900 text-white" value="A_LA_CARTE">
+                A La Carte
               </option>
             </select>
           </div>
@@ -1482,6 +1509,9 @@ export default function ReservationsPage() {
                 value="WEEKEND_BRUNCH"
               >
                 Weekend Brunch
+              </option>
+              <option className="bg-slate-900 text-white" value="A_LA_CARTE">
+                A La Carte
               </option>
             </select>
           </div>
@@ -2027,6 +2057,9 @@ export default function ReservationsPage() {
               >
                 Weekend Brunch
               </option>
+              <option className="bg-slate-900 text-white" value="A_LA_CARTE">
+                A La Carte
+              </option>
             </select>
           </div>
 
@@ -2104,6 +2137,31 @@ export default function ReservationsPage() {
                     {formatTo12Hour(slot.endTime)}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            <div className="space-y-1 col-span-2 sm:col-span-1">
+              <label className="text-xs text-gray-500">WhatsApp Template</label>
+              <select
+                value={moveNotificationType}
+                onChange={(e) => setMoveNotificationType(e.target.value)}
+                className="w-full h-10 rounded-md border border-white/10 bg-black/50 px-3 py-2 text-sm text-white focus:border-purple-500 focus:outline-none"
+              >
+                <option
+                  value="RESERVATION_CONFIRMATION"
+                  className="bg-slate-900"
+                >
+                  Unlimited Dinner
+                </option>
+                <option value="WEEKDAY_BRUNCH" className="bg-slate-900">
+                  Weekday Brunch
+                </option>
+                <option value="WEEKEND_BRUNCH" className="bg-slate-900">
+                  Weekend Brunch
+                </option>
+                <option value="A_LA_CARTE" className="bg-slate-900">
+                  A La Carte
+                </option>
               </select>
             </div>
           </div>
@@ -2331,10 +2389,15 @@ export default function ReservationsPage() {
                     kids: movingReservation.kids.toString(),
                     foodPref: movingReservation.foodPref,
                     specialReq: movingReservation.specialReq || "",
-                    notificationType: getDefaultTemplate(
-                      date,
-                      selectedSlot || undefined,
-                    ),
+                    notificationType:
+                      movingReservation.notificationType ||
+                      getTemplateTypeForSlot(
+                        movingReservation.date,
+                        movingReservation.startTime ||
+                          (movingReservation.slot
+                            ? movingReservation.slot.startTime
+                            : "19:00"),
+                      ),
                   });
                   setIsEditModalOpen(true);
                 }

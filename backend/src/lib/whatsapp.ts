@@ -65,8 +65,9 @@ export const sendTypingIndicator = async (phone: string) => {
     // Some implementations use type='is_typing' with empty text
     params.append('message', JSON.stringify({ type: 'is_typing' }));
 
-    console.log(`[WhatsApp] Sending typing indicator to ${destination}`);
-    await gupshupClient.post('/msg', params);
+    // console.log(`[WhatsApp] Sending typing indicator to ${destination}`);
+    // await gupshupClient.post('/msg', params);
+    // FIXME: 'is_typing' type is not standard and is appearing as text. Disabling for now.
     return true;
 
   } catch (error: any) {
@@ -197,63 +198,107 @@ export const sendTemplateV3 = async (
 // ==========================================
 // TEMPLATE DEFINITIONS (For local logging/hydration in DB)
 // ==========================================
- const TEMPLATES: Record<string, string> = {
-  "brunch_di_gala_reservation_confirmation": `Hello {{1}}, 👋  
+const TEMPLATES: Record<string, string> = {
+  "RESERVATION_CONFIRMATION": `Italy's Cena All'Italiana Reservation Confirmation
 
-Your reservation for *Brunch Di Gala All'Italiana* is confirmed!🍕
+*Name:* {{1}}
+*Date:* {{2}} 
+*Day:* {{3}}
+*Batch:* {{4}}
+*Time:* {{5}}
+*Guests:* {{6}} adults, {{7}} kids (5-10 yrs)
+*Contact:* {{8}}
+*Food Preparation:* {{9}}
 
-📅 *Date:* {{2}}  
-🗓️ *Day:* {{3}}  
-🕑 *Batch:* {{4}}  
-⏰ *Time:* {{5}}  
-👨‍👩‍👧‍👦 *Guests:* {{6}}  
-📞 *Contact:* {{7}}  
-🍽️ *Food Preparation:* {{8}}
+📍*Location:* Italy's Traditional Pizzeria, Opp Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara-390012
+🗺️*Google Maps:* https://maps.app.goo.gl/SXtQ6vkx2ho7KBCF7
 
-📍 *Location:* Opp Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara-390012  
-🔗 [Google Maps Location](https://maps.app.goo.gl/SXtQ6vkx2ho7KBCF7)
+*Menu:* Cena All'Italiana
 
-We look forward to serving you *18+ traditional Italian dishes* — including Woodfired Pizza, Pasta, and Risotto — along with *mocktails and desserts (single serve).* 🍝🥗🍰
+*Payment:* CASH/CARD/UPI at restaurant only. No third-party apps (Dineout/Zomato/etc.).
 
-💳 *Payment Options:*  
-CASH / UPI only via restaurant payment gateways.  
-❌ Payments via Dineout, EazyDiner, or Zomato are *not accepted.*
+*Reservation Policy:* Held 15 minutes past slot time.
 
-⚠️ *Note:* Reservations will be held for 15 minutes beyond your scheduled time.  
-If you expect a delay, please inform us in advance so we can accommodate you in the next available slot (subject to availability).  
+*Support:* Contact 9909000317 for changes.
 
-For more information, contact us at *9909000317*.
+Thank you. ❤️
+Italy's Traditional Pizzeria | Vadodara | [Going] | [Not Going]`,
 
-Grazie! ❤️  
-See you soon at *Italy’s Traditional Pizzeria*`,
-  "italys_unlimited_dinner_reservation": `Hello {{1}}, 👋  
+  "WEEKDAY_BRUNCH": `Italy's Brunch All'Italiana Reservation Confirmation
 
-Your reservation for *Cena All'Italiana* is confirmed!🍕
+*Name:* {{1}}
+*Date:* {{2}}
+*Day:* {{3}}
+*Batch:* {{4}}
+*Time:* {{5}}
+*Guests:* {{6}} adults, {{7}} kids (5–10 yrs)
+*Contact:* {{8}}
+*Food Preparation:* {{9}}
 
-📅 *Date:* {{2}}  
-🗓️ *Day:* {{3}}  
-🕑 *Batch:* {{4}}  
-⏰ *Time:* {{5}}  
-👨‍👩‍👧‍👦 *Guests:* {{6}} Adults, {{7}} Kids  
-📞 *Contact:* {{8}}  
-🍽️ *Food Preparation:* {{9}}
+📍*Location:* Italy's Traditional Pizzeria, Opp Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara-390012
+🗺️*Google Maps:* https://maps.app.goo.gl/SXtQ6vkx2ho7KBCF7
 
-📍 *Location:* Opp Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara-390012
-🔗 [Google Maps Location](https://maps.app.goo.gl/SXtQ6vkx2ho7KBCF7)
+*Menu:* Brunch All'Italiana
 
-We look forward to serving you *18+ traditional Italian dishes* — including Woodfired Pizza, Pasta, and Risotto — along with *mocktails and desserts (single serve).* 🍝🥗🍰
+*Payment:* CASH/CARD/UPI at restaurant only. No third-party apps (Dineout/Zomato/etc.).
 
-💳 *Payment Options:*  
-CASH / UPI only via restaurant payment gateways.  
-❌ Payments via Dineout, EazyDiner, or Zomato are *not accepted.*
+*Reservation Policy:* Held 15 minutes past slot time.
 
-⚠️ *Note:* Reservations will be held for 15 minutes beyond your scheduled time.  
-If you expect a delay, please inform us in advance so we can accommodate you in the next available slot (subject to availability).  
+*Support:* Contact 9909000317 for changes.
 
-For more information, contact us at *9909000317*.
+Thank you. ❤️
+Italy's Traditional Pizzeria | Vadodara | [Going] | [Not Going]`,
 
-Grazie! ❤️  
-See you soon at *Italy’s Traditional Pizzeria*`
+  "WEEKEND_BRUNCH": `Brunch Di Gala All'Italiana Reservation Confirmation
+
+*Name:* {{1}}
+*Date:* {{2}}
+*Day:* {{3}}
+*Batch:* {{4}}
+*Time:* {{5}}
+*Guests:* {{6}} adults, {{7}} kids (5–10 yrs)
+*Contact:* {{8}}
+*Food Preparation:* {{9}}
+
+📍*Location:* Italy's Traditional Pizzeria, Opp Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara-390012
+🗺️*Google Maps:* https://maps.app.goo.gl/SXtQ6vkx2ho7KBCF7
+
+*Menu:* Brunch Di Gala All'Italiana
+
+*Payment:* CASH/CARD/UPI at restaurant only. No third-party apps (Dineout/Zomato/etc.).
+
+*Reservation Policy:* Held 15 minutes past slot time.
+
+*Support:* Contact 9909000317 for changes.
+
+Thank you. ❤️
+Italy's Traditional Pizzeria | Vadodara | [Going] | [Not Going]`,
+
+  "A_LA_CARTE": `Italy’s Traditional Pizzeria
+Table Reservation Confirmation
+
+*Name:* {{1}}
+*Date:* {{2}} 
+*Day:* {{3}}
+*Batch:* {{4}}
+*Time:* {{5}}
+*Guests:* {{6}} adults, {{7}} kids (5-10 yrs)
+*Contact:* {{8}}
+*Food Preparation:* {{9}}
+
+📍*Location:* Italy's Traditional Pizzeria, Opp Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara-390012
+🗺️*Google Maps:* https://maps.app.goo.gl/SXtQ6vkx2ho7KBCF7
+
+*Menu:* A La Carte
+
+*Payment:* CASH/CARD/UPI at restaurant only. No third-party apps (Dineout/Zomato/etc.).
+
+*Reservation Policy:* Held 15 minutes past slot time.
+
+*Support:* Contact 9909000317 for changes.
+
+Thank you. ❤️
+Italy's Traditional Pizzeria | Vadodara | [Going] | [Not Going]`
 };
 
 export const hydrateTemplate = (templateId: string, params: string[]): string => {
@@ -280,7 +325,8 @@ export const hydrateTemplate = (templateId: string, params: string[]): string =>
 export type WhatsappNotificationType = 
     | 'RESERVATION_CONFIRMATION' 
     | 'WEEKDAY_BRUNCH' 
-    | 'WEEKEND_BRUNCH';
+    | 'WEEKEND_BRUNCH'
+    | 'A_LA_CARTE';
 
 interface TemplateConfig {
     templateId: string;
@@ -297,8 +343,8 @@ interface TemplateConfig {
  */
 const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
     'RESERVATION_CONFIRMATION': {
-        // UUID from user's curl command (Unlimited Dinner)
-        templateId: "7cdf4e95-3789-485f-931d-7471305996c3",
+        // Dinner Template
+        templateId: "a59ba8db-4b41-476f-8a06-e72f3d66b79d",
         isNative: true, 
         mapper: (data: any) => commonReservationMapper(data),
         location: {
@@ -309,8 +355,8 @@ const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
         }
     },
     'WEEKDAY_BRUNCH': {
-        // UUID for Weekday Brunch
-        templateId: "4dbf5ed7-cc67-4dc0-ab5a-c75e3c0950e4",
+        // Weekday Brunch Template
+        templateId: "420acea8-d3f9-41de-85ec-252d77e18933",
         isNative: true,
         mapper: (data: any) => commonReservationMapper(data),
         location: {
@@ -321,8 +367,20 @@ const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
         }
     },
     'WEEKEND_BRUNCH': {
-        // UUID for Weekend Brunch
-        templateId: "191c6096-d9b5-432e-ab90-f3a2e86f6046",
+        // Weekend Brunch Template
+        templateId: "8fa43f6b-6472-4e51-a84f-1003d4d83851",
+        isNative: true,
+        mapper: (data: any) => commonReservationMapper(data),
+        location: {
+            latitude: "22.270041",
+            longitude: "73.149727",
+            name: "Italy's Traditional Pizzeria",
+            address: "Opp Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara-390012"
+        }
+    },
+    'A_LA_CARTE': {
+        // A La Carte Template
+        templateId: "4ba994c0-0491-467a-9208-38a0c4781398",
         isNative: true,
         mapper: (data: any) => commonReservationMapper(data),
         location: {

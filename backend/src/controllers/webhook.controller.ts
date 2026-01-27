@@ -27,6 +27,10 @@ export const handleGupshupWebhook = async (req: Request, res: Response) => {
 
                 if (type === 'text') {
                     content = message.text?.body || '';
+                } else if (type === 'button') {
+                    content = message.button?.text || message.button?.payload || '[button content missing]';
+                } else if (type === 'reaction') {
+                    content = message.reaction?.emoji || '[reaction]';
                 } else {
                     content = `[${type} message]`;
                 }

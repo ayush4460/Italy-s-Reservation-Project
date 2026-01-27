@@ -35,7 +35,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         const chartEndStr = (req.query.chartEnd as string) || "";
 
         // CHECKS CACHE
-        const cacheKey = `dashboard:stats:v12:${restaurantId}:${dateKey}:${chartStartStr}:${chartEndStr}`;
+        const cacheKey = `dashboard:stats:v13:${restaurantId}:${dateKey}:${chartStartStr}:${chartEndStr}`;
         let cachedData = null;
         try {
             cachedData = await redis.get(cacheKey);
@@ -92,6 +92,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
                     kids: true,
                     foodPref: true,
                     specialReq: true,
+                    // @ts-ignore
+                    notificationType: true,
                     status: true,
                     // @ts-ignore
                     cancellationReason: true,

@@ -84,6 +84,7 @@ model Reservation {
   endTime     String?  // Actual usage end time (e.g. "13:00")
   status      String   
   cancellationReason String? // Reason for cancellation
+  notificationType String? // To store which WhatsApp template was used (e.g. WEEKDAY_BRUNCH)
   table       Table    @relation(fields: [tableId], references: [id])
   slot        Slot     @relation(fields: [slotId], references: [id])
   createdAt   DateTime @default(now())

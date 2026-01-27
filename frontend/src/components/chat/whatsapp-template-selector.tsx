@@ -15,6 +15,7 @@ import { toast } from "sonner";
 
 // Compatible interface for both Reservation and ReservationSummary
 interface ReservationLike {
+  id?: number;
   customerName: string;
   date: string;
   slot?: { startTime: string; endTime: string };
@@ -22,6 +23,7 @@ interface ReservationLike {
   kids: number;
   contact: string;
   foodPref: string;
+  specialReq?: string;
 }
 
 interface Props {
@@ -65,6 +67,21 @@ const TEMPLATES = [
   {
     id: "RESERVATION_CONFIRMATION",
     name: "Unlimited Dinner Confirmation",
+    params: [
+      "Name",
+      "Date",
+      "Day",
+      "Batch",
+      "Time",
+      "Guests",
+      "Kids",
+      "Contact",
+      "Preparation",
+    ],
+  },
+  {
+    id: "A_LA_CARTE",
+    name: "A La Carte Reservation",
     params: [
       "Name",
       "Date",
@@ -174,6 +191,30 @@ export function WhatsAppTemplateSelector({
         templateId: selectedTemplate,
         params,
       });
+
+      // Update reservation with the selected template type
+      if (reservation && "id" in reservation) {
+        try {
+          if (reservation.id) {
+            await api.put(`/reservations/${reservation.id}`, {
+              customerName: reservation.customerName,
+              contact: reservation.contact,
+              adults: reservation.adults,
+              kids: reservation.kids,
+              foodPref: reservation.foodPref,
+
+              specialReq: reservation.specialReq,
+              notificationType: selectedTemplate,
+            });
+          }
+        } catch (updateError) {
+          console.error(
+            "Failed to update reservation template type",
+            updateError,
+          );
+          // Don't block success flow, just log it
+        }
+      }
 
       toast.success("Template sent successfully");
       setOpen(false);

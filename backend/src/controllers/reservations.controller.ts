@@ -8,10 +8,10 @@ import { commonReservationMapper, sendSmartWhatsAppTemplate } from '../lib/whats
 const clearDashboardCache = async (restaurantId: number, date: Date | string) => {
     try {
         const dateKey = typeof date === 'string' ? date : date.toISOString().split('T')[0];
-        // The dashboard cache key is complex: dashboard:stats:v12:restaurantId:dateKey:chartStart:chartEnd
+        // The dashboard cache key is complex: dashboard:stats:v13:restaurantId:dateKey:chartStart:chartEnd
         // We need to clear all keys for this restaurant that might contain stats for this day.
-        // Easiest is to clear all dashboard:stats:v12:restaurantId:*
-        const pattern = `dashboard:stats:v12:${restaurantId}:*`;
+        // Easiest is to clear all dashboard:stats:v13:restaurantId:*
+        const pattern = `dashboard:stats:v13:${restaurantId}:*`;
         
         let cursor = '0';
         do {
@@ -421,7 +421,9 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
                         foodPref,
                         specialReq,
                         groupId,
-                        status: 'BOOKED'
+                        status: 'BOOKED',
+                        // @ts-ignore
+                        notificationType: req.body.notificationType
                     }
                 })
             )
@@ -488,7 +490,7 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
         if (req.user?.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
 
         const { id } = req.params;
-        const { newTableIds, newDate, newSlotId } = req.body; // Expect array of table IDs, optional new Date/Slot
+        const { newTableIds, newDate, newSlotId, notificationType } = req.body; // Expect array of table IDs, optional new Date/Slot
 
         if (!newTableIds || !Array.isArray(newTableIds) || newTableIds.length === 0) {
             return res.status(400).json({ message: 'New Table IDs are required' });
@@ -596,12 +598,44 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
                         kids: currentRes.kids,
                         foodPref: currentRes.foodPref,
                         specialReq: currentRes.specialReq,
+                        groupId: newGroupId,
                         status: 'BOOKED',
-                        groupId: newGroupId
+                        notificationType: notificationType || currentRes.notificationType // Use new or keep old
                     }
                 });
             }
         });
+
+        // 7. Send WhatsApp Notification
+        try {
+            console.log(`[MoveReservation] Sending update msg to ${currentRes.contact}`);
+            const slotObj = await prisma.slot.findUnique({ where: { id: targetSlotId } });
+            
+            const notificationData = {
+                customerName: currentRes.customerName,
+                date: targetDate,
+                slot: slotObj, // Contains new startTime, endTime
+                adults: currentRes.adults,
+                kids: currentRes.kids,
+                contact: currentRes.contact,
+                foodPref: currentRes.foodPref
+            };
+
+            const { sendWhatsappNotification } = await import('../lib/whatsapp');
+            // Use provided type OR fallback to existing (if keeping same type) OR default
+            const typeToSend = notificationType || currentRes.notificationType || 'RESERVATION_CONFIRMATION';
+            
+            await sendWhatsappNotification(
+                currentRes.contact, 
+                // @ts-ignore
+                typeToSend, 
+                notificationData
+            );
+            
+        } catch (e) {
+            console.error("Error sending move notification:", e);
+        }
+
 
         // 7. Invalidate Cache
         await clearDashboardCache(restaurantId, currentRes.date);
@@ -691,7 +725,9 @@ export const updateReservation = async (req: AuthRequest, res: Response) => {
                     adults: parseInt(adults),
                     kids: parseInt(kids),
                     foodPref,
-                    specialReq
+                    specialReq,
+                    // @ts-ignore
+                    notificationType: req.body.notificationType
                 }
             });
             // updateMany returns { count: n }
@@ -708,7 +744,9 @@ export const updateReservation = async (req: AuthRequest, res: Response) => {
                     adults: parseInt(adults),
                     kids: parseInt(kids),
                     foodPref, 
-                    specialReq
+                    specialReq,
+                    // @ts-ignore
+                    notificationType: req.body.notificationType
                 }
             });
         }
@@ -764,7 +802,9 @@ export const updateReservation = async (req: AuthRequest, res: Response) => {
                             foodPref,
                             specialReq,
                             groupId,
-                            status: 'BOOKED'
+                            status: 'BOOKED',
+                            // @ts-ignore
+                            notificationType: req.body.notificationType
                         }
                     })
                 )
