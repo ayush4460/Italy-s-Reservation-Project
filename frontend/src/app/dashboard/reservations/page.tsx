@@ -480,6 +480,10 @@ export default function ReservationsPage() {
   };
 
   const handleCancelReservation = async (reservation: Reservation) => {
+    if (typeof window !== "undefined") {
+      (document.activeElement as HTMLElement)?.blur();
+    }
+
     const isMerged = !!reservation.groupId;
     const message = isMerged
       ? "All reservation tables of this merged customer will be made available. Are you sure?"
@@ -1236,7 +1240,7 @@ export default function ReservationsPage() {
           <div className="flex justify-end pt-4">
             <Button
               type="submit"
-              className="glass-button w-full"
+              className="glass-button w-full h-11"
               disabled={bookingLoading || isCapacityExceeded}
             >
               {bookingLoading ? (
@@ -1510,11 +1514,11 @@ export default function ReservationsPage() {
             </select>
           </div>
 
-          <div className="flex gap-4 pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
             <Button
               type="button"
               variant="destructive"
-              className="flex-1 bg-red-500/20 text-red-400 hover:bg-red-500/30"
+              className="w-full bg-red-500/20 text-red-400 hover:bg-red-500/30 h-11"
               onClick={() =>
                 editingReservation &&
                 handleCancelReservation(editingReservation)
@@ -1528,7 +1532,7 @@ export default function ReservationsPage() {
             </Button>
             <Button
               type="submit"
-              className="glass-button flex-1"
+              className="glass-button w-full h-11"
               disabled={
                 bookingLoading ||
                 (() => {
@@ -1771,7 +1775,7 @@ export default function ReservationsPage() {
               </div>
               <Button
                 type="submit"
-                className="w-full glass-button"
+                className="w-full glass-button h-11"
                 disabled={slotLoading}
               >
                 {slotLoading && (
@@ -2057,7 +2061,7 @@ export default function ReservationsPage() {
           <div className="flex justify-end pt-4">
             <Button
               type="submit"
-              className="glass-button w-full bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/50"
+              className="glass-button w-full bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/50 h-11"
               disabled={
                 bookingLoading ||
                 groupSelectedTables.length === 0 ||
@@ -2238,7 +2242,7 @@ export default function ReservationsPage() {
 
           <div className="flex justify-end pt-4">
             <Button
-              className="glass-button w-full h-auto py-3 whitespace-normal break-all"
+              className="glass-button w-full h-auto py-2.5 whitespace-normal break-all"
               disabled={
                 moveSelectedTables.length === 0 ||
                 moveLoading ||
