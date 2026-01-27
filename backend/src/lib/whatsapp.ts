@@ -1,4 +1,6 @@
 import axios from 'axios';
+import prisma from '../utils/prisma';
+import { getIO } from './socket';
 
 const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY || '';
 const GUPSHUP_APP_NAME = process.env.GUPSHUP_APP_NAME || '';
@@ -489,7 +491,8 @@ const sendGupshupNativeTemplate = async (
 export const sendWhatsappNotification = async (
     phone: string,
     type: WhatsappNotificationType,
-    data: any
+    data: any,
+    restaurantId?: number
 ) => {
     const config = TEMPLATE_REGISTRY[type];
     if (!config) {
@@ -500,12 +503,43 @@ export const sendWhatsappNotification = async (
     try {
         const params = config.mapper(data);
         
+        let response;
         if (config.isNative) {
-            return await sendGupshupNativeTemplate(phone, config.templateId, params, config.location);
+            response = await sendGupshupNativeTemplate(phone, config.templateId, params, config.location);
         } else {
             // Use sendTemplateV3 which supports location headers (Cloud API style)
-            return await sendTemplateV3(phone, config.templateId, params, config.location);
+            response = await sendTemplateV3(phone, config.templateId, params, config.location);
         }
+
+        // --- Log to DB if restaurantId is provided ---
+        if (restaurantId && response) {
+            try {
+                const content = hydrateTemplate(type, params);
+                const savedMsg = await prisma.whatsAppMessage.create({
+                    data: {
+                        restaurantId,
+                        phoneNumber: formatPhone(phone),
+                        type: 'template',
+                        content,
+                        direction: 'outbound',
+                        status: 'sent',
+                        timestamp: new Date()
+                    }
+                });
+
+                // Emit socket event to update Chat UI
+                try {
+                    const io = getIO();
+                    io.to(`restaurant_${restaurantId}`).emit('new_message', savedMsg);
+                } catch (socketErr) {
+                    console.error('[WhatsApp] Socket emit failed:', socketErr);
+                }
+            } catch (dbErr) {
+                console.error('[WhatsApp] Failed to log outbound message to DB:', dbErr);
+            }
+        }
+
+        return response;
     } catch (error) {
         console.error(`[WhatsApp] Failed to send centralized notification [${type}]:`, error);
         return null;
@@ -522,26 +556,72 @@ export const sendSmartWhatsAppTemplate = async (
     phone: string, 
     templateIdOrKey: string, 
     params: string[], 
-    location?: { latitude: string; longitude: string; name: string; address: string }
+    location?: { latitude: string; longitude: string; name: string; address: string },
+    restaurantId?: number
 ) => {
     // 1. Check if input matches a Registry Key (e.g. "WEEKDAY_BRUNCH")
-    // Explicitly type config to allow undefined (since find can return undefined)
     let config: TemplateConfig | undefined = TEMPLATE_REGISTRY[templateIdOrKey as WhatsappNotificationType];
-    
+    let resolvedKey = config ? templateIdOrKey : null;
+
     // 2. If not a key, check if it matches a UUID in the registry
     if (!config) {
-        config = Object.values(TEMPLATE_REGISTRY).find(c => c.templateId === templateIdOrKey);
+        const entry = Object.entries(TEMPLATE_REGISTRY).find(([key, c]) => c.templateId === templateIdOrKey);
+        if (entry) {
+            resolvedKey = entry[0];
+            config = entry[1];
+        }
     }
 
-    if (config && config.isNative) {
-        // Use Native
-        const loc = location || config.location;
-        console.log(`[SmartWhatsApp] Resolved '${templateIdOrKey}' to UUID '${config.templateId}' (Native)`);
-        return await sendGupshupNativeTemplate(phone, config.templateId, params, loc);
-    } else {
-        // Fallback or V3
-        console.log(`[SmartWhatsApp] Sending '${templateIdOrKey}' via V3 (Cloud API)`);
-        return await sendTemplateV3(phone, templateIdOrKey, params, location);
+    try {
+        let response;
+        if (config && config.isNative) {
+            // Use Native
+            const loc = location || config.location;
+            console.log(`[SmartWhatsApp] Resolved '${templateIdOrKey}' to UUID '${config.templateId}' (Native)`);
+            response = await sendGupshupNativeTemplate(phone, config.templateId, params, loc);
+        } else {
+            // Fallback or V3
+            console.log(`[SmartWhatsApp] Sending '${templateIdOrKey}' via V3 (Cloud API)`);
+            response = await sendTemplateV3(phone, templateIdOrKey, params, location);
+        }
+
+        // --- Log to DB if restaurantId is provided ---
+        if (restaurantId && response) {
+            try {
+                // Determine template key for hydration
+                // If not in registry, we'll just show the raw template ID/params
+                const content = resolvedKey 
+                    ? hydrateTemplate(resolvedKey, params)
+                    : `[Template: ${templateIdOrKey}] Params: ${params.join(', ')}`;
+
+                const savedMsg = await prisma.whatsAppMessage.create({
+                    data: {
+                        restaurantId,
+                        phoneNumber: formatPhone(phone),
+                        type: 'template',
+                        content,
+                        direction: 'outbound',
+                        status: 'sent',
+                        timestamp: new Date()
+                    }
+                });
+
+                // Emit socket event to update Chat UI
+                try {
+                    const io = getIO();
+                    io.to(`restaurant_${restaurantId}`).emit('new_message', savedMsg);
+                } catch (socketErr) {
+                    console.error('[WhatsApp] Socket emit failed:', socketErr);
+                }
+            } catch (dbErr) {
+                console.error('[WhatsApp] Failed to log outbound message to DB:', dbErr);
+            }
+        }
+
+        return response;
+    } catch (error) {
+        console.error('[SmartWhatsApp] Error:', error);
+        throw error;
     }
 };
 

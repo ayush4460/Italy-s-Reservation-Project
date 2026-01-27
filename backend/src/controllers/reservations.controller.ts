@@ -456,7 +456,7 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
                  // Use type from body (passed from frontend) OR fallback to default
                  const typeToSend = req.body.notificationType || 'RESERVATION_CONFIRMATION';
                  
-                 await sendWhatsappNotification(contact, typeToSend, notificationData);
+                 await sendWhatsappNotification(contact, typeToSend, notificationData, restaurantId);
            }
         } catch (e) {
             console.error("Error sending Gupshup message:", e);
@@ -627,7 +627,8 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
                 currentRes.contact, 
                 // @ts-ignore
                 typeToSend, 
-                notificationData
+                notificationData,
+                restaurantId
             );
             
         } catch (e) {
@@ -681,7 +682,7 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
                     // User didn't specify, so confirmation with new details is good.
                      // The user previously added types in frontend (WEEKDAY_BRUNCH etc).
                      // We can try to infer or just use default.
-                    await sendWhatsappNotification(currentRes.contact, 'RESERVATION_CONFIRMATION', notificationData);
+                    await sendWhatsappNotification(currentRes.contact, 'RESERVATION_CONFIRMATION', notificationData, restaurantId);
                 }
             } catch (e) {
                 console.error("[Move] WhatsApp Update Failed", e);
@@ -831,7 +832,8 @@ export const updateReservation = async (req: AuthRequest, res: Response) => {
                     await sendWhatsappNotification(
                         freshRes.contact, 
                         notificationType, // 'WEEKDAY_BRUNCH' | 'WEEKEND_BRUNCH' | 'RESERVATION_CONFIRMATION'
-                        freshRes
+                        freshRes,
+                        restaurantId
                     );
                 }
             } catch (err) {
