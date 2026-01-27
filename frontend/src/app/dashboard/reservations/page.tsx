@@ -1028,10 +1028,7 @@ export default function ReservationsPage() {
         onClose={() => setIsBookingModalOpen(false)}
         title={`Book Table ${selectedTable?.tableNumber}`}
       >
-        <form
-          onSubmit={handleBookingSubmit}
-          className="space-y-4 max-h-[70vh] overflow-y-auto pr-2"
-        >
+        <form onSubmit={handleBookingSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="customerName">Customer Name</Label>
             <Input
@@ -1257,10 +1254,7 @@ export default function ReservationsPage() {
         onClose={() => setIsEditModalOpen(false)}
         title="Edit Reservation"
       >
-        <form
-          onSubmit={handleEditSubmit}
-          className="space-y-4 max-h-[70vh] overflow-y-auto pr-2"
-        >
+        <form onSubmit={handleEditSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>Booked Slot</Label>
             <Input
@@ -1837,10 +1831,7 @@ export default function ReservationsPage() {
         onClose={() => setIsGroupBookingModalOpen(false)}
         title="Group Booking"
       >
-        <form
-          onSubmit={handleGroupBookingSubmit}
-          className="space-y-4 max-h-[70vh] overflow-y-auto pr-2"
-        >
+        <form onSubmit={handleGroupBookingSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>Customer Name</Label>
             <Input
