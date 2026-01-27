@@ -424,7 +424,7 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
                         status: 'BOOKED',
                         // @ts-ignore
                         notificationType: req.body.notificationType
-                    }
+                    } as any
                 })
             )
         );
@@ -600,8 +600,8 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
                         specialReq: currentRes.specialReq,
                         groupId: newGroupId,
                         status: 'BOOKED',
-                        notificationType: notificationType || currentRes.notificationType // Use new or keep old
-                    }
+                        notificationType: notificationType || (currentRes as any).notificationType // Use new or keep old
+                    } as any
                 });
             }
         });
@@ -623,7 +623,7 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
 
             const { sendWhatsappNotification } = await import('../lib/whatsapp');
             // Use provided type OR fallback to existing (if keeping same type) OR default
-            const typeToSend = notificationType || currentRes.notificationType || 'RESERVATION_CONFIRMATION';
+            const typeToSend = notificationType || (currentRes as any).notificationType || 'RESERVATION_CONFIRMATION';
             
             await sendWhatsappNotification(
                 currentRes.contact, 
