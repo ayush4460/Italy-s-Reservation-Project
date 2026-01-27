@@ -572,7 +572,7 @@ export default function DashboardPage() {
                   {stats.recentReservations.map((res: ReservationSummary) => (
                     <div
                       key={res.id}
-                      className="p-4 flex items-center justify-between hover:bg-white/5 cursor-pointer transition-colors"
+                      className="p-3 md:p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 md:gap-4 hover:bg-white/5 cursor-pointer transition-colors"
                       onClick={() => {
                         const dateStr = res.date
                           ? res.date.toString().split("T")[0]
@@ -580,7 +580,7 @@ export default function DashboardPage() {
                         window.location.href = `/dashboard/reservations?date=${dateStr}&slotId=${res.slotId}`;
                       }}
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-start justify-between md:justify-start gap-4">
                         <div className="flex bg-blue-500/20 text-blue-300 font-bold px-3 py-2 rounded-lg items-center justify-center min-w-12">
                           <span className="text-lg">
                             {res.table.tableNumber
@@ -599,7 +599,7 @@ export default function DashboardPage() {
                           {role === "ADMIN" && (
                             <div
                               onClick={(e) => e.stopPropagation()}
-                              className="mt-1 flex items-center gap-2"
+                              className="mt-1 flex items-center gap-2 flex-wrap"
                             >
                               <WhatsAppTemplateSelector
                                 phone={res.contact}
@@ -626,11 +626,11 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      <div className="hidden md:flex flex-col flex-1 items-center justify-center px-4">
+                      <div className="flex flex-row md:flex-1 items-center justify-start md:justify-center px-0 md:px-4">
                         {res.notificationType && (
-                          <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg px-3 py-1.5 flex flex-col items-center">
-                            <span className="text-[10px] text-purple-300 font-bold uppercase tracking-widest leading-none mb-0.5">
-                              Package
+                          <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg px-2 py-1 md:px-3 md:py-1.5 flex items-center gap-2 md:flex-col md:gap-0">
+                            <span className="text-[10px] text-purple-300 font-bold uppercase tracking-widest leading-none">
+                              Package:
                             </span>
                             <span className="text-sm font-semibold text-purple-100 whitespace-nowrap">
                               {formatTemplateName(res.notificationType)}
@@ -639,8 +639,8 @@ export default function DashboardPage() {
                         )}
                       </div>
 
-                      <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 justify-end">
-                        <div className="text-right max-w-[200px]">
+                      <div className="flex flex-row md:flex-row md:items-center justify-between gap-2 md:gap-8 w-full md:w-auto border-t border-white/5 pt-2 md:border-0 md:pt-0">
+                        <div className="text-left md:text-right md:max-w-[200px]">
                           <div
                             className={cn(
                               "text-xs font-medium",
@@ -661,7 +661,7 @@ export default function DashboardPage() {
                           )}
                         </div>
 
-                        <div className="text-right min-w-[100px]">
+                        <div className="text-center md:text-right min-w-[80px]">
                           <div className="text-xs text-gray-400 uppercase tracking-wider">
                             Time
                           </div>
@@ -669,7 +669,7 @@ export default function DashboardPage() {
                             {res.slot.startTime} - {res.slot.endTime}
                           </div>
                         </div>
-                        <div className="text-right min-w-[100px]">
+                        <div className="text-right min-w-[80px]">
                           <div className="text-xs text-gray-400 uppercase tracking-wider">
                             Guests
                           </div>
