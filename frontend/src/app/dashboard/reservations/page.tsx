@@ -1941,7 +1941,7 @@ export default function ReservationsPage() {
                     <p className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
                       Select Tables ({groupSelectedTables.length})
                     </p>
-                    <div className="grid grid-cols-4 gap-2 max-h-[200px] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-4 gap-2 pr-1">
                       {tables
                         .filter(
                           (t) => !reservations.some((r) => r.tableId === t.id),
@@ -2198,7 +2198,7 @@ export default function ReservationsPage() {
           })()}
 
           {/* Available Tables List */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 max-h-[35vh] sm:max-h-[40vh] overflow-y-auto p-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 p-1">
             {moveAvailableTables.length > 0 ? (
               moveAvailableTables.map((table) => {
                 const isSelected = moveSelectedTables.some(
@@ -2289,7 +2289,7 @@ export default function ReservationsPage() {
             Select a specific start time. Duration will be automatically set to
             1.5 hours.
           </p>
-          <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto">
+          <div className="grid grid-cols-3 gap-2">
             {customTimeSlot &&
               generateTimeIntervals(customTimeSlot).map((time) => (
                 <Button
