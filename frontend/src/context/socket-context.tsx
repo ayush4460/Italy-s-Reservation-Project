@@ -33,10 +33,12 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     // Determine Socket URL dynamically matching the current window host (for mobile/LAN access)
     // or fallback to localhost if server-side (though this component is client-only).
     const socketUrl =
-      process.env.NEXT_PUBLIC_SOCKET_URL ||
-      (typeof window !== "undefined"
-        ? `http://${window.location.hostname}:5000`
-        : "http://localhost:5000");
+      process.env.NEXT_PUBLIC_SOCKET_URL &&
+      window.location.hostname !== "localhost"
+        ? process.env.NEXT_PUBLIC_SOCKET_URL
+        : typeof window !== "undefined"
+          ? `http://${window.location.hostname}:5000`
+          : "http://localhost:5000";
 
     const socketInstance = io(socketUrl, {
       withCredentials: true,
