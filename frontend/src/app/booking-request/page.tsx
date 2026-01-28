@@ -266,6 +266,7 @@ export default function BookingRequestPage() {
                 <FormField
                   control={form.control}
                   name="name"
+                  rules={{ required: "Name is required" }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-zinc-400">Your Name</FormLabel>
@@ -286,6 +287,13 @@ export default function BookingRequestPage() {
                 <FormField
                   control={form.control}
                   name="contact"
+                  rules={{
+                    required: "Phone number is required",
+                    pattern: {
+                      value: /^\d{10}$/,
+                      message: "Phone number must be 10 digits",
+                    },
+                  }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-zinc-400">
@@ -312,6 +320,7 @@ export default function BookingRequestPage() {
                 <FormField
                   control={form.control}
                   name="date"
+                  rules={{ required: "Date is required" }}
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel className="text-zinc-400">Date</FormLabel>
@@ -333,6 +342,7 @@ export default function BookingRequestPage() {
                 <FormField
                   control={form.control}
                   name="slot"
+                  rules={{ required: "Time slot is required" }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-zinc-400">Time Slot</FormLabel>
@@ -372,6 +382,10 @@ export default function BookingRequestPage() {
                 <FormField
                   control={form.control}
                   name="adults"
+                  rules={{
+                    required: "Number of adults is required",
+                    min: { value: 1, message: "At least 1 adult required" },
+                  }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-zinc-400">Adults</FormLabel>
@@ -422,6 +436,7 @@ export default function BookingRequestPage() {
                 <FormField
                   control={form.control}
                   name="menu"
+                  rules={{ required: "Please select a menu" }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-zinc-400">
@@ -451,6 +466,7 @@ export default function BookingRequestPage() {
                 <FormField
                   control={form.control}
                   name="foodPref"
+                  rules={{ required: "Please select a food preference" }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-zinc-400">
