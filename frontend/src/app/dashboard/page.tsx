@@ -4,6 +4,10 @@ import React, { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
 import { toPng } from "html-to-image";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Modal } from "@/components/ui/modal";
+import { Label as UiLabel } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import {
   Armchair,
   CalendarCheck,
@@ -129,11 +133,21 @@ export default function DashboardPage() {
   // Chart Range State (Default 7 days)
   const defaultStart = new Date();
   defaultStart.setDate(defaultStart.getDate() - 6);
-  const [chartStart, setChartStart] = useState<string>(
-    defaultStart.toISOString().split("T")[0],
+  const [chartStart, setChartStart] = useState(
+    new Date(new Date().setDate(new Date().getDate() - 7))
+      .toISOString()
+      .split("T")[0],
   );
-  const [chartEnd, setChartEnd] = useState<string>(getISTDate());
+  const [chartEnd, setChartEnd] = useState(getISTDate());
   const [downloading, setDownloading] = useState(false);
+
+  // Cancel Modal State
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancelingReservationId, setCancelingReservationId] = useState<
+    number | null
+  >(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
   const [viewMode, setViewMode] = useState<"active" | "cancelled">("active");
   const { user: profileUser } = useProfile();
   const role = profileUser?.role || null;
@@ -163,25 +177,32 @@ export default function DashboardPage() {
     fetchStats();
   }, [fetchStats]);
 
-  const handleCancelReservation = async (reservationId: number) => {
+  const handleCancelReservation = (reservationId: number) => {
     if (role !== "ADMIN") return;
+    setCancelingReservationId(reservationId);
+    setCancelReason("");
+    setIsCancelModalOpen(true);
+  };
 
-    // We can't distinguish merged vs single easily here without full object inspection,
-    // but dashboard list items are single reservation summaries.
-    // The previous implementation in reservations page handled merged logic.
-    // Here we will just ask for reason and cancel.
+  const confirmCancel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cancelingReservationId) return;
 
-    if (!confirm("Are you sure you want to cancel this reservation?")) return;
-
-    const reason = prompt("Enter cancellation reason (optional):");
-    if (reason === null) return;
-
+    setCancelLoading(true);
     try {
-      await reservationService.cancelReservation(reservationId, reason);
+      await reservationService.cancelReservation(
+        cancelingReservationId,
+        cancelReason,
+      );
+      setIsCancelModalOpen(false);
+      setCancelingReservationId(null);
+      setCancelReason("");
       fetchStats(); // Refresh data
     } catch (err) {
       console.error("Cancel failed", err);
       alert("Failed to cancel reservation");
+    } finally {
+      setCancelLoading(false);
     }
   };
 
@@ -902,6 +923,57 @@ export default function DashboardPage() {
           </Card>
         </div>
       )}
+
+      {/* Cancel Reservation Modal */}
+      <Modal
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+        title="Cancel Reservation"
+      >
+        <form onSubmit={confirmCancel} className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-white text-sm">
+              Are you sure you want to cancel this reservation? This will
+              release the table immediately.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <UiLabel htmlFor="cancelReason">
+              Cancellation Reason (Optional)
+            </UiLabel>
+            <Textarea
+              id="cancelReason"
+              placeholder="e.g. Customer requested, No-show..."
+              value={cancelReason}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                setCancelReason(e.target.value)
+              }
+              className="glass-input bg-white/5 border-white/10 text-white min-h-[80px]"
+            />
+          </div>
+          <div className="flex justify-end pt-2 gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsCancelModalOpen(false)}
+              className="border-white/10 text-gray-400 hover:text-white"
+            >
+              Back
+            </Button>
+            <Button
+              type="submit"
+              variant="destructive"
+              className="bg-red-500/20 text-red-400 hover:bg-red-500/30 border-red-500/20"
+              disabled={cancelLoading}
+            >
+              {cancelLoading && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Confirm Cancellation
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

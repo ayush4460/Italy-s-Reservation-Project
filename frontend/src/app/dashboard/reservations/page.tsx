@@ -11,6 +11,7 @@ import { useSocket } from "@/context/socket-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import {
@@ -214,6 +215,12 @@ export default function ReservationsPage() {
   );
   const [isLongPressModalOpen, setIsLongPressModalOpen] = useState(false);
   const [longPressedTable, setLongPressedTable] = useState<Table | null>(null);
+
+  // Cancel Modal State
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancelingReservation, setCancelingReservation] =
+    useState<Reservation | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
 
   // Helper to generate 15-min intervals for a slot
   const generateTimeIntervals = useCallback((slot: Slot) => {
@@ -479,33 +486,32 @@ export default function ReservationsPage() {
     }
   };
 
-  const handleCancelReservation = async (reservation: Reservation) => {
-    if (typeof window !== "undefined") {
-      (document.activeElement as HTMLElement)?.blur();
-    }
+  const handleCancelReservation = (reservation: Reservation) => {
+    setCancelingReservation(reservation);
+    setCancelReason(""); // Reset reason
+    setIsCancelModalOpen(true);
+  };
 
-    const isMerged = !!reservation.groupId;
-    const message = isMerged
-      ? "All reservation tables of this merged customer will be made available. Are you sure?"
-      : "Are you sure you want to cancel this reservation? This will make the table available immediately.";
-
-    if (!confirm(message)) return;
-
-    const reason = prompt("Enter cancellation reason (optional):");
-    if (reason === null) return; // User cancelled the prompt
+  const confirmCancel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cancelingReservation) return;
 
     setCancelLoading(true);
     try {
-      await reservationService.cancelReservation(reservation.id, reason);
+      await reservationService.cancelReservation(
+        cancelingReservation.id,
+        cancelReason,
+      );
+      setIsCancelModalOpen(false);
       setIsEditModalOpen(false); // Close edit modal if open
       setIsLongPressModalOpen(false); // Close long press modal if open
       setEditingReservation(null);
-      setMovingReservation(null); // Clear moving reservation if it was set
+      setMovingReservation(null); // Clear moving reservation
+      setCancelingReservation(null);
+      setCancelReason("");
       fetchTableData();
-      // toast.success(isMerged ? "Group reservations cancelled" : "Reservation cancelled successfully"); // Uncomment if toast is implemented
     } catch (err) {
       console.error("Cancel failed", err);
-      // toast.error("Failed to cancel reservation"); // Uncomment if toast is implemented
       alert("Failed to cancel reservation");
     } finally {
       setCancelLoading(false);
@@ -2444,6 +2450,56 @@ export default function ReservationsPage() {
             Close Menu
           </Button>
         </div>
+      </Modal>
+
+      {/* Cancel Reservation Modal */}
+      <Modal
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+        title="Cancel Reservation"
+      >
+        <form onSubmit={confirmCancel} className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-white text-sm">
+              {cancelingReservation?.groupId
+                ? "This will cancel all tables in this group and make them available immediately."
+                : "Are you sure you want to cancel this reservation? This will release the table immediately."}
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cancelReason">Cancellation Reason (Optional)</Label>
+            <Textarea
+              id="cancelReason"
+              placeholder="e.g. Customer requested, No-show..."
+              value={cancelReason}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                setCancelReason(e.target.value)
+              }
+              className="glass-input bg-white/5 border-white/10 text-white min-h-[80px]"
+            />
+          </div>
+          <div className="flex justify-end pt-2 gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsCancelModalOpen(false)}
+              className="border-white/10 text-gray-400 hover:text-white"
+            >
+              Back
+            </Button>
+            <Button
+              type="submit"
+              variant="destructive"
+              className="bg-red-500/20 text-red-400 hover:bg-red-500/30 border-red-500/20"
+              disabled={cancelLoading}
+            >
+              {cancelLoading && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Confirm Cancellation
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );
