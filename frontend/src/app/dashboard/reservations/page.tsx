@@ -655,6 +655,15 @@ export default function ReservationsPage() {
     }
   };
 
+  const handleSlotTouchStart = (slot: Slot) => {
+    const timer = setTimeout(() => {
+      // Trigger custom time selector on long press
+      setCustomTimeSlot(slot);
+      setIsTimeSelectorOpen(true);
+    }, 800); // 800ms for long press
+    setLongPressTimer(timer);
+  };
+
   // --- Group Booking Logic ---
 
   const handleGroupTableToggle = (tableId: number) => {
@@ -927,6 +936,8 @@ export default function ReservationsPage() {
                     setSelectedSlot(slot);
                     setCustomStartTime(null);
                   }}
+                  onTouchStart={() => handleSlotTouchStart(slot)}
+                  onTouchEnd={handleTouchEnd}
                   className="flex-1 py-1.5 px-1.5 md:py-2 md:px-2 text-xs md:text-sm font-medium text-left truncate"
                 >
                   {displayTime}
