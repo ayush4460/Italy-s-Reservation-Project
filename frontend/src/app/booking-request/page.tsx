@@ -330,7 +330,7 @@ export default function BookingRequestPage() {
                           min={new Date().toLocaleDateString("en-CA", {
                             timeZone: "Asia/Kolkata",
                           })}
-                          className="bg-white/5 border-white/10 text-white focus:border-amber-500/50 focus:ring-amber-500/20 scheme-dark relative w-full [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
+                          className="bg-white/5 border-white/10 text-white focus:border-amber-500/50 focus:ring-amber-500/20 scheme-dark relative w-full h-10 py-2 sm:py-2 appearance-none [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 placeholder:text-zinc-500"
                           {...field}
                         />
                       </FormControl>
