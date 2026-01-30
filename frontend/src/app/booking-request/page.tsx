@@ -59,6 +59,7 @@ export default function BookingRequestPage() {
       adults: "",
       kids: "",
       menu: "",
+      sitting: "",
       foodPref: "",
       specialReq: "",
     },
@@ -432,7 +433,7 @@ export default function BookingRequestPage() {
               </div>
 
               {/* Preferences Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="menu"
@@ -447,7 +448,7 @@ export default function BookingRequestPage() {
                         defaultValue={field.value}
                       >
                         <FormControl>
-                          <SelectTrigger className="bg-white/5 border-white/10 text-white hover:bg-white/10 focus:ring-amber-500/20">
+                          <SelectTrigger className="bg-white/5 border-white/10 text-white hover:bg-white/10 focus:ring-amber-500/20 pl-2">
                             <SelectValue placeholder="Select Menu" />
                           </SelectTrigger>
                         </FormControl>
@@ -463,6 +464,33 @@ export default function BookingRequestPage() {
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="sitting"
+                  rules={{ required: "Select sitting preference" }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-400">Sitting</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="bg-white/5 border-white/10 text-white hover:bg-white/10 focus:ring-amber-500/20 pl-2">
+                            <SelectValue placeholder="Select Sitting" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Indoor">Indoor</SelectItem>
+                          <SelectItem value="Outdoor">Outdoor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="foodPref"

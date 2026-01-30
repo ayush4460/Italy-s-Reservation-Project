@@ -300,7 +300,43 @@ Table Reservation Confirmation
 *Support:* Contact 9909000317 for changes.
 
 Thank you. ❤️
-Italy's Traditional Pizzeria | Vadodara | [Going] | [Not Going]`
+Italy's Traditional Pizzeria | Vadodara | [Going] | [Not Going]`,
+
+  "RESERVATION_REQUEST": `Table Reservation Request Received:
+
+*Customer Details:*
+Name: {{1}}
+Contact: {{2}}
+
+*Booking Request:*
+Date: {{3}} ({{4}})
+Slot: {{5}}
+Adults: {{6}}
+Kids: {{7}} (5-10 yrs)
+Menu: {{8}}
+Sitting: {{9}}
+Food Preparation: {{10}}
+Special Requirements: {{11}}
+
+Booking Link: https://reservation.theitalys.com/dashboard/reservations
+Italy's Traditional Pizzeria | Vadodara | [Click here to book,https://reservation.theitalys.com/dashboard/reservations]`,
+
+  "RESERVATION_REQUEST_GUEST": `*Dear {{1}}*
+
+Thank you for your table reservation request.
+
+We have successfully received your request.
+
+⏳ Our team will share your reservation status within 1 hour.
+
+*📞 Need Immediate Assistance?*
+If you do not receive a response within 1 hour, kindly call us at *9909000317* and our team will be happy to assist you.
+
+We truly appreciate your patience and look forward to hosting you for a delightful Italian dining experience.
+
+*Warm regards,*
+*Team Italy’s Traditional Pizzeria*
+Opp. Earth The Landmark, Nr. BMW Showroom, Sun Pharma Road, Vadodara. | [Call Now,+919909000317]`
 };
 
 export const hydrateTemplate = (templateId: string, params: string[]): string => {
@@ -329,7 +365,8 @@ export type WhatsappNotificationType =
     | 'WEEKDAY_BRUNCH' 
     | 'WEEKEND_BRUNCH'
     | 'A_LA_CARTE'
-    | 'RESERVATION_REQUEST';
+    | 'RESERVATION_REQUEST'
+    | 'RESERVATION_REQUEST_GUEST';
 
 interface TemplateConfig {
     templateId: string;
@@ -395,7 +432,7 @@ const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
     },
     'RESERVATION_REQUEST': {
         // New Public Request Template
-        templateId: "ff499d97-597f-4828-8e81-f0d2a4b53e41",
+        templateId: "ccb066a5-3c73-4b25-bede-f8860be595a4",
         isNative: true,
         mapper: (data: any) => {
             // Data: { name, contact, date(Str/Date), slot(Str), adults, kids, menu, foodPref, specialReq }
@@ -417,9 +454,20 @@ const TEMPLATE_REGISTRY: Record<WhatsappNotificationType, TemplateConfig> = {
                 data.slot,                      // {{5}} Slot
                 String(data.adults),            // {{6}} Adults
                 String(data.kids || '0'),       // {{7}} Kids
-                data.menu,                      // {{8}} Menu
-                data.foodPref,                  // {{9}} Food Prep
-                data.specialReq || '-'          // {{10}} Special Req (Optional: send '-' if empty)
+                data.menu || '-',               // {{8}} Menu
+                data.sitting || '-',            // {{9}} Sitting
+                data.foodPref || '-',           // {{10}} Food Prep
+                data.specialReq || '-'          // {{11}} Special Req
+            ];
+        }
+    },
+    'RESERVATION_REQUEST_GUEST': {
+        // Guest Confirmation Template
+        templateId: "bfb79440-e9d6-4cd9-b77b-5e70a80f65aa",
+        isNative: true,
+        mapper: (data: any) => {
+            return [
+                data.name  // {{1}} Name
             ];
         }
     }

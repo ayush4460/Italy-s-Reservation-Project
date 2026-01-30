@@ -10,13 +10,14 @@ export const requestReservation = async (req: Request, res: Response) => {
             slot, 
             adults, 
             kids, 
-            menu, 
+            menu,
+            sitting,
             foodPref, 
             specialReq 
         } = req.body;
 
         // Basic Validation
-        if (!name || !contact || !date || !slot || !adults || !menu || !foodPref) {
+        if (!name || !contact || !date || !slot || !adults || !menu || !sitting || !foodPref) {
             return res.status(400).json({ message: 'Missing required fields' });
         }
 
@@ -37,6 +38,7 @@ export const requestReservation = async (req: Request, res: Response) => {
             adults,
             kids,
             menu,
+            sitting,
             foodPref,
             specialReq
         };
@@ -47,6 +49,15 @@ export const requestReservation = async (req: Request, res: Response) => {
             notificationData
             // No restaurantId passed -> No DB logging for this (it's admin notification, not customer chat)
             // Or should we log it? User didn't specify. Usually admin alerts don't need to clog customer chat logs.
+        );
+
+        // Send WhatsApp Notification to Guest
+        await sendWhatsappNotification(
+            contact,
+            'RESERVATION_REQUEST_GUEST',
+            { name },
+            // Optional: If we want to log this in a "Public/General" restaurant scope, we'd need an ID. 
+            // For now, not logging interaction to avoiding clogging unrelated restaurant logs.
         );
 
         if (result) {
