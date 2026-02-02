@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Clock, Users, CheckCircle2, Phone, User } from "lucide-react";
 import { motion } from "framer-motion";
 
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -129,6 +130,7 @@ export default function BookingRequestPage() {
     try {
       const payload = {
         ...data,
+        name: data.name?.trim(),
       };
 
       const res = await fetch(
@@ -433,7 +435,7 @@ export default function BookingRequestPage() {
               </div>
 
               {/* Preferences Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="menu"
@@ -458,32 +460,6 @@ export default function BookingRequestPage() {
                               {m}
                             </SelectItem>
                           ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="sitting"
-                  rules={{ required: "Select sitting preference" }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-zinc-400">Sitting</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="bg-white/5 border-white/10 text-white hover:bg-white/10 focus:ring-amber-500/20 pl-2">
-                            <SelectValue placeholder="Select Sitting" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Indoor">Indoor</SelectItem>
-                          <SelectItem value="Outdoor">Outdoor</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -522,6 +498,110 @@ export default function BookingRequestPage() {
                   )}
                 />
               </div>
+
+              {/* Ambience Selection */}
+              <FormField
+                control={form.control}
+                name="sitting"
+                rules={{ required: "Please select a sitting area" }}
+                render={({ field }) => (
+                  <FormItem className="space-y-3 pt-2">
+                    <FormLabel className="text-zinc-500 text-xs uppercase tracking-wider font-semibold pl-1">
+                      Ambience Preference
+                    </FormLabel>
+                    <FormControl>
+                      <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                        {/* Indoor Card */}
+                        <div
+                          className={`group cursor-pointer transition-all duration-300 ${field.value === "Indoor" ? "scale-[1.02]" : "hover:scale-[1.01]"}`}
+                          onClick={() => field.onChange("Indoor")}
+                        >
+                          <div
+                            className={`relative aspect-[4/3] sm:aspect-video w-full overflow-hidden rounded-2xl border bg-zinc-900 shadow-sm transition-all duration-500 ${
+                              field.value === "Indoor"
+                                ? "border-amber-500 shadow-lg shadow-amber-500/20 ring-1 ring-amber-500"
+                                : "border-white/5 group-hover:border-white/20 group-hover:shadow-lg group-hover:shadow-amber-500/5"
+                            }`}
+                          >
+                            <Image
+                              src="/Italys_Indoor.jpeg"
+                              alt="Indoor Dining"
+                              fill
+                              className={`object-cover transition-transform duration-700 ${
+                                field.value === "Indoor"
+                                  ? "scale-105 opacity-100"
+                                  : "scale-100 opacity-60 group-hover:scale-105 group-hover:opacity-90"
+                              }`}
+                            />
+                            {field.value === "Indoor" && (
+                              <div className="absolute top-2 right-2 bg-amber-500 text-black p-1 rounded-full shadow-lg animate-in fade-in zoom-in duration-300">
+                                <CheckCircle2 className="w-4 h-4" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-3 flex items-center justify-center gap-2">
+                            <div
+                              className={`h-1 w-1 rounded-full transition-colors ${field.value === "Indoor" ? "bg-amber-500" : "bg-zinc-600 group-hover:bg-amber-500"}`}
+                            />
+                            <p
+                              className={`text-xs font-medium uppercase tracking-widest transition-colors ${field.value === "Indoor" ? "text-amber-500" : "text-zinc-400 group-hover:text-amber-500"}`}
+                            >
+                              Indoor
+                            </p>
+                            <div
+                              className={`h-1 w-1 rounded-full transition-colors ${field.value === "Indoor" ? "bg-amber-500" : "bg-zinc-600 group-hover:bg-amber-500"}`}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Outdoor Card */}
+                        <div
+                          className={`group cursor-pointer transition-all duration-300 ${field.value === "Outdoor" ? "scale-[1.02]" : "hover:scale-[1.01]"}`}
+                          onClick={() => field.onChange("Outdoor")}
+                        >
+                          <div
+                            className={`relative aspect-[4/3] sm:aspect-video w-full overflow-hidden rounded-2xl border bg-zinc-900 shadow-sm transition-all duration-500 ${
+                              field.value === "Outdoor"
+                                ? "border-amber-500 shadow-lg shadow-amber-500/20 ring-1 ring-amber-500"
+                                : "border-white/5 group-hover:border-white/20 group-hover:shadow-lg group-hover:shadow-amber-500/5"
+                            }`}
+                          >
+                            <Image
+                              src="/Italys_Outdoor.jpeg"
+                              alt="Outdoor Garden"
+                              fill
+                              className={`object-cover transition-transform duration-700 ${
+                                field.value === "Outdoor"
+                                  ? "scale-105 opacity-100"
+                                  : "scale-100 opacity-60 group-hover:scale-105 group-hover:opacity-90"
+                              }`}
+                            />
+                            {field.value === "Outdoor" && (
+                              <div className="absolute top-2 right-2 bg-amber-500 text-black p-1 rounded-full shadow-lg animate-in fade-in zoom-in duration-300">
+                                <CheckCircle2 className="w-4 h-4" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-3 flex items-center justify-center gap-2">
+                            <div
+                              className={`h-1 w-1 rounded-full transition-colors ${field.value === "Outdoor" ? "bg-amber-500" : "bg-zinc-600 group-hover:bg-amber-500"}`}
+                            />
+                            <p
+                              className={`text-xs font-medium uppercase tracking-widest transition-colors ${field.value === "Outdoor" ? "text-amber-500" : "text-zinc-400 group-hover:text-amber-500"}`}
+                            >
+                              Outdoor
+                            </p>
+                            <div
+                              className={`h-1 w-1 rounded-full transition-colors ${field.value === "Outdoor" ? "bg-amber-500" : "bg-zinc-600 group-hover:bg-amber-500"}`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
