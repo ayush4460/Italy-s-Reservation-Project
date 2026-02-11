@@ -1,18 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
-import redis from '../lib/redis';
-
-// Helper to invalidate dashboard cache
-const invalidateDashboardStats = async (restaurantId: number) => {
-  try {
-    const keys = await redis.keys(`dashboard:stats:v10:${restaurantId}:*`);
-    if (keys.length > 0) {
-      await redis.del(keys);
-    }
-  } catch (error) {
-    console.error('Cache invalidation error:', error);
-  }
-};
+import { clearDashboardCache } from '../utils/cache';
 
 // Add type for request with user (from middleware)
 // Add type for request with user (from middleware)
@@ -72,7 +60,7 @@ export const createTable = async (req: AuthRequest, res: Response) => {
     });
 
     // Invalidate cache
-    await invalidateDashboardStats(restaurantId);
+    await clearDashboardCache(restaurantId);
 
     res.status(201).json(table);
   } catch (error) {
@@ -120,7 +108,7 @@ export const updateTable = async (req: AuthRequest, res: Response) => {
         });
 
         // Invalidate cache
-        await invalidateDashboardStats(restaurantId);
+        await clearDashboardCache(restaurantId);
 
         res.json(updatedTable);
 
@@ -150,7 +138,7 @@ export const deleteTable = async (req: AuthRequest, res: Response) => {
     });
 
     // Invalidate cache
-    await invalidateDashboardStats(restaurantId);
+    await clearDashboardCache(restaurantId);
 
     res.json({ message: 'Table deleted successfully' });
   } catch (error) {

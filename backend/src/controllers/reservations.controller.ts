@@ -4,27 +4,9 @@ import ExcelJS from 'exceljs';
 import redis from '../lib/redis';
 import { getIO } from '../lib/socket';
 import { commonReservationMapper, sendSmartWhatsAppTemplate } from '../lib/whatsapp';
+import { clearDashboardCache } from '../utils/cache';
 
-const clearDashboardCache = async (restaurantId: number, date: Date | string) => {
-    try {
-        const dateKey = typeof date === 'string' ? date : date.toISOString().split('T')[0];
-        const env = process.env.NODE_ENV || 'dev';
-        const pattern = `${env}:dashboard:stats:v13:${restaurantId}:*`;
-        
-        let cursor = '0';
-        do {
-            const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
-            cursor = nextCursor;
-            if (keys.length > 0) {
-                await redis.del(...keys);
-            }
-        } while (cursor !== '0');
-        
-        console.log(`[Cache] Cleared dashboard stats for restaurant ${restaurantId}`);
-    } catch (err) {
-        console.warn("Redis Clear Cache Error (Ignored):", err);
-    }
-};
+// Shared cache utility now imported from ../utils/cache
 
 
 import prisma from '../utils/prisma';
@@ -140,6 +122,9 @@ export const createSlots = async (req: AuthRequest, res: Response) => {
             newSlots.push(created);
         }
 
+        // Invalidate Cache
+        await clearDashboardCache(restaurantId);
+
         res.status(201).json(newSlots);
 
     } catch(error) {
@@ -169,6 +154,9 @@ export const deleteSlot = async (req: AuthRequest, res: Response) => {
         await prisma.slot.delete({
             where: { id: parseInt(id) }
         });
+
+        // Invalidate Cache
+        await clearDashboardCache(restaurantId);
 
         res.json({ message: 'Slot deleted successfully' });
 
@@ -428,7 +416,7 @@ export const createReservation = async (req: AuthRequest, res: Response) => {
         );
 
         // Invalidate Dashboard Stats Cache
-        await clearDashboardCache(restaurantId, date);
+        await clearDashboardCache(restaurantId);
 
         // Send WhatsApp Notification (Only once)
         // Send WhatsApp Notification (Centralized)
@@ -637,9 +625,9 @@ export const moveReservation = async (req: AuthRequest, res: Response) => {
 
 
         // 7. Invalidate Cache
-        await clearDashboardCache(restaurantId, currentRes.date);
+        await clearDashboardCache(restaurantId);
         if (targetDate.getTime() !== currentRes.date.getTime()) {
-             await clearDashboardCache(restaurantId, targetDate);
+             await clearDashboardCache(restaurantId);
         }
 
         // Emit socket event (Update both old and new dates if different)
@@ -811,7 +799,7 @@ export const updateReservation = async (req: AuthRequest, res: Response) => {
         }
 
         // Invalidate Cache
-        await clearDashboardCache(restaurantId, reservation.date);
+        await clearDashboardCache(restaurantId);
 
         // --- Send WhatsApp Notification (Optional) ---
         const { notificationType } = req.body;
@@ -897,7 +885,7 @@ export const cancelReservation = async (req: AuthRequest, res: Response) => {
         }
  
         // Invalidate Cache
-        await clearDashboardCache(restaurantId, reservation.date);
+        await clearDashboardCache(restaurantId);
 
         // Emit socket event
         try {
