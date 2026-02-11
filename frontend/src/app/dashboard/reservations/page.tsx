@@ -2181,15 +2181,20 @@ export default function ReservationsPage() {
 
           {/* Date and Slot Selection */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">New Date</label>
-              <Input
-                type="date"
-                value={moveDate}
-                onChange={(e) => setMoveDate(e.target.value)}
-                className="bg-background border-border text-foreground"
-                min={getISTDate()}
-              />
+            <div className="group space-y-1">
+              <label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                New Date
+              </label>
+              <div className="relative">
+                <Input
+                  type="date"
+                  value={moveDate}
+                  onChange={(e) => setMoveDate(e.target.value)}
+                  className="bg-background border-border text-foreground w-full appearance-none transition-all focus:ring-1 focus:ring-primary h-10 px-3 pl-10"
+                  min={getISTDate()}
+                />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground pointer-events-none" />
+              </div>
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">New Slot</label>
