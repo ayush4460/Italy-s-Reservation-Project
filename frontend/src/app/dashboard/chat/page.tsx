@@ -6,6 +6,7 @@ import { useSocket } from "@/context/socket-context";
 import { useProfile } from "@/context/profile-context";
 import { useUnread } from "@/context/unread-context";
 import { useRouter } from "next/navigation";
+import NextImage from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,8 @@ import {
   X,
   Search,
   ArrowLeft,
+  Image as ImageIcon,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -33,6 +36,7 @@ interface ChatPreview {
   status: string;
   unreadCount?: number;
   customerName?: string;
+  lastInboundTimestamp?: string | null;
 }
 
 interface Message {
@@ -51,6 +55,15 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState("");
   const [loadingChats, setLoadingChats] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedChat = chats.find((c) => c.phoneNumber === selectedPhone);
+  const isWindowOpen = selectedChat?.lastInboundTimestamp
+    ? new Date().getTime() -
+        new Date(selectedChat.lastInboundTimestamp).getTime() <
+      24 * 60 * 60 * 1000
+    : false;
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -142,6 +155,53 @@ export default function ChatPage() {
       fetchMessages(selectedPhone);
     } catch {
       toast.error("Failed to send message");
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedPhone) return;
+
+    // Validation
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size must be under 5MB");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      return;
+    }
+
+    // Localhost warning
+    if (
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1"
+    ) {
+      toast.info(
+        "Sending from localhost: Ensure you have set BACKEND_URL in .env to a public tunnel (ngrok) for the image to reach WhatsApp.",
+        {
+          duration: 8000,
+        },
+      );
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("image", file);
+    formData.append("phone", selectedPhone);
+
+    try {
+      await api.post("/chat/send-image", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success("Image sent");
+      fetchMessages(selectedPhone);
+    } catch {
+      toast.error("Failed to send image");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -407,6 +467,23 @@ export default function ChatPage() {
                 <X className="h-4 w-4" />
               </Button>
             </CardHeader>
+            {!isWindowOpen && selectedPhone && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800/50 p-3 flex items-start gap-3">
+                <div className="bg-amber-100 dark:bg-amber-900/30 p-1.5 rounded-full mt-0.5">
+                  <Phone className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-xs md:text-sm font-medium text-amber-800 dark:text-amber-300">
+                    WhatsApp 24h Window Closed
+                  </p>
+                  <p className="text-[10px] md:text-xs text-amber-700/80 dark:text-amber-400/70 mt-0.5">
+                    The customer hasn&apos;t replied in 24 hours. You can only
+                    send Templates (use the icon below). To send free messages
+                    or images, ask the customer to reply first.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Messages Area */}
             <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -428,7 +505,24 @@ export default function ChatPage() {
                         : "bg-muted text-foreground rounded-bl-none",
                     )}
                   >
-                    <MessageFormatter content={msg.content} />
+                    {msg.type === "image" ? (
+                      <div className="relative group">
+                        <NextImage
+                          src={msg.content}
+                          alt="Shared attachment"
+                          width={400}
+                          height={300}
+                          className="rounded-lg max-w-full h-auto max-h-[300px] object-contain cursor-pointer transition-opacity group-hover:opacity-90"
+                          onClick={() => window.open(msg.content, "_blank")}
+                          unoptimized
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-lg pointer-events-none">
+                          <ImageIcon className="w-8 h-8 text-white" />
+                        </div>
+                      </div>
+                    ) : (
+                      <MessageFormatter content={msg.content} />
+                    )}
                     <span className="text-[9px] md:text-[10px] opacity-70 block text-right mt-0.5 md:mt-1">
                       {new Date(msg.timestamp).toLocaleTimeString([], {
                         hour: "2-digit",
@@ -448,11 +542,32 @@ export default function ChatPage() {
             {/* Input Area */}
             <div className="p-2 md:p-4 border-t border-border bg-muted/20">
               <div className="flex flex-row items-center gap-2">
-                <div className="shrink-0">
+                <div className="shrink-0 flex items-center gap-1">
                   <WhatsAppTemplateSelector
                     phone={selectedPhone}
                     onSendSuccess={() => fetchMessages(selectedPhone)}
                   />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="text-muted-foreground hover:text-foreground"
+                    title="Send Image (Max 5MB)"
+                  >
+                    {uploading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <ImageIcon className="h-5 w-5" />
+                    )}
+                  </Button>
                 </div>
                 <form
                   onSubmit={handleSend}
@@ -470,6 +585,7 @@ export default function ChatPage() {
                   <Button
                     type="submit"
                     size="icon"
+                    disabled={!newMessage.trim()}
                     className="bg-primary hover:bg-primary/90 text-primary-foreground shrink-0"
                   >
                     <Send className="h-4 w-4" />

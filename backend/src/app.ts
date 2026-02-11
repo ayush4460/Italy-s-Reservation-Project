@@ -34,6 +34,15 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser()); // Use cookie-parser middleware
 
+// Serve Static Files from 'uploads' directory
+import path from 'path';
+import fs from 'fs';
+const uploadsPath = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsPath));
+
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);

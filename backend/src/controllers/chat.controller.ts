@@ -19,6 +19,14 @@ export const getChats = async (req: AuthRequest, res: Response) => {
                 t1."direction",
                 t1."status",
                 (
+                    SELECT u."timestamp"
+                    FROM "WhatsAppMessage" u
+                    WHERE u."phoneNumber" = t1."phoneNumber"
+                      AND u."direction" = 'inbound'
+                    ORDER BY u."timestamp" DESC
+                    LIMIT 1
+                ) as "lastInboundTimestamp",
+                (
                     SELECT u."customerName"
                     FROM "WhatsAppMessage" u
                     WHERE u."phoneNumber" = t1."phoneNumber"
@@ -235,8 +243,56 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
         res.json(savedMsg);
 
     } catch (error) {
-         console.error('Error sending message:', error);
-        res.status(500).json({ message: 'Error sending message' });
+         res.status(500).json({ message: 'Error sending message' });
+    }
+};
+
+// Send Image
+export const sendImage = async (req: AuthRequest, res: Response) => {
+    try {
+        const restaurantId = req.user?.restaurantId;
+        if (!restaurantId) return res.status(401).json({ message: 'Unauthorized' });
+
+        const { phone } = req.body;
+        const file = req.file;
+
+        if (!phone || !file) {
+            return res.status(400).json({ message: 'Phone and Image are required' });
+        }
+
+        // 1. Generate Public URL
+        // We use BACKEND_URL if set (e.g., ngrok tunnel), otherwise fallback to dynamic host
+        const protocol = req.protocol;
+        const host = req.get('host');
+        const baseUrl = process.env.BACKEND_URL || `${protocol}://${host}`;
+        const imageUrl = `${baseUrl}/uploads/${file.filename}`;
+
+        if (!process.env.BACKEND_URL && (host?.includes('localhost') || host?.includes('127.0.0.1'))) {
+            console.warn(`[WhatsApp] Warning: Image URL "${imageUrl}" may not be accessible by WhatsApp because it is using localhost. Set BACKEND_URL in .env for production/tunnel use.`);
+        }
+
+        // 2. Send via WhatsApp Lib
+        const { sendWhatsAppImage } = await import('../lib/whatsapp');
+        await sendWhatsAppImage(phone, imageUrl);
+
+        // 3. Save to DB
+        const savedMsg = await prisma.whatsAppMessage.create({
+            data: {
+                restaurantId,
+                phoneNumber: phone,
+                type: 'image',
+                content: imageUrl, // Store the URL in content for images
+                direction: 'outbound',
+                status: 'sent',
+                timestamp: new Date()
+            }
+        });
+
+        res.json(savedMsg);
+
+    } catch (error) {
+        console.error('Error sending image:', error);
+        res.status(500).json({ message: 'Error sending image' });
     }
 };
 

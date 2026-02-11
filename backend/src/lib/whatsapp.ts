@@ -98,6 +98,33 @@ export const sendWhatsAppText = async (phone: string, text: string) => {
   }
 };
 
+// 3.1 Send Image Message
+export const sendWhatsAppImage = async (phone: string, imageUrl: string) => {
+  try {
+    const destination = formatPhone(phone);
+    const params = new URLSearchParams();
+    params.append('channel', 'whatsapp');
+    params.append('source', GUPSHUP_SRC_PHONE);
+    params.append('destination', destination);
+    params.append('src.name', GUPSHUP_APP_NAME);
+    
+    const payload = {
+      type: 'image',
+      originalUrl: imageUrl,
+      previewUrl: imageUrl // Using same for preview
+    };
+    
+    params.append('message', JSON.stringify(payload));
+
+    console.log(`[WhatsApp] Sending image to ${destination}: ${imageUrl}`);
+    const res = await gupshupClient.post('/msg', params);
+    return res.data;
+  } catch (error: any) {
+    console.error(`[WhatsApp] Error sending image to ${phone}:`, error?.response?.data || error.message);
+    throw new Error('Failed to send WhatsApp image');
+  }
+};
+
 // 4. Send Template Message (Generic)
 export const sendTemplate = async (phone: string, templateId: string, params: string[]) => {
   try {
