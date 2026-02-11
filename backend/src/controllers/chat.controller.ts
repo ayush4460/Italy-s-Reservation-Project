@@ -265,7 +265,9 @@ export const sendImage = async (req: AuthRequest, res: Response) => {
         const protocol = req.protocol;
         const host = req.get('host');
         const baseUrl = process.env.BACKEND_URL || `${protocol}://${host}`;
-        const imageUrl = `${baseUrl}/uploads/${file.filename}`;
+        // Ensure /api is included in the path for static serving
+        const pathPrefix = baseUrl.includes('/api') ? '' : '/api';
+        const imageUrl = `${baseUrl}${pathPrefix}/uploads/${file.filename}`;
 
         if (!process.env.BACKEND_URL && (host?.includes('localhost') || host?.includes('127.0.0.1'))) {
             console.warn(`[WhatsApp] Warning: Image URL "${imageUrl}" may not be accessible by WhatsApp because it is using localhost. Set BACKEND_URL in .env for production/tunnel use.`);
