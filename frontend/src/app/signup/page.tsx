@@ -123,14 +123,17 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-mesh p-4">
-      <Card className="w-full max-w-md glass-panel border-none text-white">
-        <CardHeader>
-          <CardTitle className="text-3xl font-bold text-center">
+    <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      {/* Mesh Background - adjusted for light/dark */}
+      <div className="absolute inset-0 bg-gradient-mesh opacity-20 dark:opacity-100 -z-10" />
+
+      <Card className="w-full max-w-md bg-card border border-border shadow-xl text-card-foreground p-0">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-3xl font-bold text-center text-foreground">
             Create Account
           </CardTitle>
-          <CardDescription className="text-center text-gray-300">
-            Join the Italy&apos;s Reservation System
+          <CardDescription className="text-center text-muted-foreground">
+            Register your restaurant to get started
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -138,7 +141,9 @@ export default function SignupPage() {
             {signupStep === 1 ? (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="restaurantName">Restaurant Name</Label>
+                  <Label htmlFor="restaurantName" className="text-foreground">
+                    Restaurant Name
+                  </Label>
                   <Input
                     id="restaurantName"
                     name="restaurantName"
@@ -146,11 +151,13 @@ export default function SignupPage() {
                     value={formData.restaurantName}
                     onChange={handleChange}
                     required
-                    className="glass-input"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ownerName">Owner Name</Label>
+                  <Label htmlFor="ownerName" className="text-foreground">
+                    Owner Name
+                  </Label>
                   <Input
                     id="ownerName"
                     name="ownerName"
@@ -158,11 +165,13 @@ export default function SignupPage() {
                     value={formData.ownerName}
                     onChange={handleChange}
                     required
-                    className="glass-input"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-foreground">
+                    Email
+                  </Label>
                   <Input
                     id="email"
                     name="email"
@@ -171,11 +180,13 @@ export default function SignupPage() {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="glass-input"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password" className="text-foreground">
+                    Password
+                  </Label>
                   <div className="relative">
                     <Input
                       id="password"
@@ -185,12 +196,12 @@ export default function SignupPage() {
                       value={formData.password}
                       onChange={handleChange}
                       required
-                      className="glass-input pr-10"
+                      className="bg-background border-border text-foreground pr-10"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4" />
@@ -201,7 +212,9 @@ export default function SignupPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Label htmlFor="confirmPassword" className="text-foreground">
+                    Confirm Password
+                  </Label>
                   <div className="relative">
                     <Input
                       id="confirmPassword"
@@ -211,14 +224,14 @@ export default function SignupPage() {
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       required
-                      className="glass-input pr-10"
+                      className="bg-background border-border text-foreground pr-10"
                     />
                     <button
                       type="button"
                       onClick={() =>
                         setShowConfirmPassword(!showConfirmPassword)
                       }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
                       {showConfirmPassword ? (
                         <EyeOff className="h-4 w-4" />
@@ -233,8 +246,8 @@ export default function SignupPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <Label className="text-white">Verify Email</Label>
-                    <span className="text-xs text-blue-300">
+                    <Label className="text-foreground">Verify Email</Label>
+                    <span className="text-xs font-medium text-foreground">
                       {formData.email}
                     </span>
                   </div>
@@ -246,12 +259,12 @@ export default function SignupPage() {
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
                     required
-                    className="glass-input text-center text-lg tracking-widest"
+                    className="bg-background border-border text-foreground text-center text-lg tracking-widest"
                     autoFocus
                   />
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">
+                  <span className="text-muted-foreground">
                     Valid for {Math.floor(timer / 60)}:
                     {(timer % 60).toString().padStart(2, "0")}
                   </span>
@@ -259,10 +272,10 @@ export default function SignupPage() {
                     type="button"
                     onClick={handleResendOtp}
                     disabled={timer > 0 || loading}
-                    className={`font-medium ${
+                    className={`font-medium transition-colors ${
                       timer > 0
-                        ? "text-gray-600 cursor-not-allowed"
-                        : "text-blue-400 hover:text-blue-300"
+                        ? "text-muted-foreground/50 cursor-not-allowed"
+                        : "text-foreground hover:underline"
                     }`}
                   >
                     Resend OTP
@@ -271,11 +284,13 @@ export default function SignupPage() {
               </div>
             )}
 
-            {error && <p className="text-red-400 text-sm">{error}</p>}
+            {error && (
+              <p className="text-destructive font-medium text-sm">{error}</p>
+            )}
 
             <Button
               type="submit"
-              className="w-full glass-button mt-4"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm mt-4"
               disabled={loading}
             >
               {loading ? (
@@ -285,12 +300,12 @@ export default function SignupPage() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="justify-center">
-          <p className="text-sm text-gray-300">
+        <CardFooter className="justify-center border-t border-border mt-4 pt-6">
+          <p className="text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link
               href="/"
-              className="text-blue-300 hover:text-blue-200 font-semibold"
+              className="text-foreground hover:underline font-semibold"
             >
               Login
             </Link>

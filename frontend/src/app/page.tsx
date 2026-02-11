@@ -204,19 +204,22 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-mesh p-4">
-      <Card className="w-full max-w-md glass-panel border-none text-white">
+    <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      {/* Mesh Background - adjusted for light/dark */}
+      <div className="absolute inset-0 bg-gradient-mesh opacity-20 dark:opacity-100 -z-10" />
+
+      <Card className="w-full max-w-md bg-card border border-border shadow-xl text-card-foreground">
         <CardHeader>
-          <CardTitle className="text-3xl font-bold text-center">
+          <CardTitle className="text-3xl font-bold text-center text-foreground">
             Welcome Back
           </CardTitle>
-          <CardDescription className="text-center text-gray-300">
+          <CardDescription className="text-center text-muted-foreground">
             Login to manage your restaurant
           </CardDescription>
         </CardHeader>
         <CardContent>
           {/* Toggle Login Mode */}
-          <div className="flex bg-white/10 p-1 rounded-lg mb-6">
+          <div className="flex bg-muted p-1 rounded-lg mb-6 border border-border">
             <button
               type="button"
               onClick={() => {
@@ -225,8 +228,8 @@ export default function LoginPage() {
               }}
               className={`flex-1 py-1 text-sm font-medium rounded-md transition-all ${
                 loginMode === "password"
-                  ? "bg-white text-black shadow"
-                  : "text-gray-300 hover:text-white"
+                  ? "bg-primary text-primary-foreground shadow"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               Password
@@ -239,8 +242,8 @@ export default function LoginPage() {
               }}
               className={`flex-1 py-1 text-sm font-medium rounded-md transition-all ${
                 loginMode === "otp"
-                  ? "bg-white text-black shadow"
-                  : "text-gray-300 hover:text-white"
+                  ? "bg-primary text-primary-foreground shadow"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               By OTP
@@ -251,7 +254,9 @@ export default function LoginPage() {
             {loginMode === "password" && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-foreground">
+                    Email
+                  </Label>
                   <Input
                     id="email"
                     name="email"
@@ -260,11 +265,13 @@ export default function LoginPage() {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="glass-input"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password" className="text-foreground">
+                    Password
+                  </Label>
                   <div className="relative">
                     <Input
                       id="password"
@@ -274,12 +281,12 @@ export default function LoginPage() {
                       value={formData.password}
                       onChange={handleChange}
                       required
-                      className="glass-input pr-10"
+                      className="bg-background border-border text-foreground pr-10"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4" />
@@ -295,7 +302,9 @@ export default function LoginPage() {
             {loginMode === "otp" && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-foreground">
+                    Email
+                  </Label>
                   <Input
                     id="email"
                     name="email"
@@ -305,12 +314,14 @@ export default function LoginPage() {
                     onChange={handleChange}
                     required
                     disabled={loginStep === 2}
-                    className="glass-input"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 {loginStep === 2 && (
                   <div className="space-y-2">
-                    <Label htmlFor="loginOtp">Enter OTP</Label>
+                    <Label htmlFor="loginOtp" className="text-foreground">
+                      Enter OTP
+                    </Label>
                     <Input
                       id="loginOtp"
                       name="loginOtp"
@@ -320,11 +331,11 @@ export default function LoginPage() {
                       value={loginOtp}
                       onChange={(e) => setLoginOtp(e.target.value)}
                       required
-                      className="glass-input text-center text-lg tracking-widest"
+                      className="bg-background border-border text-foreground text-center text-lg tracking-widest"
                       autoFocus
                     />
                     <div className="flex items-center justify-between text-sm mt-2">
-                      <span className="text-gray-400">
+                      <span className="text-muted-foreground">
                         Valid for {Math.floor(loginTimer / 60)}:
                         {(loginTimer % 60).toString().padStart(2, "0")}
                       </span>
@@ -332,10 +343,10 @@ export default function LoginPage() {
                         type="button"
                         onClick={handleResendLoginOtp}
                         disabled={loginTimer > 0 || loading}
-                        className={`font-medium ${
+                        className={`font-medium transition-colors ${
                           loginTimer > 0
-                            ? "text-gray-600 cursor-not-allowed"
-                            : "text-blue-400 hover:text-blue-300"
+                            ? "text-muted-foreground/50 cursor-not-allowed"
+                            : "text-foreground hover:underline"
                         }`}
                       >
                         Resend OTP
@@ -346,11 +357,13 @@ export default function LoginPage() {
               </>
             )}
 
-            {error && <p className="text-red-400 text-sm">{error}</p>}
+            {error && (
+              <p className="text-destructive font-medium text-sm">{error}</p>
+            )}
 
             <Button
               type="submit"
-              className="w-full glass-button mt-4"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm mt-4"
               disabled={loading}
             >
               {loading ? (
@@ -365,19 +378,19 @@ export default function LoginPage() {
           </form>
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-2 justify-center">
+        <CardFooter className="flex flex-col gap-2 justify-center border-t border-border mt-4 pt-6">
           <button
             type="button"
             onClick={() => setShowForgotModal(true)}
-            className="text-sm text-gray-400 hover:text-white transition-colors"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Forgot Password?
           </button>
-          <p className="text-sm text-gray-300">
+          <p className="text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
             <Link
               href="/signup"
-              className="text-blue-300 hover:text-blue-200 font-semibold"
+              className="text-foreground hover:underline font-semibold"
             >
               Sign Up
             </Link>
@@ -394,7 +407,7 @@ export default function LoginPage() {
         <form onSubmit={handleForgotSubmit} className="space-y-4">
           {forgotStep === 1 ? (
             <div className="space-y-2">
-              <Label htmlFor="forgotEmail" className="text-white">
+              <Label htmlFor="forgotEmail" className="text-foreground">
                 Enter your email address
               </Label>
               <Input
@@ -404,9 +417,9 @@ export default function LoginPage() {
                 value={forgotEmail}
                 onChange={(e) => setForgotEmail(e.target.value)}
                 required
-                className="glass-input"
+                className="bg-background border-border text-foreground"
               />
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 We&apos;ll send a verification code to this email.
               </p>
             </div>
@@ -414,15 +427,15 @@ export default function LoginPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label className="text-white">Email</Label>
-                  <span className="text-xs text-blue-300 pointer-events-none">
+                  <Label className="text-foreground">Email</Label>
+                  <span className="text-xs font-medium text-foreground">
                     {forgotEmail}
                   </span>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="otp" className="text-white">
+                <Label htmlFor="otp" className="text-foreground">
                   Enter 6-digit OTP
                 </Label>
                 <Input
@@ -433,12 +446,12 @@ export default function LoginPage() {
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
                   required
-                  className="glass-input text-center text-lg tracking-widest"
+                  className="bg-background border-border text-foreground text-center text-lg tracking-widest"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="newPass" className="text-white">
+                <Label htmlFor="newPass" className="text-foreground">
                   New Password
                 </Label>
                 <div className="relative">
@@ -449,12 +462,12 @@ export default function LoginPage() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
-                    className="glass-input pr-10"
+                    className="bg-background border-border text-foreground pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showNewPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -465,7 +478,7 @@ export default function LoginPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confPass" className="text-white">
+                <Label htmlFor="confPass" className="text-foreground">
                   Confirm Password
                 </Label>
                 <div className="relative">
@@ -476,12 +489,12 @@ export default function LoginPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    className="glass-input pr-10"
+                    className="bg-background border-border text-foreground pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showConfirmPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -493,7 +506,7 @@ export default function LoginPage() {
               </div>
 
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-400">
+                <span className="text-muted-foreground">
                   Valid for {Math.floor(timer / 60)}:
                   {(timer % 60).toString().padStart(2, "0")}
                 </span>
@@ -501,10 +514,10 @@ export default function LoginPage() {
                   type="button"
                   onClick={handleResendOtp}
                   disabled={timer > 0 || forgotLoading}
-                  className={`font-medium ${
+                  className={`font-medium transition-colors ${
                     timer > 0
-                      ? "text-gray-600 cursor-not-allowed"
-                      : "text-blue-400 hover:text-blue-300"
+                      ? "text-muted-foreground/50 cursor-not-allowed"
+                      : "text-foreground hover:underline"
                   }`}
                 >
                   Resend OTP
@@ -516,7 +529,7 @@ export default function LoginPage() {
           <div className="pt-2">
             <Button
               type="submit"
-              className="w-full glass-button"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
               disabled={forgotLoading}
             >
               {forgotLoading ? (
