@@ -236,13 +236,13 @@ export function WhatsAppTemplateSelector({
           <Button
             variant="ghost"
             size="icon"
-            className="text-gray-400 hover:text-white hover:bg-white/10"
+            className="text-muted-foreground hover:text-foreground"
           >
             <Plus className="h-5 w-5" />
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="glass-panel text-white border-white/10 sm:max-w-md">
+      <DialogContent className="text-foreground border-border sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Select Template</DialogTitle>
         </DialogHeader>
@@ -253,7 +253,7 @@ export function WhatsAppTemplateSelector({
               <Button
                 key={template.id}
                 variant="outline"
-                className="w-full justify-start text-left border-white/20 hover:bg-white/10"
+                className="w-full justify-start text-left border-border hover:bg-accent"
                 onClick={() => handleTemplateSelect(template.id)}
               >
                 {template.name}
@@ -270,7 +270,7 @@ export function WhatsAppTemplateSelector({
                 variant="link"
                 size="sm"
                 onClick={() => setSelectedTemplate(null)}
-                className="text-blue-400 h-auto p-0"
+                className="text-primary h-auto p-0"
               >
                 Change
               </Button>
@@ -282,7 +282,7 @@ export function WhatsAppTemplateSelector({
                   <div key={index} className="grid gap-1">
                     <Label
                       htmlFor={`param-${index}`}
-                      className="text-xs text-gray-400"
+                      className="text-xs text-muted-foreground"
                     >
                       {{
                         1: "Name",
@@ -300,7 +300,7 @@ export function WhatsAppTemplateSelector({
                     <Input
                       id={`param-${index}`}
                       placeholder={`Enter ${param}`}
-                      className="glass-input h-8 text-sm"
+                      className="h-8 text-sm"
                       value={paramValues[index] || ""}
                       onChange={(e) => handleParamChange(index, e.target.value)}
                     />
@@ -312,7 +312,7 @@ export function WhatsAppTemplateSelector({
             <Button
               onClick={handleSend}
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {loading ? "Sending..." : "Send Template"}
               <Send className="w-3 h-3 ml-2" />

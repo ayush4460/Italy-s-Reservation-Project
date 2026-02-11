@@ -258,34 +258,36 @@ export default function ChatPage() {
       >
         <CardHeader className="pb-4 border-b border-white/10 space-y-4">
           <div className="flex justify-between items-center">
-            <CardTitle className="text-xl font-bold text-white">
+            <CardTitle className="text-xl font-bold text-foreground">
               Chats
             </CardTitle>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => fetchChats(false)}
-              className="text-gray-400 hover:text-white"
+              className="text-muted-foreground hover:text-foreground"
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 glass-input h-9 text-sm"
+              className="pl-9 h-9 text-sm bg-background/50"
             />
           </div>
         </CardHeader>
         <CardContent className="p-0 flex-1 overflow-hidden">
           <ScrollArea className="h-full">
             {loadingChats ? (
-              <div className="p-4 text-center text-gray-400">Loading...</div>
+              <div className="p-4 text-center text-muted-foreground">
+                Loading...
+              </div>
             ) : filteredChats.length === 0 ? (
-              <div className="p-4 text-center text-gray-400">
+              <div className="p-4 text-center text-muted-foreground">
                 {searchQuery ? "No results found" : "No conversations yet"}
               </div>
             ) : (
@@ -295,10 +297,10 @@ export default function ChatPage() {
                     key={chat.phoneNumber}
                     onClick={() => setSelectedPhone(chat.phoneNumber)}
                     className={cn(
-                      "flex items-start gap-3 p-3 text-left transition-colors border-b border-white/5",
+                      "flex items-start gap-3 p-3 text-left transition-colors border-b border-border/50",
                       selectedPhone === chat.phoneNumber
-                        ? "bg-white/10"
-                        : "hover:bg-white/5",
+                        ? "bg-accent"
+                        : "hover:bg-accent/50",
                     )}
                   >
                     <Avatar className="w-8 h-8 md:w-10 md:h-10">
@@ -312,10 +314,10 @@ export default function ChatPage() {
                     <div className="flex-1 min-w-0 overflow-hidden text-left">
                       <div className="grid grid-cols-[1fr_auto] items-center gap-2 mb-0.5 w-full">
                         <div className="min-w-0">
-                          <p className="font-medium text-white truncate text-sm md:text-base">
+                          <p className="font-medium text-foreground truncate text-sm md:text-base">
                             {chat.phoneNumber}
                             {chat.customerName && (
-                              <span className="text-gray-400 font-normal ml-2 text-xs md:text-sm">
+                              <span className="text-muted-foreground font-normal ml-2 text-xs md:text-sm">
                                 ~ {chat.customerName}
                               </span>
                             )}
@@ -327,7 +329,7 @@ export default function ChatPage() {
                               {chat.unreadCount}
                             </span>
                           )}
-                          <span className="text-[10px] md:text-xs text-gray-400 whitespace-nowrap">
+                          <span className="text-[10px] md:text-xs text-muted-foreground whitespace-nowrap">
                             {chat.timestamp
                               ? new Date(chat.timestamp).toLocaleTimeString(
                                   [],
@@ -341,7 +343,7 @@ export default function ChatPage() {
                           </span>
                         </div>
                       </div>
-                      <p className="text-xs md:text-sm text-gray-400 truncate block w-full">
+                      <p className="text-xs md:text-sm text-muted-foreground truncate block w-full">
                         {chat.direction === "outbound" && "You: "}
                         {chat.content.length > 30
                           ? chat.content.slice(0, 30) + "..."
@@ -367,13 +369,13 @@ export default function ChatPage() {
         {selectedPhone ? (
           <>
             {/* Chat Header */}
-            <CardHeader className="py-4 border-b border-white/10 flex flex-row items-center justify-between">
+            <CardHeader className="py-4 border-b border-border flex flex-row items-center justify-between">
               <div className="flex items-center gap-4">
                 {/* Back Button for Mobile */}
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="md:hidden text-gray-400 hover:text-white -ml-2"
+                  className="md:hidden text-muted-foreground hover:text-foreground -ml-2"
                   onClick={() => setSelectedPhone(null)}
                 >
                   <ArrowLeft className="h-5 w-5" />
@@ -388,10 +390,10 @@ export default function ChatPage() {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <CardTitle className="text-base md:text-lg text-white">
+                  <CardTitle className="text-base md:text-lg text-foreground">
                     {selectedPhone}
                   </CardTitle>
-                  <div className="flex items-center gap-1 text-[10px] md:text-xs text-green-400">
+                  <div className="flex items-center gap-1 text-[10px] md:text-xs text-green-600 dark:text-green-400">
                     <Phone className="h-3 w-3" /> WhatsApp
                   </div>
                 </div>
@@ -400,7 +402,7 @@ export default function ChatPage() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setSelectedPhone(null)}
-                className="text-gray-400 hover:text-white hover:bg-white/10 hidden md:flex" // Hide close on mobile, use Back instead
+                className="text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 hidden md:flex" // Hide close on mobile, use Back instead
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -422,8 +424,8 @@ export default function ChatPage() {
                     className={cn(
                       "max-w-[85%] md:max-w-[70%] rounded-2xl px-3 py-1.5 md:px-4 md:py-2 shadow-sm text-sm md:text-base", // Adjust text size/width for mobile
                       msg.direction === "outbound"
-                        ? "bg-blue-600 text-white rounded-br-none"
-                        : "bg-white/10 text-white rounded-bl-none",
+                        ? "bg-primary text-primary-foreground rounded-br-none"
+                        : "bg-muted text-foreground rounded-bl-none",
                     )}
                   >
                     <MessageFormatter content={msg.content} />
@@ -444,7 +446,7 @@ export default function ChatPage() {
             </CardContent>
 
             {/* Input Area */}
-            <div className="p-2 md:p-4 border-t border-white/10 bg-black/20">
+            <div className="p-2 md:p-4 border-t border-border bg-muted/20">
               <div className="flex flex-row items-center gap-2">
                 <div className="shrink-0">
                   <WhatsAppTemplateSelector
@@ -463,12 +465,12 @@ export default function ChatPage() {
                       handleTyping();
                     }}
                     placeholder="Type a message..."
-                    className="glass-input flex-1"
+                    className="flex-1 bg-background"
                   />
                   <Button
                     type="submit"
                     size="icon"
-                    className="glass-button bg-blue-600 hover:bg-blue-700 shrink-0"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground shrink-0"
                   >
                     <Send className="h-4 w-4" />
                   </Button>
@@ -477,8 +479,8 @@ export default function ChatPage() {
             </div>
           </>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-gray-400">
-            <div className="bg-white/5 p-6 rounded-full mb-4">
+          <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+            <div className="bg-muted p-6 rounded-full mb-4 border border-border">
               <Phone className="h-12 w-12 opacity-50" />
             </div>
             <p className="text-lg font-medium">

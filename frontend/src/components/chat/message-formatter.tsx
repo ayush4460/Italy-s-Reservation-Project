@@ -37,7 +37,7 @@ export const MessageFormatter: React.FC<Props> = ({ content }) => {
                 dangerouslySetInnerHTML={{
                   __html: part.replace(
                     /(https?:\/\/[^\s]+)/g,
-                    '<a href="$1" target="_blank" rel="noopener noreferrer" class="underline text-blue-300 hover:text-blue-200 pointer-events-auto">$1</a>'
+                    '<a href="$1" target="_blank" rel="noopener noreferrer" class="underline text-primary hover:opacity-80 pointer-events-auto">$1</a>',
                   ),
                 }}
               />
