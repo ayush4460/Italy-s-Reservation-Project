@@ -11,7 +11,15 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Phone, User, RefreshCw, X, Search } from "lucide-react";
+import {
+  Send,
+  Phone,
+  User,
+  RefreshCw,
+  X,
+  Search,
+  ArrowLeft,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { WhatsAppTemplateSelector } from "@/components/chat/whatsapp-template-selector";
@@ -368,8 +376,7 @@ export default function ChatPage() {
                   className="md:hidden text-gray-400 hover:text-white -ml-2"
                   onClick={() => setSelectedPhone(null)}
                 >
-                  <X className="h-5 w-5 rotate-45" />{" "}
-                  {/* Using X as back or we can import ChevronLeft */}
+                  <ArrowLeft className="h-5 w-5" />
                 </Button>
 
                 <Avatar className="h-8 w-8 md:h-10 md:w-10">

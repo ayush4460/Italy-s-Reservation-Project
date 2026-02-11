@@ -168,31 +168,34 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading) return <div className="text-white">Loading profile...</div>;
+  if (loading)
+    return <div className="text-foreground p-8">Loading profile...</div>;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header Split: Left (Restaurant Name) & Right (Admin Username) */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-white mb-1">
+          <h2 className="text-3xl font-bold text-foreground mb-1">
             {formData.name || "Restaurant Profile"}
           </h2>
-          <p className="text-gray-400 text-sm">
+          <p className="text-muted-foreground text-sm">
             Manage your restaurant details
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <Card className="glass-panel border-none text-white p-2">
-          <CardHeader className="pb-6 border-b border-white/5 mx-6 px-0 mb-6">
-            <CardTitle className="text-xl">Basic Information</CardTitle>
+        <Card className="bg-card border border-border text-card-foreground p-2 shadow-sm">
+          <CardHeader className="pb-6 border-b border-border mx-6 px-0 mb-6">
+            <CardTitle className="text-xl font-bold">
+              Basic Information
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-8 px-8 pb-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <Label htmlFor="name" className="text-sm text-gray-300">
+                <Label htmlFor="name" className="text-sm text-muted-foreground">
                   Restaurant Name
                 </Label>
                 <Input
@@ -200,12 +203,15 @@ export default function ProfilePage() {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="bg-white/5 border-white/10 h-10 text-sm focus:bg-white/10 focus:border-blue-500/50 transition-all placeholder:text-gray-500"
+                  className="bg-background border-border h-10 text-sm focus:border-primary transition-all placeholder:text-muted-foreground"
                   required
                 />
               </div>
               <div className="space-y-3">
-                <Label htmlFor="username" className="text-sm text-gray-300">
+                <Label
+                  htmlFor="username"
+                  className="text-sm text-muted-foreground"
+                >
                   Username
                 </Label>
                 <Input
@@ -213,14 +219,14 @@ export default function ProfilePage() {
                   name="username"
                   value={formData.username || ""}
                   onChange={handleChange}
-                  className="bg-white/5 border-white/10 h-10 text-sm focus:bg-white/10 focus:border-blue-500/50 transition-all placeholder:text-gray-500"
+                  className="bg-background border-border h-10 text-sm focus:border-primary transition-all placeholder:text-muted-foreground"
                   placeholder="Enter admin username"
                 />
               </div>
             </div>
 
             <div className="space-y-3">
-              <Label htmlFor="email" className="text-sm text-gray-300">
+              <Label htmlFor="email" className="text-sm text-muted-foreground">
                 Email Address
               </Label>
               <Input
@@ -229,16 +235,19 @@ export default function ProfilePage() {
                 type="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="bg-white/5 border-white/10 h-10 text-sm focus:bg-white/10 focus:border-blue-500/50 transition-all placeholder:text-gray-500"
+                className="bg-background border-border h-10 text-sm focus:border-primary transition-all placeholder:text-muted-foreground"
               />
-              <p className="text-xs text-gray-500 ml-1">
+              <p className="text-xs text-muted-foreground ml-1">
                 Changing your email will require verification.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <Label htmlFor="address" className="text-sm text-gray-300">
+                <Label
+                  htmlFor="address"
+                  className="text-sm text-muted-foreground"
+                >
                   Address
                 </Label>
                 <Input
@@ -247,12 +256,15 @@ export default function ProfilePage() {
                   value={formData.address || ""}
                   onChange={handleChange}
                   placeholder="123 Main St, City"
-                  className="bg-white/5 border-white/10 h-10 text-sm focus:bg-white/10 focus:border-blue-500/50 transition-all placeholder:text-gray-500"
+                  className="bg-background border-border h-10 text-sm focus:border-primary transition-all placeholder:text-muted-foreground"
                 />
               </div>
 
               <div className="space-y-3">
-                <Label htmlFor="phone" className="text-sm text-gray-300">
+                <Label
+                  htmlFor="phone"
+                  className="text-sm text-muted-foreground"
+                >
                   Phone Number
                 </Label>
                 <Input
@@ -261,7 +273,7 @@ export default function ProfilePage() {
                   value={formData.phone || ""}
                   onChange={handleChange}
                   placeholder="+1 234 567 890"
-                  className="bg-white/5 border-white/10 h-10 text-sm focus:bg-white/10 focus:border-blue-500/50 transition-all placeholder:text-gray-500"
+                  className="bg-background border-border h-10 text-sm focus:border-primary transition-all placeholder:text-muted-foreground"
                 />
               </div>
             </div>
@@ -269,7 +281,8 @@ export default function ProfilePage() {
           <CardFooter className="flex flex-col items-start gap-4 px-8 pb-8 pt-0">
             <Button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white min-w-[200px] h-10 text-sm"
+              variant="default"
+              className="min-w-[200px] h-10 text-sm"
               disabled={saving}
             >
               {formData.email !== originalEmail ? (
@@ -302,27 +315,29 @@ export default function ProfilePage() {
         title="Verify New Email"
       >
         <div className="space-y-4 pt-4">
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-muted-foreground">
             A verification code has been sent to{" "}
-            <span className="text-white font-medium">{formData.email}</span>.
-            Please enter it below to confirm the change.
+            <span className="text-foreground font-medium">
+              {formData.email}
+            </span>
+            . Please enter it below to confirm the change.
           </p>
 
           <div className="space-y-2">
-            <Label className="text-white">Verification Code</Label>
+            <Label className="text-foreground">Verification Code</Label>
             <Input
               type="text"
               placeholder="123456"
               maxLength={6}
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
-              className="glass-input text-center text-2xl tracking-[0.5em] font-bold py-6"
+              className="bg-background border-border text-center text-2xl tracking-[0.5em] font-bold py-6 focus:border-primary"
               autoFocus
             />
           </div>
 
           <div className="flex items-center justify-between text-sm pt-2">
-            <span className="text-gray-500">
+            <span className="text-muted-foreground">
               Valid for {Math.floor(otpTimer / 60)}:
               {(otpTimer % 60).toString().padStart(2, "0")}
             </span>
@@ -343,7 +358,8 @@ export default function ProfilePage() {
           <Button
             onClick={() => saveProfile(otp)}
             disabled={otp.length !== 6 || otpLoading}
-            className="w-full glass-button mt-4 py-6 text-lg"
+            variant="default"
+            className="w-full mt-4 py-6 text-lg"
           >
             {otpLoading ? (
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />

@@ -22,21 +22,30 @@ export const metadata: Metadata = {
   description: "Powered by Axiom HiTech",
 };
 
+import { ThemeProvider } from "@/context/theme-provider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${poppins.variable} ${montserrat.variable} antialiased`}
         suppressHydrationWarning
+        className={`${poppins.variable} ${montserrat.variable} antialiased bg-white text-black dark:bg-black dark:text-white transition-colors duration-200`}
       >
-        <GlobalLoaderProvider />
-        <Toaster richColors position="top-right" duration={3000} theme="dark" />
-        {children}
-        <Footer />
+        <ThemeProvider defaultTheme="system" storageKey="italys-theme">
+          <GlobalLoaderProvider />
+          <Toaster
+            richColors
+            position="top-right"
+            duration={3000}
+            theme="system"
+          />
+          {children}
+          <Footer />
+        </ThemeProvider>
       </body>
     </html>
   );

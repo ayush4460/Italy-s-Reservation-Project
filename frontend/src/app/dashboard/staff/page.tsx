@@ -260,18 +260,19 @@ export default function StaffPage() {
     }
   };
 
-  if (loading) return <div className="text-white p-8">Loading staff...</div>;
+  if (loading)
+    return <div className="text-foreground p-8">Loading staff...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-white">Manage Staff</h2>
-          <p className="text-gray-400">
+          <h2 className="text-3xl font-bold text-foreground">Manage Staff</h2>
+          <p className="text-muted-foreground">
             Add and manage staff members with view-only access.
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} className="glass-button">
+        <Button onClick={() => setIsModalOpen(true)} variant="default">
           <Plus className="mr-2 h-4 w-4" /> Add Staff
         </Button>
       </div>
@@ -280,15 +281,17 @@ export default function StaffPage() {
         {staffList.map((staff) => (
           <Card
             key={staff.id}
-            className="glass-panel border-none text-white hover:bg-white/5 transition-colors"
+            className="bg-card border border-border text-card-foreground hover:bg-muted/50 transition-colors shadow-sm"
           >
             <CardHeader className="flex flex-row items-center gap-4 pb-2">
               <div className="h-12 w-12 rounded-full bg-linear-to-tr from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg">
                 <User className="h-6 w-6 text-white" />
               </div>
               <div className="flex-1 overflow-hidden">
-                <CardTitle className="text-lg truncate">{staff.name}</CardTitle>
-                <CardDescription className="text-gray-300 truncate">
+                <CardTitle className="text-lg truncate font-bold">
+                  {staff.name}
+                </CardTitle>
+                <CardDescription className="text-muted-foreground truncate">
                   {staff.email}
                 </CardDescription>
               </div>
@@ -319,7 +322,7 @@ export default function StaffPage() {
           </Card>
         ))}
         {staffList.length === 0 && (
-          <div className="col-span-full text-center text-gray-500 py-12">
+          <div className="col-span-full text-center text-muted-foreground py-12">
             No staff members found.
           </div>
         )}
@@ -349,7 +352,7 @@ export default function StaffPage() {
                   }
                   placeholder="Staff Name"
                   required
-                  className="glass-input"
+                  className="bg-background border-border h-10 text-sm focus:border-primary transition-all placeholder:text-muted-foreground mr-0"
                 />
               </div>
               <div className="space-y-2">
@@ -363,7 +366,7 @@ export default function StaffPage() {
                   }
                   placeholder="staff@example.com"
                   required
-                  className="glass-input"
+                  className="bg-background border-border h-10 text-sm focus:border-primary transition-all placeholder:text-muted-foreground mr-0"
                 />
               </div>
               <div className="space-y-2">
@@ -378,12 +381,12 @@ export default function StaffPage() {
                     }
                     placeholder="••••••••"
                     required
-                    className="glass-input pr-10"
+                    className="bg-background border-border h-10 text-sm focus:border-primary transition-all placeholder:text-muted-foreground pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -408,12 +411,12 @@ export default function StaffPage() {
                     }
                     placeholder="••••••••"
                     required
-                    className="glass-input pr-10"
+                    className="bg-background border-border h-10 text-sm focus:border-primary transition-all placeholder:text-muted-foreground pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showConfirmPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -426,9 +429,11 @@ export default function StaffPage() {
             </>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 A verification code has been sent to{" "}
-                <span className="text-white font-medium">{formData.email}</span>
+                <span className="text-foreground font-medium">
+                  {formData.email}
+                </span>
                 .
               </p>
               <div className="space-y-2">
@@ -440,7 +445,7 @@ export default function StaffPage() {
                   placeholder="123456"
                   required
                   maxLength={6}
-                  className="glass-input text-center text-lg tracking-widest"
+                  className="bg-background border-border h-10 focus:border-primary transition-all placeholder:text-muted-foreground text-center text-lg tracking-widest"
                   autoFocus
                 />
               </div>
@@ -470,7 +475,8 @@ export default function StaffPage() {
           <div className="flex justify-end pt-4">
             <Button
               type="submit"
-              className="glass-button w-full"
+              variant="default"
+              className="w-full"
               disabled={submitLoading}
             >
               {submitLoading ? (
@@ -506,7 +512,7 @@ export default function StaffPage() {
                   }
                   placeholder="Staff Name"
                   required
-                  className="glass-input"
+                  className="bg-background border-border h-10 text-sm focus:border-primary transition-all placeholder:text-muted-foreground"
                 />
               </div>
               <div className="space-y-2">
@@ -520,12 +526,12 @@ export default function StaffPage() {
                   }
                   placeholder="staff@example.com"
                   required
-                  className="glass-input"
+                  className="bg-background border-border h-10 text-sm focus:border-primary transition-all placeholder:text-muted-foreground"
                 />
               </div>
 
-              <div className="border-t border-white/10 pt-4 mt-2">
-                <p className="text-sm text-gray-400 mb-2">
+              <div className="border-t border-border pt-4 mt-2">
+                <p className="text-sm text-muted-foreground mb-2">
                   Change Password (Optional)
                 </p>
                 <div className="space-y-2">
@@ -542,12 +548,12 @@ export default function StaffPage() {
                         })
                       }
                       placeholder="Leave blank to keep current"
-                      className="glass-input pr-10"
+                      className="bg-background border-border h-10 text-sm focus:border-primary transition-all placeholder:text-muted-foreground pr-10"
                     />
                     <button
                       type="button"
                       onClick={() => setShowEditPassword(!showEditPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
                       {showEditPassword ? (
                         <EyeOff className="h-4 w-4" />
@@ -573,14 +579,14 @@ export default function StaffPage() {
                         })
                       }
                       placeholder="Leave blank to keep current"
-                      className="glass-input pr-10"
+                      className="bg-background border-border h-10 text-sm focus:border-primary transition-all placeholder:text-muted-foreground pr-10"
                     />
                     <button
                       type="button"
                       onClick={() =>
                         setShowEditConfirmPassword(!showEditConfirmPassword)
                       }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
                       {showEditConfirmPassword ? (
                         <EyeOff className="h-4 w-4" />
@@ -594,9 +600,9 @@ export default function StaffPage() {
             </>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 A verification code has been sent to the new email:{" "}
-                <span className="text-white font-medium">
+                <span className="text-foreground font-medium">
                   {editFormData.email}
                 </span>
                 .
@@ -610,7 +616,7 @@ export default function StaffPage() {
                   placeholder="123456"
                   required
                   maxLength={6}
-                  className="glass-input text-center text-lg tracking-widest"
+                  className="bg-background border-border h-10 focus:border-primary transition-all placeholder:text-muted-foreground text-center text-lg tracking-widest"
                   autoFocus
                 />
               </div>
@@ -640,7 +646,8 @@ export default function StaffPage() {
           <div className="flex justify-end pt-4">
             <Button
               type="submit"
-              className="glass-button w-full"
+              variant="default"
+              className="w-full"
               disabled={submitLoading}
             >
               {submitLoading ? (

@@ -10,9 +10,8 @@ import {
   CalendarClock,
   User,
   LogOut,
-  Phone,
   MessageCircle,
-  Users, // Import Users icon
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
@@ -20,6 +19,7 @@ import { useState, useEffect, useRef } from "react";
 import { ProfileProvider, useProfile } from "@/context/profile-context";
 import { SocketProvider } from "@/context/socket-context";
 import { UnreadProvider, useUnread } from "@/context/unread-context";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function DashboardLayout({
   children,
@@ -41,14 +41,13 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, restaurant, loading } = useProfile();
+  const { unreadCount } = useUnread();
 
-  // Create a combined data object to match previous structure or use context directly
   const data = { user, restaurant };
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Logout function
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
@@ -57,7 +56,6 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
 
   const [isChecking, setIsChecking] = useState(true);
 
-  // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -74,20 +72,17 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // If not loading and no user, redirect
-    // Note: ProfileContext handles the fetch, if it fails (401), user is null
     if (!loading && !user) {
       router.push("/");
     } else if (user) {
-      // Defer state update to avoid synchronous setState warning
       setTimeout(() => setIsChecking(false), 0);
     }
   }, [user, loading, router]);
 
   if (isChecking || loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="loader"></div>
       </div>
     );
   }
@@ -112,217 +107,187 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-mesh text-white font-sans selection:bg-purple-500/30">
-      {/* Top Header - Floating & Funky */}
-      <header className="sticky top-2 md:top-4 z-50 px-3 md:px-8">
-        <div className="glass-panel rounded-full h-12 md:h-16 px-4 md:px-6 flex items-center justify-between shadow-[0_8px_32px_rgba(0,0,0,0.2)] border border-white/10 bg-black/40 backdrop-blur-xl">
-          {/* Left: Logo & Brand (Restaurant Info) */}
-          <div className="flex items-center gap-4">
-            <Image
-              src="/italy_logo_white.png"
-              alt="Italy's Logo"
-              width={120}
-              height={40}
-              className="h-7 md:h-10 w-auto object-contain max-w-[100px] md:max-w-[120px] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]"
-              priority
-            />
+    <div className="min-h-screen bg-background text-foreground font-sans">
+      {/* Top Header - Strict B&W */}
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+        <div className="container flex h-16 items-center px-4 md:px-8">
+          {/* Logo */}
+          <div className="mr-4 flex items-center gap-2 md:mr-6">
+            <Link href="/dashboard" className="flex items-center space-x-2">
+              <Image
+                src="/italy_logo_white.png"
+                alt="Italy's Logo"
+                width={100}
+                height={32}
+                className="h-8 w-auto object-contain dark:block hidden"
+                priority
+              />
+              <Image
+                src="/italy_logo_white.png"
+                alt="Italy's Logo"
+                width={100}
+                height={32}
+                className="h-8 w-auto object-contain dark:hidden block invert hue-rotate-180"
+                priority
+              />
+            </Link>
           </div>
 
-          {/* Center: Navigation Pills */}
-          <nav className="hidden md:flex items-center gap-2">
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
             {navItems.map((item) => (
               <NavItem key={item.href} item={item} pathname={pathname} />
             ))}
           </nav>
 
-          {/* Right: User Profile & Dropdown (User Info) */}
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center gap-3 pl-1 pr-1 py-1 rounded-full hover:bg-white/5 transition-all duration-300 border border-transparent hover:border-white/10 focus:outline-none group"
-            >
-              <div className="text-right hidden lg:block mr-2">
-                <span className="block text-sm font-bold text-gray-200 group-hover:text-white transition-colors">
-                  {data?.user?.username || data?.user?.name}
-                </span>
-                <span className="block text-[10px] text-gray-500 uppercase tracking-wider font-bold group-hover:text-cyan-400 transition-colors">
-                  {data?.user?.role || "ADMIN"}
-                </span>
-              </div>
+          {/* Right Side */}
+          <div className="ml-auto flex items-center gap-4">
+            <ThemeToggle />
 
-              <div className="h-8 w-8 md:h-10 md:w-10 rounded-full p-[2px] bg-linear-to-tr from-cyan-400 via-purple-500 to-pink-500 shadow-lg shadow-purple-500/20">
-                <div className="h-full w-full rounded-full overflow-hidden bg-black/50 backdrop-blur-sm">
-                  <User className="h-full w-full p-1.5 md:p-2 text-white/80" />
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center gap-2 rounded-full border border-transparent hover:bg-accent hover:text-accent-foreground px-2 py-1 transition-colors focus:outline-none"
+              >
+                <div className="text-right hidden lg:block">
+                  <span className="block text-sm font-medium leading-none">
+                    {data?.user?.username || data?.user?.name}
+                  </span>
+                  <span className="block text-xs text-muted-foreground mt-0.5">
+                    {data?.user?.role || "ADMIN"}
+                  </span>
                 </div>
-              </div>
-            </button>
+                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center border border-border">
+                  <User className="h-4 w-4" />
+                </div>
+              </button>
 
-            {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 md:mt-4 w-52 md:w-60 rounded-2xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.9)] border border-white/20 z-50 bg-[#12121a] animate-in fade-in zoom-in-95 duration-200 ring-1 ring-white/5">
-                <div className="p-1.5 md:p-2 space-y-0.5 md:space-y-1">
-                  <div className="px-3 py-2 md:px-4 md:py-3 border-b border-white/10 mb-1">
-                    <p className="text-xs md:text-sm font-bold text-white">
-                      {data?.user?.username || data?.user?.name || "User"}
-                    </p>
-                    <p className="text-[10px] md:text-xs text-gray-400">
-                      {data?.user?.role || "Administrator"}
-                    </p>
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-md border border-border bg-popover p-1 shadow-lg animate-in fade-in zoom-in-95 data-[side=bottom]:slide-in-from-top-2">
+                  <div className="px-2 py-1.5 text-sm font-semibold">
+                    My Account
                   </div>
+                  <div className="h-px bg-border my-1" />
+
                   {data?.user?.role === "ADMIN" && (
-                    <Link
-                      href="/dashboard/profile"
-                      className="flex items-center px-3 py-2 md:px-4 md:py-3 rounded-xl text-xs md:text-sm font-semibold text-gray-200 hover:bg-purple-500/20 hover:text-white transition-all group"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      <div className="p-1.5 md:p-2 rounded-lg bg-white/5 group-hover:bg-purple-500/40 mr-2 md:mr-3 transition-colors">
-                        <User className="h-3.5 w-3.5 md:h-4 md:w-4 group-hover:text-white transition-colors" />
-                      </div>
-                      Profile
-                    </Link>
+                    <>
+                      <Link
+                        href="/dashboard/profile"
+                        className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Profile</span>
+                      </Link>
+                      <Link
+                        href="/dashboard/staff"
+                        className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        <Users className="mr-2 h-4 w-4" />
+                        <span>Manage Staff</span>
+                      </Link>
+                    </>
                   )}
 
-                  {/* Manage Staff - Admin Only */}
-                  {data?.user?.role === "ADMIN" && (
-                    <Link
-                      href="/dashboard/staff"
-                      className="flex items-center px-3 py-2 md:px-4 md:py-3 rounded-xl text-xs md:text-sm font-semibold text-gray-200 hover:bg-purple-500/20 hover:text-white transition-all group"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      <div className="p-1.5 md:p-2 rounded-lg bg-white/5 group-hover:bg-purple-500/40 mr-2 md:mr-3 transition-colors">
-                        <Users className="h-3.5 w-3.5 md:h-4 md:w-4 group-hover:text-white transition-colors" />
-                      </div>
-                      Manage Staff
-                    </Link>
-                  )}
-
-                  {/* Customer Support */}
-                  {/* Customer Support */}
-                  <div className="border-t border-white/10 my-1 pt-1">
-                    <p className="px-3 md:px-4 py-1 text-[9px] md:text-[10px] text-gray-500 uppercase tracking-wider font-bold">
-                      Customer Support
-                    </p>
-                    <a
-                      href="tel:+917878065085"
-                      className="flex items-center px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs md:text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-all group"
-                    >
-                      <div className="p-1.5 rounded-lg bg-white/5 group-hover:bg-cyan-500/20 mr-2 md:mr-3 transition-colors">
-                        <Phone className="h-3 w-3 md:h-3.5 md:w-3.5 group-hover:text-cyan-400 transition-colors" />
-                      </div>
-                      Call (+91 7878065085)
-                    </a>
-                    <a
-                      href="https://wa.me/917878065085"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs md:text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-all group"
-                    >
-                      <div className="p-1.5 rounded-lg bg-white/5 group-hover:bg-green-500/20 mr-2 md:mr-3 transition-colors">
-                        <MessageCircle className="h-3 w-3 md:h-3.5 md:w-3.5 group-hover:text-green-400 transition-colors" />
-                      </div>
-                      WhatsApp
-                    </a>
-                  </div>
-
+                  <div className="h-px bg-border my-1" />
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center px-3 py-2 md:px-4 md:py-3 rounded-xl text-xs md:text-sm font-semibold text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all group"
+                    className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-red-500/10 text-red-600 hover:text-red-700 data-disabled:pointer-events-none data-disabled:opacity-50 transition-colors"
                   >
-                    <div className="p-1.5 md:p-2 rounded-lg bg-red-500/10 group-hover:bg-red-500/30 mr-2 md:mr-3 transition-colors">
-                      <LogOut className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                    </div>
-                    Logout
+                    <LogOut className="mr-2 h-4 w-4 text-red-600" />
+                    <span>Log out</span>
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Mobile Navigation (Bottom) - Enhanced & Compact */}
-      <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 glass-panel rounded-full px-4 py-2.5 flex items-center gap-5 z-50 shadow-[0_10px_30px_rgba(0,0,0,0.5)] bg-black/70 border border-white/10 backdrop-blur-md">
+      {/* Mobile Nav Bottom */}
+      <nav
+        className={cn(
+          "md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background h-16 pb-[env(safe-area-inset-bottom)]",
+          "grid",
+          navItems.length === 4 ? "grid-cols-4" : "grid-cols-3",
+        )}
+      >
         {navItems.map((item) => (
-          <div key={item.href}>
-            <Link href={item.href}>
-              <div
-                className={cn(
-                  "p-2 rounded-full transition-all duration-300 relative",
-                  pathname === item.href
-                    ? "text-white bg-linear-to-tr from-cyan-500 to-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.4)] scale-105"
-                    : "text-gray-400 hover:text-white hover:bg-white/10",
-                )}
-              >
-                <item.icon className="h-6 w-6" />
-                {item.label === "Live Chat" && <MobileBadge />}
-              </div>
-            </Link>
-          </div>
+          <Link
+            key={item.href}
+            href={item.href}
+            className="relative flex flex-col items-center justify-center w-full h-full space-y-0.5 hover:bg-muted/20 transition-colors py-1 min-w-0 overflow-hidden"
+          >
+            <div
+              className={cn(
+                "p-1 rounded-full transition-colors relative shrink-0",
+                pathname === item.href
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground",
+              )}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label === "Live Chat" && unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center bg-destructive text-destructive-foreground text-[9px] font-bold rounded-full ring-1 ring-background">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+            <span
+              className={cn(
+                "text-[9px] font-medium text-center leading-none w-full px-0.5 wrap-break-word line-clamp-2",
+                pathname === item.href
+                  ? "text-foreground"
+                  : "text-muted-foreground",
+              )}
+            >
+              {item.label === "Live Chat" ? "Chat" : item.label}
+            </span>
+          </Link>
         ))}
       </nav>
 
-      {/* Main Content Area */}
-      <main className="p-4 md:p-8 max-w-7xl mx-auto pb-24 md:pb-8">
+      <main className="container max-w-7xl mx-auto p-4 md:p-8 pb-24 md:pb-8">
         {children}
       </main>
     </div>
   );
 }
 
-interface NavItemData {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-}
-
-function NavItem({ item, pathname }: { item: NavItemData; pathname: string }) {
+function NavItem({
+  item,
+  pathname,
+}: {
+  item: { href: string; label: string; icon: React.ElementType };
+  pathname: string;
+}) {
   const Icon = item.icon;
   const isActive = pathname === item.href;
   const { unreadCount } = useUnread();
 
   return (
-    <Link href={item.href}>
-      <div
+    <Link
+      href={item.href}
+      className={cn(
+        "flex items-center text-sm font-medium transition-colors hover:text-foreground/80",
+        isActive ? "text-foreground font-bold" : "text-muted-foreground",
+      )}
+    >
+      <Icon
         className={cn(
-          "relative flex items-center space-x-2 px-5 py-2.5 rounded-full transition-all duration-300 text-sm font-semibold group", // Removed overflow-hidden
-          isActive
-            ? "text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]"
-            : "text-gray-400 hover:text-white",
+          "mr-2 h-4 w-4",
+          isActive ? "text-foreground" : "text-muted-foreground",
         )}
-      >
-        {isActive && (
-          <div className="absolute inset-0 bg-linear-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 border border-white/10 rounded-full" />
-        )}
-        {/* Badge Logic */}
+      />
+      <span className="relative">
+        {item.label}
         {item.label === "Live Chat" && unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center bg-red-600 text-white text-[10px] font-bold px-1 rounded-full z-50 shadow-lg ring-4 ring-[#0f0f13] border border-white/10">
+          <span className="absolute -top-2 -right-3 flex h-4 w-4 items-center justify-center bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full">
             {unreadCount}
           </span>
         )}
-
-        {!isActive && (
-          <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 rounded-full transition-all duration-300" />
-        )}
-
-        <Icon
-          className={cn(
-            "h-4 w-4 relative z-10 transition-transform duration-300",
-            isActive
-              ? "scale-110 text-cyan-300"
-              : "group-hover:scale-110 group-hover:text-purple-300",
-          )}
-        />
-        <span className="relative z-10">{item.label}</span>
-      </div>
+      </span>
     </Link>
-  );
-}
-
-function MobileBadge() {
-  const { unreadCount } = useUnread();
-  if (unreadCount === 0) return null;
-  return (
-    <span className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full z-20 shadow-md ring-1 ring-black">
-      {unreadCount}
-    </span>
   );
 }

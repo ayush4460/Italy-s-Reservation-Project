@@ -77,7 +77,7 @@ export default function TablesPage() {
       toast.success("Table created successfully");
     } catch (err: unknown) {
       toast.error(
-        (err as ApiError).response?.data?.message || "Failed to create table"
+        (err as ApiError).response?.data?.message || "Failed to create table",
       );
     }
   };
@@ -125,13 +125,13 @@ export default function TablesPage() {
   return (
     <div className="pt-10 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+        <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
           Table Management
         </h2>
         {role === "ADMIN" && (
           <Button
             onClick={() => setIsModalOpen(true)}
-            className="glass-button h-9 sm:h-10 text-xs sm:text-sm"
+            className="h-9 sm:h-10 text-xs sm:text-sm"
           >
             <Plus className="mr-2 h-4 w-4" /> Add Table
           </Button>
@@ -139,40 +139,42 @@ export default function TablesPage() {
       </div>
 
       {loading ? (
-        <div className="text-white">Loading tables...</div>
+        <div className="text-muted-foreground">Loading tables...</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {tables.map((table) => (
             <Card
               key={table.id}
-              className="glass-panel border-none text-white hover:bg-white/5 transition-colors group"
+              className="bg-card text-card-foreground border border-border shadow-sm hover:bg-muted/50 transition-colors group"
             >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-lg">
                   Table {table.tableNumber}
                 </CardTitle>
-                <Armchair className="h-5 w-5 text-blue-400" />
+                <Armchair className="h-5 w-5 text-indigo-500" />
               </CardHeader>
               <CardContent>
-                <p className="text-gray-400">
+                <p className="text-muted-foreground">
                   Capacity: {table.capacity} People
                 </p>
               </CardContent>
               {role === "ADMIN" && (
-                <CardFooter className="justify-end pt-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all gap-2 flex-wrap">
+                <CardFooter className="justify-end pt-0 lg:opacity-0 lg:group-hover:opacity-100 transition-all gap-2 flex-wrap">
                   <Button
                     variant="ghost"
-                    size="sm"
-                    className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                    size="icon"
+                    className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
                     onClick={() => handleEditClick(table)}
+                    title="Edit Table"
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
-                    size="sm"
-                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                    size="icon"
+                    className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-500/10"
                     onClick={() => handleDelete(table.id)}
+                    title="Delete Table"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -200,7 +202,7 @@ export default function TablesPage() {
               }
               placeholder="e.g. A1 or 01"
               required
-              className="glass-input"
+              className="bg-background text-foreground border-border"
             />
           </div>
           <div className="space-y-2">
@@ -214,11 +216,11 @@ export default function TablesPage() {
               }
               placeholder="e.g. 4"
               required
-              className="glass-input"
+              className="bg-background text-foreground border-border"
             />
           </div>
           <div className="flex justify-end pt-4">
-            <Button type="submit" className="glass-button w-full">
+            <Button type="submit" className="w-full">
               Create Table
             </Button>
           </div>
@@ -244,7 +246,7 @@ export default function TablesPage() {
               }
               placeholder="e.g. A1 or 01"
               required
-              className="glass-input"
+              className="bg-background text-foreground border-border"
             />
           </div>
           <div className="space-y-2">
@@ -257,15 +259,11 @@ export default function TablesPage() {
               }
               placeholder="e.g. 4"
               required
-              className="glass-input"
+              className="bg-background text-foreground border-border"
             />
           </div>
           <div className="flex justify-end pt-4">
-            <Button
-              type="submit"
-              className="glass-button w-full"
-              disabled={editLoading}
-            >
+            <Button type="submit" className="w-full" disabled={editLoading}>
               {editLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}

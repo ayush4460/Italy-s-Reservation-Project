@@ -74,7 +74,7 @@ const getISTDate = () => {
   return istTime.toISOString().split("T")[0];
 };
 
-const isSlotPast = (date: string, slot: Slot) => {
+const isSlotPast = (date: string, slot: Slot, customTime?: string | null) => {
   const today = getISTDate();
   if (date < today) return true;
   if (date > today) return false;
@@ -86,7 +86,8 @@ const isSlotPast = (date: string, slot: Slot) => {
   const currentH = istTime.getUTCHours();
   const currentM = istTime.getUTCMinutes();
 
-  const [startH, startM] = slot.startTime.split(":").map(Number);
+  const timeToCompare = customTime || slot.startTime;
+  const [startH, startM] = timeToCompare.split(":").map(Number);
 
   const currentTotalMinutes = currentH * 60 + currentM;
   const slotStartTotalMinutes = startH * 60 + startM;
@@ -384,7 +385,7 @@ export default function ReservationsPage() {
       // isSlotPast uses slot start time. We should update isSlotPast to handle customTime if we want consistency,
       // but slot level check is "safe enough".
       // Let's rely on standard slot check or update it.
-      if (isSlotPast(date, selectedSlot)) {
+      if (isSlotPast(date, selectedSlot, customStartTime)) {
         toast.error("Booking limit Reached: Time already lost.");
         return;
       }
@@ -833,11 +834,11 @@ export default function ReservationsPage() {
     return <div className="text-white">Loading reservation system...</div>;
 
   return (
-    <div className="pt-10 space-y-6">
+    <div className="pt-6 space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="space-y-4 flex-1">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
               Reservations
             </h2>
             {role === "ADMIN" && (
@@ -847,7 +848,6 @@ export default function ReservationsPage() {
                     if (!selectedSlot)
                       return alert("Please select a time slot first");
 
-                    // Set default template
                     setGroupBookingData((prev) => ({
                       ...prev,
                       notificationType: getDefaultTemplate(date, selectedSlot),
@@ -856,7 +856,8 @@ export default function ReservationsPage() {
                     setIsGroupBookingModalOpen(true);
                   }}
                   size="sm"
-                  className="glass-button text-[11px] sm:text-xs gap-2 bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/50 text-purple-200 h-8 sm:h-9"
+                  variant="secondary"
+                  className="gap-2 h-8 sm:h-9 text-xs sm:text-sm"
                 >
                   <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Group Booking
                 </Button>
@@ -864,7 +865,7 @@ export default function ReservationsPage() {
                   onClick={openManageSlots}
                   size="sm"
                   variant="outline"
-                  className="glass-button text-[11px] sm:text-xs gap-2 h-8 sm:h-9 border-white/20"
+                  className="gap-2 h-8 sm:h-9 text-xs sm:text-sm"
                 >
                   <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Manage
                   Slots
@@ -875,13 +876,13 @@ export default function ReservationsPage() {
         </div>
 
         {/* Date Picker */}
-        <div className="flex items-center space-x-2 bg-white/10 rounded-lg p-1.5 sm:p-2 border border-white/20 w-fit shrink-0">
-          <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-gray-300" />
+        <div className="flex items-center space-x-2 bg-muted rounded-lg p-1.5 sm:p-2 border border-border w-fit shrink-0">
+          <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="bg-transparent text-white text-sm sm:text-base focus:outline-none [&::-webkit-calendar-picker-indicator]:invert cursor-pointer w-[110px] sm:w-auto"
+            className="bg-transparent text-foreground text-sm sm:text-base focus:outline-none dark:[&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:invert-[.5] cursor-pointer w-[110px] sm:w-auto"
           />
         </div>
       </div>
@@ -889,7 +890,7 @@ export default function ReservationsPage() {
       {/* Slots Selection */}
       <div className="flex overflow-x-auto pb-2 pt-2 gap-3 no-scrollbar min-h-[50px]">
         {slots.length === 0 && (
-          <div className="text-gray-400 text-sm py-2">
+          <div className="text-muted-foreground text-sm py-2">
             No slots available for this day.
           </div>
         )}
@@ -911,22 +912,25 @@ export default function ReservationsPage() {
             <div key={slot.id} className="relative group">
               <div
                 className={cn(
-                  "relative flex items-center rounded-full border transition-all whitespace-nowrap overflow-hidden pr-2", // Unified container styling
-                  isSelected
-                    ? "bg-blue-500/20 border-blue-400 text-blue-300"
-                    : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10",
+                  "relative flex items-center rounded-full border transition-all whitespace-nowrap overflow-hidden pr-2",
+                  isCustomActive
+                    ? "bg-amber-400 text-amber-950 border-amber-500 shadow-md"
+                    : isSelected
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-muted border-border text-muted-foreground hover:bg-muted/80",
                 )}
               >
                 {/* Left Clock - Triggers Custom Time Modal */}
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setCustomTimeSlot(slot);
                     setIsTimeSelectorOpen(true);
                   }}
                   className={cn(
-                    "p-1.5 md:p-2 hover:bg-white/10 transition-colors h-full flex items-center justify-center",
-                    isCustomActive ? "text-amber-400" : "",
+                    "p-1.5 md:p-2 hover:bg-primary/10 transition-colors h-full flex items-center justify-center border-r border-border/10 mr-1",
+                    isCustomActive ? "text-primary-foreground font-bold" : "",
                   )}
                   title="Select Custom Time"
                 >
@@ -935,21 +939,22 @@ export default function ReservationsPage() {
 
                 {/* Main Text - Triggers Standard Slot Selection */}
                 <button
+                  type="button"
                   onClick={() => {
                     setSelectedSlot(slot);
                     setCustomStartTime(null);
                   }}
                   onTouchStart={() => handleSlotTouchStart(slot)}
                   onTouchEnd={handleTouchEnd}
-                  className="flex-1 py-1.5 px-1.5 md:py-2 md:px-2 text-xs md:text-sm font-medium text-left truncate"
+                  className="flex-1 py-1.5 px-1 md:py-2 md:px-2 text-xs md:text-sm font-medium text-left truncate"
                 >
                   {displayTime}
                 </button>
               </div>
 
-              {/* Badge - Outside overflow-hidden container */}
+              {/* Badge */}
               {slot.reservedCount !== undefined && slot.reservedCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white shadow-sm z-10">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-foreground text-[10px] text-background font-bold shadow-sm z-10 border border-background">
                   {slot.reservedCount}
                 </span>
               )}
@@ -959,7 +964,7 @@ export default function ReservationsPage() {
       </div>
 
       {/* Tables Grid */}
-      <Card className="glass-panel border-none text-white min-h-[500px]">
+      <Card className="bg-card border-border text-card-foreground min-h-[500px] shadow-sm">
         <CardHeader>
           <CardTitle>
             Tables for {date.split("-").reverse().join("-")} (
@@ -969,7 +974,12 @@ export default function ReservationsPage() {
                   const endD = new Date();
                   endD.setHours(sh, sm + 90, 0, 0);
                   const endStr = `${endD.getHours().toString().padStart(2, "0")}:${endD.getMinutes().toString().padStart(2, "0")}`;
-                  return `${formatTo12Hour(customStartTime)} - ${formatTo12Hour(endStr)}`;
+                  return (
+                    <span className="text-amber-500 font-bold ml-1">
+                      {formatTo12Hour(customStartTime)} -{" "}
+                      {formatTo12Hour(endStr)}
+                    </span>
+                  );
                 })()
               : selectedSlot
                 ? `${formatTo12Hour(selectedSlot.startTime)} - ${formatTo12Hour(selectedSlot.endTime)}`
@@ -991,17 +1001,38 @@ export default function ReservationsPage() {
                   // Prevent default context menu on mobile long press
                   onContextMenu={(e) => isBooked && e.preventDefault()}
                   className={cn(
-                    "relative aspect-square rounded-xl flex flex-col items-center justify-center p-2 md:p-4 border-2 transition-all cursor-pointer shadow-lg group select-none",
+                    "relative aspect-square rounded-xl flex flex-col items-center justify-center p-2 md:p-4 border transition-all cursor-pointer shadow-sm group select-none",
                     isBooked
-                      ? "bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/30"
-                      : "bg-green-500/20 border-green-500/50 text-green-300 hover:bg-green-500/30",
+                      ? "bg-red-100 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 opacity-95 shadow-[inset_0_0_12px_rgba(239,68,68,0.05)]"
+                      : "bg-emerald-100/80 dark:bg-emerald-500/5 border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-200/80 dark:hover:bg-emerald-500/10 hover:border-emerald-300 dark:hover:border-emerald-500/40",
                   )}
                 >
-                  <Armchair className="h-5 w-5 md:h-8 md:w-8 mb-1 md:mb-2" />
-                  <span className="font-bold text-base md:text-xl text-center leading-tight">
+                  <Armchair
+                    className={cn(
+                      "h-5 w-5 md:h-8 md:w-8 mb-1 md:mb-2",
+                      isBooked
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-emerald-600 dark:text-emerald-400",
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "font-bold text-base md:text-xl text-center leading-tight",
+                      isBooked
+                        ? "text-red-800 dark:text-red-300"
+                        : "text-emerald-800 dark:text-emerald-300",
+                    )}
+                  >
                     {table.tableNumber}
                   </span>
-                  <div className="flex items-center text-[10px] md:text-xs mt-0.5 md:mt-1 opacity-70">
+                  <div
+                    className={cn(
+                      "flex items-center text-[10px] md:text-xs mt-0.5 md:mt-1",
+                      isBooked
+                        ? "text-red-700/70 dark:text-red-400/60"
+                        : "text-emerald-700/70 dark:text-emerald-400/60",
+                    )}
+                  >
                     <Users className="h-2.5 w-2.5 md:h-3 md:w-3 mr-0.5 md:mr-1" />
                     {isBooked && reservation
                       ? `${
@@ -1010,10 +1041,10 @@ export default function ReservationsPage() {
                       : table.capacity}
                   </div>
                   {isBooked && (
-                    <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 dark:bg-red-400 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
                   )}
                   {isBooked && reservation && (
-                    <div className="mt-1 md:mt-2 text-[10px] md:text-xs font-semibold truncate max-w-[95%] text-center leading-none">
+                    <div className="mt-1 md:mt-2 text-[10px] md:text-xs font-semibold truncate max-w-[95%] text-center leading-none text-red-700 dark:text-red-300">
                       {reservation.customerName.split(" ")[0]}
                       {reservation.groupId && (
                         <span className="text-[8px] md:text-[10px] ml-0.5 opacity-70 block">
@@ -1025,13 +1056,13 @@ export default function ReservationsPage() {
                   {/* Desktop Move Icon */}
                   {role === "ADMIN" && isBooked && reservation && (
                     <div
-                      className="absolute top-2 right-2 hidden group-hover:block z-10 p-1 bg-white/10 rounded-full hover:bg-white/20 transition-all"
+                      className="absolute top-2 right-2 hidden group-hover:block z-10 p-1 bg-background/80 rounded-full hover:bg-background border border-border shadow-sm transition-all"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleMoveClick(reservation);
                       }}
                     >
-                      <ArrowLeftRight className="h-4 w-4 text-white" />
+                      <ArrowLeftRight className="h-4 w-4 text-foreground" />
                     </div>
                   )}
                 </div>
@@ -1039,7 +1070,7 @@ export default function ReservationsPage() {
             })}
           </div>
           {tables.length === 0 && (
-            <div className="text-center py-20 text-gray-400">
+            <div className="text-center py-20 text-muted-foreground">
               No tables found. Please add tables in the Tables section first.
             </div>
           )}
@@ -1062,7 +1093,7 @@ export default function ReservationsPage() {
                 setBookingData({ ...bookingData, customerName: e.target.value })
               }
               required
-              className="glass-input"
+              className="bg-background border-border text-foreground focus:ring-1 focus:ring-foreground"
             />
           </div>
           <div className="space-y-2">
@@ -1074,7 +1105,7 @@ export default function ReservationsPage() {
                 setBookingData({ ...bookingData, contact: e.target.value })
               }
               required
-              className="glass-input"
+              className="bg-background border-border text-foreground focus:ring-1 focus:ring-foreground"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -1086,7 +1117,7 @@ export default function ReservationsPage() {
                 onChange={(e) =>
                   setBookingData({ ...bookingData, adults: e.target.value })
                 }
-                className="glass-input"
+                className="bg-background border-border text-foreground focus:ring-1 focus:ring-foreground"
                 required
               />
             </div>
@@ -1098,7 +1129,7 @@ export default function ReservationsPage() {
                 onChange={(e) =>
                   setBookingData({ ...bookingData, kids: e.target.value })
                 }
-                className="glass-input"
+                className="bg-background border-border text-foreground focus:ring-1 focus:ring-foreground"
               />
             </div>
           </div>
@@ -1111,23 +1142,23 @@ export default function ReservationsPage() {
                 (parseInt(bookingData.kids) || 0);
               if (total > selectedTable.capacity) {
                 return (
-                  <div className="rounded-lg border border-white/10 bg-black/20 p-3 space-y-3">
+                  <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Users
                           className={cn(
                             "h-4 w-4",
                             totalCapacity >= totalGuests
-                              ? "text-green-400"
-                              : "text-red-400",
+                              ? "text-foreground"
+                              : "text-muted-foreground",
                           )}
                         />
                         <span
                           className={cn(
                             "text-sm font-medium",
                             totalCapacity >= totalGuests
-                              ? "text-green-400"
-                              : "text-red-400",
+                              ? "text-foreground"
+                              : "text-muted-foreground",
                           )}
                         >
                           {totalCapacity >= totalGuests
@@ -1135,13 +1166,13 @@ export default function ReservationsPage() {
                             : `Need ${totalGuests - totalCapacity} more seats`}
                         </span>
                       </div>
-                      <span className="text-xs text-white/50">
+                      <span className="text-xs text-muted-foreground">
                         {totalCapacity} / {totalGuests} Guests
                       </span>
                     </div>
 
                     <div className="space-y-1">
-                      <p className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
                         ADD NEARBY TABLES
                       </p>
                       <div className="grid grid-cols-4 gap-2 max-h-[120px] overflow-y-auto pr-1">
@@ -1152,7 +1183,7 @@ export default function ReservationsPage() {
                               (r) => r.tableId === t.id,
                             );
                           })
-                          .sort((a, b) => b.capacity - a.capacity) // Sort by capacity desc
+                          .sort((a, b) => b.capacity - a.capacity)
                           .map((t) => {
                             const isSelected = selectedMergeTables.includes(
                               t.id,
@@ -1164,8 +1195,8 @@ export default function ReservationsPage() {
                                 className={cn(
                                   "py-1.5 px-1 rounded text-center cursor-pointer transition-all border",
                                   isSelected
-                                    ? "bg-blue-500/20 border-blue-500/50 text-blue-300"
-                                    : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20",
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background border-border text-muted-foreground hover:bg-muted",
                                 )}
                               >
                                 <div className="text-xs font-bold">
@@ -1182,7 +1213,6 @@ export default function ReservationsPage() {
                   </div>
                 );
               } else {
-                // Reset if no longer needed (e.g. user decreased guests)
                 if (isMergingMode) setIsMergingMode(false);
               }
               return null;
@@ -1195,15 +1225,18 @@ export default function ReservationsPage() {
               onChange={(e) =>
                 setBookingData({ ...bookingData, foodPref: e.target.value })
               }
-              className="glass-input w-full bg-slate-900 border border-white/10 rounded-md p-2 text-white"
+              className="w-full bg-background border border-border rounded-md p-2 text-foreground focus:ring-1 focus:ring-foreground"
             >
-              <option className="bg-slate-900 text-white" value="Regular">
+              <option className="bg-background text-foreground" value="Regular">
                 Regular
               </option>
-              <option className="bg-slate-900 text-white" value="Jain">
+              <option className="bg-background text-foreground" value="Jain">
                 Jain
               </option>
-              <option className="bg-slate-900 text-white" value="Swaminarayan">
+              <option
+                className="bg-background text-foreground"
+                value="Swaminarayan"
+              >
                 Swaminarayan
               </option>
             </select>
@@ -1215,7 +1248,7 @@ export default function ReservationsPage() {
               onChange={(e) =>
                 setBookingData({ ...bookingData, specialReq: e.target.value })
               }
-              className="glass-input"
+              className="bg-background border-border text-foreground focus:ring-1 focus:ring-foreground"
             />
           </div>
 
@@ -1231,27 +1264,30 @@ export default function ReservationsPage() {
                   notificationType: e.target.value,
                 })
               }
-              className="glass-input w-full bg-slate-900 border border-white/10 rounded-md p-2 text-white text-sm"
+              className="w-full bg-background border border-border rounded-md p-2 text-foreground text-sm focus:ring-1 focus:ring-foreground"
             >
               <option
-                className="bg-slate-900 text-white"
+                className="bg-background text-foreground"
                 value="RESERVATION_CONFIRMATION"
               >
                 Unlimited Dinner
               </option>
               <option
-                className="bg-slate-900 text-white"
+                className="bg-background text-foreground"
                 value="WEEKDAY_BRUNCH"
               >
                 Weekday Brunch
               </option>
               <option
-                className="bg-slate-900 text-white"
+                className="bg-background text-foreground"
                 value="WEEKEND_BRUNCH"
               >
                 Weekend Brunch
               </option>
-              <option className="bg-slate-900 text-white" value="A_LA_CARTE">
+              <option
+                className="bg-background text-foreground"
+                value="A_LA_CARTE"
+              >
                 A La Carte
               </option>
             </select>
@@ -1260,7 +1296,7 @@ export default function ReservationsPage() {
           <div className="flex justify-end pt-4">
             <Button
               type="submit"
-              className="glass-button w-full h-11"
+              className="w-full h-11"
               disabled={bookingLoading || isCapacityExceeded}
             >
               {bookingLoading ? (
@@ -1292,7 +1328,7 @@ export default function ReservationsPage() {
                   : ""
               }
               readOnly
-              className="glass-input bg-white/5 border-white/10 text-gray-300 cursor-not-allowed"
+              className="bg-muted border-border text-muted-foreground cursor-not-allowed"
             />
           </div>
 
@@ -1307,7 +1343,7 @@ export default function ReservationsPage() {
                 })
               }
               required
-              className="glass-input"
+              className="bg-background border-border text-foreground"
             />
           </div>
           <div className="space-y-2">
@@ -1318,7 +1354,7 @@ export default function ReservationsPage() {
                 setEditFormData({ ...editFormData, contact: e.target.value })
               }
               required
-              className="glass-input"
+              className="bg-background border-border text-foreground"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -1331,7 +1367,7 @@ export default function ReservationsPage() {
                   setEditFormData({ ...editFormData, adults: e.target.value })
                 }
                 required
-                className="glass-input"
+                className="bg-background border-border text-foreground"
               />
             </div>
             <div className="space-y-2">
@@ -1342,7 +1378,7 @@ export default function ReservationsPage() {
                 onChange={(e) =>
                   setEditFormData({ ...editFormData, kids: e.target.value })
                 }
-                className="glass-input"
+                className="bg-background border-border text-foreground"
               />
             </div>
           </div>
@@ -1354,7 +1390,6 @@ export default function ReservationsPage() {
                   (parseInt(editFormData.adults) || 0) +
                   (parseInt(editFormData.kids) || 0);
 
-                // Calculate current capacity
                 let currentCapacity = 0;
                 if (editingReservation.groupId) {
                   const groupRes = reservations.filter(
@@ -1375,7 +1410,6 @@ export default function ReservationsPage() {
                   currentCapacity = currentTable ? currentTable.capacity : 0;
                 }
 
-                // Added capacity
                 const addedTables = tables.filter((t) =>
                   editMergeTables.includes(t.id),
                 );
@@ -1387,23 +1421,23 @@ export default function ReservationsPage() {
 
                 if (totalGuests > currentCapacity) {
                   return (
-                    <div className="rounded-lg border border-white/10 bg-black/20 p-3 space-y-3 mt-4">
+                    <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-3 mt-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Users
                             className={cn(
                               "h-4 w-4",
                               totalCapacity >= totalGuests
-                                ? "text-green-400"
-                                : "text-red-400",
+                                ? "text-foreground"
+                                : "text-muted-foreground",
                             )}
                           />
                           <span
                             className={cn(
                               "text-sm font-medium",
                               totalCapacity >= totalGuests
-                                ? "text-green-400"
-                                : "text-red-400",
+                                ? "text-foreground"
+                                : "text-muted-foreground",
                             )}
                           >
                             {totalCapacity >= totalGuests
@@ -1413,19 +1447,18 @@ export default function ReservationsPage() {
                                 } more seats`}
                           </span>
                         </div>
-                        <span className="text-xs text-white/50">
+                        <span className="text-xs text-muted-foreground">
                           {totalCapacity} / {totalGuests} Guests
                         </span>
                       </div>
 
                       <div className="space-y-1">
-                        <p className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
                           ADD NEARBY TABLES
                         </p>
                         <div className="grid grid-cols-4 gap-2 max-h-[120px] overflow-y-auto pr-1">
                           {tables
                             .filter((t) => {
-                              // Exclude currently booked tables
                               if (reservations.some((r) => r.tableId === t.id))
                                 return false;
                               return true;
@@ -1446,8 +1479,8 @@ export default function ReservationsPage() {
                                   className={cn(
                                     "py-1.5 px-1 rounded text-center cursor-pointer transition-all border",
                                     isSelected
-                                      ? "bg-blue-500/20 border-blue-500/50 text-blue-300"
-                                      : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20",
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background border-border text-muted-foreground hover:bg-muted",
                                   )}
                                 >
                                   <div className="text-xs font-bold">
@@ -1474,15 +1507,18 @@ export default function ReservationsPage() {
               onChange={(e) =>
                 setEditFormData({ ...editFormData, foodPref: e.target.value })
               }
-              className="glass-input w-full bg-slate-900 border border-white/10 rounded-md p-2 text-white"
+              className="w-full bg-background border border-border rounded-md p-2 text-foreground focus:ring-1 focus:ring-foreground"
             >
-              <option className="bg-slate-900 text-white" value="Regular">
+              <option className="bg-background text-foreground" value="Regular">
                 Regular
               </option>
-              <option className="bg-slate-900 text-white" value="Jain">
+              <option className="bg-background text-foreground" value="Jain">
                 Jain
               </option>
-              <option className="bg-slate-900 text-white" value="Swaminarayan">
+              <option
+                className="bg-background text-foreground"
+                value="Swaminarayan"
+              >
                 Swaminarayan
               </option>
             </select>
@@ -1494,7 +1530,7 @@ export default function ReservationsPage() {
               onChange={(e) =>
                 setEditFormData({ ...editFormData, specialReq: e.target.value })
               }
-              className="glass-input"
+              className="bg-background border-border text-foreground"
             />
           </div>
           <div className="space-y-2">
@@ -1508,27 +1544,30 @@ export default function ReservationsPage() {
                   notificationType: e.target.value,
                 })
               }
-              className="glass-input w-full bg-slate-900 border border-white/10 rounded-md p-2 text-white text-sm"
+              className="w-full bg-background border border-border rounded-md p-2 text-foreground text-sm focus:ring-1 focus:ring-foreground"
             >
               <option
-                className="bg-slate-900 text-white"
+                className="bg-background text-foreground"
                 value="RESERVATION_CONFIRMATION"
               >
                 Unlimited Dinner
               </option>
               <option
-                className="bg-slate-900 text-white"
+                className="bg-background text-foreground"
                 value="WEEKDAY_BRUNCH"
               >
                 Weekday Brunch
               </option>
               <option
-                className="bg-slate-900 text-white"
+                className="bg-background text-foreground"
                 value="WEEKEND_BRUNCH"
               >
                 Weekend Brunch
               </option>
-              <option className="bg-slate-900 text-white" value="A_LA_CARTE">
+              <option
+                className="bg-background text-foreground"
+                value="A_LA_CARTE"
+              >
                 A La Carte
               </option>
             </select>
@@ -1537,8 +1576,7 @@ export default function ReservationsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
             <Button
               type="button"
-              variant="destructive"
-              className="w-full bg-red-500/20 text-red-400 hover:bg-red-500/30 h-11"
+              className="w-full h-11 bg-red-600 hover:bg-red-700 text-white border-transparent"
               onClick={() =>
                 editingReservation &&
                 handleCancelReservation(editingReservation)
@@ -1552,7 +1590,7 @@ export default function ReservationsPage() {
             </Button>
             <Button
               type="submit"
-              className="glass-button w-full h-11"
+              className="w-full h-11"
               disabled={
                 bookingLoading ||
                 (() => {
@@ -1600,15 +1638,17 @@ export default function ReservationsPage() {
       >
         <div className="space-y-6">
           {/* Add New Slot */}
-          <div className="bg-white/5 p-4 rounded-lg border border-white/10 space-y-4">
-            <h3 className="font-semibold text-lg">Add New Slot</h3>
+          <div className="bg-muted p-4 rounded-lg border border-border space-y-4">
+            <h3 className="font-semibold text-lg text-foreground">
+              Add New Slot
+            </h3>
             <form onSubmit={handleAddSlot} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Start Time</Label>
                   <div className="flex gap-1 sm:gap-2">
                     <select
-                      className="glass-input w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1 text-sm text-white"
+                      className="w-full bg-background border border-border rounded-md px-2 py-1 text-sm text-foreground focus:ring-1 focus:ring-foreground"
                       value={parseTime(newSlot.startTime).hour}
                       onChange={(e) => {
                         const current = parseTime(newSlot.startTime);
@@ -1626,14 +1666,14 @@ export default function ReservationsPage() {
                         <option
                           key={h}
                           value={h.toString().padStart(2, "0")}
-                          className="bg-slate-900"
+                          className="bg-background text-foreground"
                         >
                           {h.toString().padStart(2, "0")}
                         </option>
                       ))}
                     </select>
                     <select
-                      className="glass-input w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1 text-sm text-white"
+                      className="w-full bg-background border border-border rounded-md px-2 py-1 text-sm text-foreground focus:ring-1 focus:ring-foreground"
                       value={parseTime(newSlot.startTime).minute}
                       onChange={(e) => {
                         const current = parseTime(newSlot.startTime);
@@ -1651,14 +1691,14 @@ export default function ReservationsPage() {
                         <option
                           key={m}
                           value={m.toString().padStart(2, "0")}
-                          className="bg-slate-900"
+                          className="bg-background text-foreground"
                         >
                           {m.toString().padStart(2, "0")}
                         </option>
                       ))}
                     </select>
                     <select
-                      className="glass-input w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1 text-sm text-white"
+                      className="w-full bg-background border border-border rounded-md px-2 py-1 text-sm text-foreground focus:ring-1 focus:ring-foreground"
                       value={parseTime(newSlot.startTime).period}
                       onChange={(e) => {
                         const current = parseTime(newSlot.startTime);
@@ -1672,10 +1712,16 @@ export default function ReservationsPage() {
                         });
                       }}
                     >
-                      <option value="AM" className="bg-slate-900">
+                      <option
+                        value="AM"
+                        className="bg-background text-foreground"
+                      >
                         AM
                       </option>
-                      <option value="PM" className="bg-slate-900">
+                      <option
+                        value="PM"
+                        className="bg-background text-foreground"
+                      >
                         PM
                       </option>
                     </select>
@@ -1685,7 +1731,7 @@ export default function ReservationsPage() {
                   <Label>End Time</Label>
                   <div className="flex gap-1 sm:gap-2">
                     <select
-                      className="glass-input w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1 text-sm text-white"
+                      className="w-full bg-background border border-border rounded-md px-2 py-1 text-sm text-foreground focus:ring-1 focus:ring-foreground"
                       value={parseTime(newSlot.endTime).hour}
                       onChange={(e) => {
                         const current = parseTime(newSlot.endTime);
@@ -1703,14 +1749,14 @@ export default function ReservationsPage() {
                         <option
                           key={h}
                           value={h.toString().padStart(2, "0")}
-                          className="bg-slate-900"
+                          className="bg-background text-foreground"
                         >
                           {h.toString().padStart(2, "0")}
                         </option>
                       ))}
                     </select>
                     <select
-                      className="glass-input w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1 text-sm text-white"
+                      className="w-full bg-background border border-border rounded-md px-2 py-1 text-sm text-foreground focus:ring-1 focus:ring-foreground"
                       value={parseTime(newSlot.endTime).minute}
                       onChange={(e) => {
                         const current = parseTime(newSlot.endTime);
@@ -1728,14 +1774,14 @@ export default function ReservationsPage() {
                         <option
                           key={m}
                           value={m.toString().padStart(2, "0")}
-                          className="bg-slate-900"
+                          className="bg-background text-foreground"
                         >
                           {m.toString().padStart(2, "0")}
                         </option>
                       ))}
                     </select>
                     <select
-                      className="glass-input w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1 text-sm text-white"
+                      className="w-full bg-background border border-border rounded-md px-2 py-1 text-sm text-foreground focus:ring-1 focus:ring-foreground"
                       value={parseTime(newSlot.endTime).period}
                       onChange={(e) => {
                         const current = parseTime(newSlot.endTime);
@@ -1749,10 +1795,16 @@ export default function ReservationsPage() {
                         });
                       }}
                     >
-                      <option value="AM" className="bg-slate-900">
+                      <option
+                        value="AM"
+                        className="bg-background text-foreground"
+                      >
                         AM
                       </option>
-                      <option value="PM" className="bg-slate-900">
+                      <option
+                        value="PM"
+                        className="bg-background text-foreground"
+                      >
                         PM
                       </option>
                     </select>
@@ -1770,8 +1822,8 @@ export default function ReservationsPage() {
                       className={cn(
                         "px-3 py-1 text-xs rounded-full border transition-all",
                         newSlot.days.includes(idx)
-                          ? "bg-blue-500 text-white border-blue-500"
-                          : "bg-transparent text-gray-400 border-white/20 hover:bg-white/10",
+                          ? "bg-foreground text-background border-foreground"
+                          : "bg-background text-muted-foreground border-border hover:bg-muted",
                       )}
                     >
                       {day.slice(0, 3)}
@@ -1788,14 +1840,14 @@ export default function ReservationsPage() {
                       days: [0, 1, 2, 3, 4, 5, 6],
                     }))
                   }
-                  className="text-xs text-blue-300 h-auto p-0 hover:bg-transparent hover:text-blue-200"
+                  className="text-xs text-muted-foreground h-auto p-0 hover:bg-transparent hover:text-foreground hover:underline"
                 >
                   Select All Days
                 </Button>
               </div>
               <Button
                 type="submit"
-                className="w-full glass-button h-11"
+                className="w-full h-11"
                 disabled={slotLoading}
               >
                 {slotLoading && (
@@ -1808,24 +1860,27 @@ export default function ReservationsPage() {
 
           {/* Existing Slots List */}
           <div className="space-y-2">
-            <h3 className="font-semibold text-lg">Existing Slots</h3>
+            <h3 className="font-semibold text-lg text-foreground">
+              Existing Slots
+            </h3>
             <div className="space-y-2">
               {allSlots.length === 0 && (
-                <p className="text-gray-400 text-sm">No slots configured.</p>
+                <p className="text-muted-foreground text-sm">
+                  No slots configured.
+                </p>
               )}
-              {/* Group slots by day? Or just list? Let's group for readability */}
               {DAYS.map((day, dayIdx) => {
                 const daySlots = allSlots.filter((s) => s.dayOfWeek === dayIdx);
                 if (daySlots.length === 0) return null;
                 return (
                   <div key={day} className="space-y-1">
-                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-2 mb-1">
+                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-2 mb-1">
                       {day}
                     </h4>
                     {daySlots.map((slot) => (
                       <div
                         key={slot.id}
-                        className="flex items-center justify-between bg-white/5 p-2 rounded-md border border-white/5"
+                        className="flex items-center justify-between bg-muted/30 p-2 rounded-md border border-border"
                       >
                         <span className="text-sm">
                           {formatTo12Hour(slot.startTime)} -{" "}
@@ -1834,7 +1889,7 @@ export default function ReservationsPage() {
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                          className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-500/10"
                           onClick={() => handleDeleteSlot(slot.id)}
                         >
                           <Trash2 className="h-3 w-3" />
@@ -1867,7 +1922,7 @@ export default function ReservationsPage() {
                 })
               }
               required
-              className="glass-input"
+              className="bg-background border-border text-foreground"
             />
           </div>
           <div className="space-y-2">
@@ -1881,7 +1936,7 @@ export default function ReservationsPage() {
                 })
               }
               required
-              className="glass-input"
+              className="bg-background border-border text-foreground"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -1897,7 +1952,7 @@ export default function ReservationsPage() {
                   })
                 }
                 required
-                className="glass-input"
+                className="bg-background border-border text-foreground"
               />
             </div>
             <div className="space-y-2">
@@ -1911,13 +1966,13 @@ export default function ReservationsPage() {
                     kids: e.target.value,
                   })
                 }
-                className="glass-input"
+                className="bg-background border-border text-foreground"
               />
             </div>
           </div>
 
           {/* Table Selection */}
-          <div className="rounded-lg border border-white/10 bg-black/20 p-3 space-y-3">
+          <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-3">
             {(() => {
               const totalGuests =
                 (parseInt(groupBookingData.adults) || 0) +
@@ -1939,16 +1994,16 @@ export default function ReservationsPage() {
                         className={cn(
                           "h-4 w-4",
                           totalCapacity >= totalGuests && totalGuests > 0
-                            ? "text-green-400"
-                            : "text-red-400",
+                            ? "text-foreground"
+                            : "text-muted-foreground",
                         )}
                       />
                       <span
                         className={cn(
                           "text-sm font-medium",
                           totalCapacity >= totalGuests && totalGuests > 0
-                            ? "text-green-400"
-                            : "text-red-400",
+                            ? "text-foreground"
+                            : "text-muted-foreground",
                         )}
                       >
                         {totalCapacity >= totalGuests && totalGuests > 0
@@ -1956,13 +2011,13 @@ export default function ReservationsPage() {
                           : `Need ${totalGuests - totalCapacity} more seats`}
                       </span>
                     </div>
-                    <span className="text-xs text-white/50">
+                    <span className="text-xs text-muted-foreground">
                       {totalCapacity} / {totalGuests} Guests
                     </span>
                   </div>
 
                   <div className="space-y-1">
-                    <p className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
                       Select Tables ({groupSelectedTables.length})
                     </p>
                     <div className="grid grid-cols-4 gap-2 pr-1">
@@ -1980,8 +2035,8 @@ export default function ReservationsPage() {
                               className={cn(
                                 "py-2 px-1 rounded text-center cursor-pointer transition-all border",
                                 isSelected
-                                  ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
-                                  : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20",
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-background border-border text-muted-foreground hover:bg-muted",
                               )}
                             >
                               <div className="text-xs font-bold">
@@ -1996,7 +2051,7 @@ export default function ReservationsPage() {
                     </div>
                   </div>
 
-                  <div className="text-xs text-gray-400 italic pt-1">
+                  <div className="text-xs text-muted-foreground italic pt-1">
                     * Select multiple tables to accommodate the group.
                   </div>
                 </>
@@ -2014,15 +2069,18 @@ export default function ReservationsPage() {
                   foodPref: e.target.value,
                 })
               }
-              className="glass-input w-full bg-slate-900 border border-white/10 rounded-md p-2 text-white"
+              className="w-full bg-background border border-border rounded-md p-2 text-foreground focus:ring-1 focus:ring-foreground"
             >
-              <option className="bg-slate-900 text-white" value="Regular">
+              <option className="bg-background text-foreground" value="Regular">
                 Regular
               </option>
-              <option className="bg-slate-900 text-white" value="Jain">
+              <option className="bg-background text-foreground" value="Jain">
                 Jain
               </option>
-              <option className="bg-slate-900 text-white" value="Swaminarayan">
+              <option
+                className="bg-background text-foreground"
+                value="Swaminarayan"
+              >
                 Swaminarayan
               </option>
             </select>
@@ -2037,7 +2095,7 @@ export default function ReservationsPage() {
                   specialReq: e.target.value,
                 })
               }
-              className="glass-input"
+              className="bg-background border-border text-foreground"
             />
           </div>
 
@@ -2052,27 +2110,30 @@ export default function ReservationsPage() {
                   notificationType: e.target.value,
                 })
               }
-              className="glass-input w-full bg-slate-900 border border-white/10 rounded-md p-2 text-white text-sm"
+              className="w-full bg-background border border-border rounded-md p-2 text-foreground text-sm focus:ring-1 focus:ring-foreground"
             >
               <option
-                className="bg-slate-900 text-white"
+                className="bg-background text-foreground"
                 value="RESERVATION_CONFIRMATION"
               >
                 Unlimited Dinner
               </option>
               <option
-                className="bg-slate-900 text-white"
+                className="bg-background text-foreground"
                 value="WEEKDAY_BRUNCH"
               >
                 Weekday Brunch
               </option>
               <option
-                className="bg-slate-900 text-white"
+                className="bg-background text-foreground"
                 value="WEEKEND_BRUNCH"
               >
                 Weekend Brunch
               </option>
-              <option className="bg-slate-900 text-white" value="A_LA_CARTE">
+              <option
+                className="bg-background text-foreground"
+                value="A_LA_CARTE"
+              >
                 A La Carte
               </option>
             </select>
@@ -2081,7 +2142,7 @@ export default function ReservationsPage() {
           <div className="flex justify-end pt-4">
             <Button
               type="submit"
-              className="glass-button w-full bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/50 h-11"
+              className="w-full h-11"
               disabled={
                 bookingLoading ||
                 groupSelectedTables.length === 0 ||
@@ -2111,9 +2172,9 @@ export default function ReservationsPage() {
         title="Move Reservation"
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-muted-foreground">
             Moving reservation for{" "}
-            <span className="text-white font-bold">
+            <span className="text-foreground font-bold">
               {movingReservation?.customerName}
             </span>
           </p>
@@ -2121,17 +2182,17 @@ export default function ReservationsPage() {
           {/* Date and Slot Selection */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-1">
-              <label className="text-xs text-gray-500">New Date</label>
+              <label className="text-xs text-muted-foreground">New Date</label>
               <Input
                 type="date"
                 value={moveDate}
                 onChange={(e) => setMoveDate(e.target.value)}
-                className="glass-input dark:scheme-dark"
+                className="bg-background border-border text-foreground"
                 min={getISTDate()}
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-gray-500">New Slot</label>
+              <label className="text-xs text-muted-foreground">New Slot</label>
               <select
                 value={moveSelectedSlot?.id || ""}
                 onChange={(e) => {
@@ -2140,13 +2201,13 @@ export default function ReservationsPage() {
                   );
                   setMoveSelectedSlot(s || null);
                 }}
-                className="w-full h-10 rounded-md border border-white/10 bg-black/50 px-3 py-2 text-sm text-white focus:border-purple-500 focus:outline-none"
+                className="w-full h-10 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-1 focus:ring-foreground"
               >
                 {moveSlots.map((slot) => (
                   <option
                     key={slot.id}
                     value={slot.id}
-                    className="bg-slate-900 text-white"
+                    className="bg-background text-foreground"
                   >
                     {formatTo12Hour(slot.startTime)} -{" "}
                     {formatTo12Hour(slot.endTime)}
@@ -2156,32 +2217,34 @@ export default function ReservationsPage() {
             </div>
 
             <div className="space-y-1 col-span-1 sm:col-span-1">
-              <label className="text-xs text-gray-500">WhatsApp Template</label>
+              <label className="text-xs text-muted-foreground">
+                WhatsApp Template
+              </label>
               <select
                 value={moveNotificationType}
                 onChange={(e) => setMoveNotificationType(e.target.value)}
-                className="w-full h-10 rounded-md border border-white/10 bg-black/50 px-3 py-2 text-sm text-white focus:border-purple-500 focus:outline-none"
+                className="w-full h-10 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-1 focus:ring-foreground"
               >
                 <option
                   value="RESERVATION_CONFIRMATION"
-                  className="bg-slate-900"
+                  className="bg-background"
                 >
                   Unlimited Dinner
                 </option>
-                <option value="WEEKDAY_BRUNCH" className="bg-slate-900">
+                <option value="WEEKDAY_BRUNCH" className="bg-background">
                   Weekday Brunch
                 </option>
-                <option value="WEEKEND_BRUNCH" className="bg-slate-900">
+                <option value="WEEKEND_BRUNCH" className="bg-background">
                   Weekend Brunch
                 </option>
-                <option value="A_LA_CARTE" className="bg-slate-900">
+                <option value="A_LA_CARTE" className="bg-background">
                   A La Carte
                 </option>
               </select>
             </div>
           </div>
 
-          <p className="text-sm text-gray-400">Select new table(s):</p>
+          <p className="text-sm text-muted-foreground">Select new table(s):</p>
 
           {/* Validation Status */}
           {(() => {
@@ -2195,18 +2258,22 @@ export default function ReservationsPage() {
             const remaining = totalGuests - totalCapacity;
 
             return (
-              <div className="flex items-center justify-between bg-white/5 p-3 rounded-lg border border-white/10">
+              <div className="flex items-center justify-between bg-muted/50 p-3 rounded-lg border border-border">
                 <div className="flex items-center gap-2">
                   <Users
                     className={cn(
                       "h-4 w-4",
-                      isSufficient ? "text-green-400" : "text-red-400",
+                      isSufficient
+                        ? "text-foreground"
+                        : "text-muted-foreground",
                     )}
                   />
                   <span
                     className={cn(
                       "text-sm font-medium",
-                      isSufficient ? "text-green-400" : "text-red-400",
+                      isSufficient
+                        ? "text-foreground"
+                        : "text-muted-foreground",
                     )}
                   >
                     {isSufficient
@@ -2214,7 +2281,7 @@ export default function ReservationsPage() {
                       : `Note: Need ${remaining} more seats`}
                   </span>
                 </div>
-                <div className="text-xs text-white/50">
+                <div className="text-xs text-muted-foreground">
                   {totalCapacity} / {totalGuests} Guests
                 </div>
               </div>
@@ -2241,8 +2308,8 @@ export default function ReservationsPage() {
                     className={cn(
                       "flex flex-col items-center justify-center p-3 rounded-lg border transition-all",
                       isSelected
-                        ? "bg-blue-500/20 border-blue-400 text-blue-300"
-                        : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10",
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background border-border text-muted-foreground hover:bg-muted",
                     )}
                   >
                     <Armchair className="h-6 w-6 mb-1" />
@@ -2254,7 +2321,7 @@ export default function ReservationsPage() {
                 );
               })
             ) : (
-              <div className="col-span-3 text-center text-gray-500 py-4">
+              <div className="col-span-3 text-center text-muted-foreground py-4">
                 No available tables for this date/slot.
               </div>
             )}
@@ -2262,7 +2329,7 @@ export default function ReservationsPage() {
 
           <div className="flex justify-end pt-4">
             <Button
-              className="glass-button w-full h-auto py-2.5 whitespace-normal break-all"
+              className="w-full h-auto py-2.5 whitespace-normal break-all"
               disabled={
                 moveSelectedTables.length === 0 ||
                 moveLoading ||
@@ -2309,7 +2376,7 @@ export default function ReservationsPage() {
         title={`Select Time for ${customTimeSlot ? formatTo12Hour(customTimeSlot.startTime) : "Slot"}`}
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-muted-foreground">
             Select a specific start time. Duration will be automatically set to
             1.5 hours.
           </p>
@@ -2324,11 +2391,11 @@ export default function ReservationsPage() {
                     handleTimeSelect(time);
                   }}
                   className={cn(
-                    "glass-button border-white/10 hover:bg-purple-500/20 hover:border-purple-500",
+                    "border-border hover:bg-muted",
                     customStartTime === time &&
                       selectedSlot?.id === customTimeSlot.id
-                      ? "bg-purple-500/30 border-purple-500 text-white"
-                      : "text-gray-300",
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "text-foreground",
                   )}
                 >
                   {formatTo12Hour(time)}
@@ -2339,7 +2406,7 @@ export default function ReservationsPage() {
             <Button
               variant="ghost"
               size="sm"
-              className="text-gray-400 hover:text-white"
+              className="text-muted-foreground hover:text-foreground"
               onClick={() => {
                 handleTimeSelect(null); // Clear custom time
               }}
@@ -2357,15 +2424,15 @@ export default function ReservationsPage() {
         title={`Table ${longPressedTable?.tableNumber} Actions`}
       >
         <div className="space-y-4">
-          <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1">
+          <div className="bg-muted p-4 rounded-xl border border-border">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">
               Current Guest
             </p>
-            <p className="font-bold text-xl text-white">
+            <p className="font-bold text-xl text-foreground">
               {movingReservation?.customerName}
             </p>
             {movingReservation?.groupId && (
-              <p className="text-xs text-blue-400 font-semibold mt-1 flex items-center gap-1">
+              <p className="text-xs text-muted-foreground font-semibold mt-1 flex items-center gap-1">
                 <Users className="h-3 w-3" /> Merged Group
               </p>
             )}
@@ -2374,13 +2441,14 @@ export default function ReservationsPage() {
           <div className="grid grid-cols-1 gap-3">
             {role === "ADMIN" && (
               <Button
-                className="glass-button bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 border-blue-500/20 py-6 h-auto flex items-center justify-start px-6 gap-4"
+                variant="outline"
+                className="py-6 h-auto flex items-center justify-start px-6 gap-4"
                 onClick={() => {
                   handleMoveClick(movingReservation!);
                 }}
               >
-                <div className="p-2 rounded-lg bg-blue-500/20">
-                  <ArrowLeftRight className="h-5 w-5" />
+                <div className="p-2 rounded-lg bg-indigo-500/10">
+                  <ArrowLeftRight className="h-5 w-5 text-indigo-500" />
                 </div>
                 <div className="text-left">
                   <p className="font-bold text-sm">Move Table</p>
@@ -2392,7 +2460,8 @@ export default function ReservationsPage() {
             )}
 
             <Button
-              className="glass-button bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 border-purple-500/20 py-6 h-auto flex items-center justify-start px-6 gap-4"
+              variant="outline"
+              className="py-6 h-auto flex items-center justify-start px-6 gap-4"
               onClick={() => {
                 setIsLongPressModalOpen(false);
                 if (movingReservation) {
@@ -2418,8 +2487,8 @@ export default function ReservationsPage() {
                 }
               }}
             >
-              <div className="p-2 rounded-lg bg-purple-500/20">
-                <Pencil className="h-5 w-5" />
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Pencil className="h-5 w-5 text-blue-500" />
               </div>
               <div className="text-left">
                 <p className="font-bold text-sm">Edit Booking</p>
@@ -2431,19 +2500,19 @@ export default function ReservationsPage() {
 
             {role === "ADMIN" && (
               <Button
-                variant="destructive"
+                variant="outline"
+                className="py-6 h-auto flex items-center justify-start px-6 gap-4 text-red-600 hover:text-red-700 hover:bg-red-500/5 border-border"
                 disabled={cancelLoading}
-                className="bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/20 py-6 h-auto flex items-center justify-start px-6 gap-4"
                 onClick={() => {
                   if (movingReservation)
                     handleCancelReservation(movingReservation);
                 }}
               >
-                <div className="p-2 rounded-lg bg-red-500/20">
+                <div className="p-2 rounded-lg bg-red-500/10">
                   {cancelLoading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <Loader2 className="h-5 w-5 animate-spin text-red-500" />
                   ) : (
-                    <Trash2 className="h-5 w-5" />
+                    <Trash2 className="h-5 w-5 text-red-500" />
                   )}
                 </div>
                 <div className="text-left">
@@ -2458,7 +2527,7 @@ export default function ReservationsPage() {
 
           <Button
             variant="ghost"
-            className="w-full text-gray-500 hover:text-white mt-2"
+            className="w-full text-muted-foreground hover:text-foreground mt-2"
             onClick={() => setIsLongPressModalOpen(false)}
           >
             Close Menu
@@ -2474,7 +2543,7 @@ export default function ReservationsPage() {
       >
         <form onSubmit={confirmCancel} className="space-y-4">
           <div className="space-y-2">
-            <p className="text-white text-sm">
+            <p className="text-foreground text-sm">
               {cancelingReservation?.groupId
                 ? "This will cancel all tables in this group and make them available immediately."
                 : "Are you sure you want to cancel this reservation? This will release the table immediately."}
@@ -2489,7 +2558,7 @@ export default function ReservationsPage() {
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                 setCancelReason(e.target.value)
               }
-              className="glass-input bg-white/5 border-white/10 text-white min-h-[80px]"
+              className="bg-background border-border text-foreground min-h-[80px]"
             />
           </div>
           <div className="flex justify-end pt-2 gap-3">
@@ -2497,14 +2566,13 @@ export default function ReservationsPage() {
               type="button"
               variant="outline"
               onClick={() => setIsCancelModalOpen(false)}
-              className="border-white/10 text-gray-400 hover:text-white"
+              className="border-border text-muted-foreground hover:text-foreground"
             >
               Back
             </Button>
             <Button
               type="submit"
-              variant="destructive"
-              className="bg-red-500/20 text-red-400 hover:bg-red-500/30 border-red-500/20"
+              className="bg-red-600 text-white hover:bg-red-700 border-transparent px-6"
               disabled={cancelLoading}
             >
               {cancelLoading && (
