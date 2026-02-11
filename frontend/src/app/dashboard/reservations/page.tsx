@@ -88,8 +88,11 @@ const isSlotPast = (date: string, slot: Slot) => {
 
   const [startH, startM] = slot.startTime.split(":").map(Number);
 
-  if (currentH > startH) return true;
-  if (currentH === startH && currentM >= startM) return true;
+  const currentTotalMinutes = currentH * 60 + currentM;
+  const slotStartTotalMinutes = startH * 60 + startM;
+
+  // Allow booking up to 60 mins (1 hour) after start
+  if (currentTotalMinutes > slotStartTotalMinutes + 60) return true;
 
   return false;
 };
