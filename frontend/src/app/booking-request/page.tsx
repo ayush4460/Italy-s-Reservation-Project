@@ -517,7 +517,7 @@ export default function BookingRequestPage() {
                           onClick={() => field.onChange("Indoor")}
                         >
                           <div
-                            className={`relative aspect-[4/3] sm:aspect-video w-full overflow-hidden rounded-2xl border bg-zinc-900 shadow-sm transition-all duration-500 ${
+                            className={`relative aspect-4/3 sm:aspect-video w-full overflow-hidden rounded-2xl border bg-zinc-900 shadow-sm transition-all duration-500 ${
                               field.value === "Indoor"
                                 ? "border-amber-500 shadow-lg shadow-amber-500/20 ring-1 ring-amber-500"
                                 : "border-white/5 group-hover:border-white/20 group-hover:shadow-lg group-hover:shadow-amber-500/5"
@@ -560,7 +560,7 @@ export default function BookingRequestPage() {
                           onClick={() => field.onChange("Outdoor")}
                         >
                           <div
-                            className={`relative aspect-[4/3] sm:aspect-video w-full overflow-hidden rounded-2xl border bg-zinc-900 shadow-sm transition-all duration-500 ${
+                            className={`relative aspect-4/3 sm:aspect-video w-full overflow-hidden rounded-2xl border bg-zinc-900 shadow-sm transition-all duration-500 ${
                               field.value === "Outdoor"
                                 ? "border-amber-500 shadow-lg shadow-amber-500/20 ring-1 ring-amber-500"
                                 : "border-white/5 group-hover:border-white/20 group-hover:shadow-lg group-hover:shadow-amber-500/5"

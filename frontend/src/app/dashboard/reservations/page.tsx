@@ -117,8 +117,9 @@ export default function ReservationsPage() {
   const [date, setDate] = useState<string>(getISTDate());
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
-  const [tables, setTables] = useState<Table[]>([]);
-  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [slotData, setSlotData] = useState<
+    Record<number, { tables: Table[]; reservations: Reservation[] }>
+  >({});
 
   const [loading, setLoading] = useState(true);
 
@@ -259,12 +260,47 @@ export default function ReservationsPage() {
   const handleTimeSelect = (time: string | null) => {
     setCustomStartTime(time);
     setIsTimeSelectorOpen(false);
-    // Explicitly refetch with new time context if active
-    if (selectedSlot) {
-      // We need to trigger fetch via effect or direct call.
-      // Since customStartTime is in dependency of fetchTableData, it will trigger effect if we rely on it.
+
+    // Scroll to the main slot section when a sub-slot is selected
+    if (time) {
+      const targetSlot = customTimeSlot || selectedSlot;
+      if (targetSlot) {
+        setTimeout(() => {
+          document
+            .getElementById(`slot-${targetSlot.id}`)
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 150);
+      }
     }
   };
+
+  // Unified fetcher for all slots
+  const fetchAllSlotData = useCallback(
+    async (slotsToFetch: Slot[]) => {
+      try {
+        const results = await Promise.all(
+          slotsToFetch.map((slot) =>
+            reservationService.getTablesWithAvailability(date, slot.id),
+          ),
+        );
+
+        const newData: Record<
+          number,
+          { tables: Table[]; reservations: Reservation[] }
+        > = {};
+        results.forEach((res, index) => {
+          newData[slotsToFetch[index].id] = res;
+        });
+
+        setSlotData(newData);
+      } catch (err) {
+        console.error("Failed to fetch all slot data", err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [date],
+  );
 
   // Refactored to fetch slots first, then tables+reservations together
   const fetchInitialData = useCallback(
@@ -279,43 +315,40 @@ export default function ReservationsPage() {
             setSelectedSlot(slotsData[0]);
             setCustomStartTime(null); // Reset custom time on date change
           }
+          await fetchAllSlotData(slotsData);
         } else {
           setSelectedSlot(null);
           setCustomStartTime(null);
-          // Fallback: If no slots, just show empty tables (old method)
-          const tablesData = await reservationService.getTables();
-          setTables(tablesData);
-          setReservations([]);
-          setLoading(false); // Manually set loading false here as useEffect won't run
+          setSlotData({});
+          setLoading(false);
         }
       } catch (err) {
         console.error("Failed to load initial data", err);
         setLoading(false);
       }
     },
-    [date],
+    [date, fetchAllSlotData],
   );
 
-  // Unified fetcher for Tables + Reservations
-  const fetchTableData = useCallback(async () => {
-    if (!selectedSlot) return;
-    try {
-      const data = await reservationService.getTablesWithAvailability(
-        date,
-        selectedSlot.id,
-        customStartTime || undefined,
-      );
-      setTables(data.tables);
-      setReservations(data.reservations);
-    } catch (err) {
-      console.error("Failed to fetch table data", err);
-      // Fallback
-      setTables([]);
-      setReservations([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [date, selectedSlot, customStartTime]);
+  // Refetch only a specific slot (used by sockets or custom sub-slot)
+  const fetchSingleSlotData = useCallback(
+    async (slotId: number, customTime?: string | null) => {
+      try {
+        const data = await reservationService.getTablesWithAvailability(
+          date,
+          slotId,
+          customTime || undefined,
+        );
+        setSlotData((prev) => ({
+          ...prev,
+          [slotId]: data,
+        }));
+      } catch (err) {
+        console.error(`Failed to fetch slot ${slotId} data`, err);
+      }
+    },
+    [date],
+  );
 
   useEffect(() => {
     fetchInitialData();
@@ -329,13 +362,11 @@ export default function ReservationsPage() {
     const handleUpdate = (data: { date: string; slotId: number }) => {
       // If the update is for the current viewed date
       if (data.date === date) {
-        // Refres slots to update counts (preserve selection)
+        // Refresh slots to update counts (preserve selection)
         fetchInitialData(true);
 
-        // If the update is for the CURRENTLY selected slot, refresh the grid
-        if (selectedSlot && selectedSlot.id === data.slotId) {
-          fetchTableData();
-        }
+        // Targeted refresh of the specific slot
+        fetchSingleSlotData(data.slotId);
       }
     };
 
@@ -344,20 +375,22 @@ export default function ReservationsPage() {
     return () => {
       socket.off("reservation:update", handleUpdate);
     };
-  }, [socket, date, selectedSlot, fetchInitialData, fetchTableData]);
+  }, [socket, date, fetchInitialData, fetchSingleSlotData]);
 
   useEffect(() => {
-    if (selectedSlot && date) {
-      fetchTableData();
+    if (customStartTime && selectedSlot) {
+      fetchSingleSlotData(selectedSlot.id, customStartTime);
     }
-  }, [fetchTableData, selectedSlot, date]);
+  }, [customStartTime, selectedSlot, fetchSingleSlotData]);
 
-  const handleTableClick = (table: Table) => {
+  const handleTableClick = (table: Table, slot: Slot) => {
     if (role === "STAFF") return; // Read-only for staff
-    if (!selectedSlot) return alert("Please select a time slot first.");
 
     // Check if booked
-    const reservation = reservations.find((r) => r.tableId === table.id);
+    const currentSlotData = slotData[slot.id];
+    const reservation = currentSlotData?.reservations.find(
+      (r) => r.tableId === table.id,
+    );
 
     if (reservation) {
       // Open Edit Modal
@@ -385,13 +418,14 @@ export default function ReservationsPage() {
       // isSlotPast uses slot start time. We should update isSlotPast to handle customTime if we want consistency,
       // but slot level check is "safe enough".
       // Let's rely on standard slot check or update it.
-      if (isSlotPast(date, selectedSlot, customStartTime)) {
+      if (isSlotPast(date, slot, customStartTime)) {
         toast.error("Booking limit Reached: Time already lost.");
         return;
       }
 
       // Open Create Modal
       setSelectedTable(table);
+      setSelectedSlot(slot); // Ensure context is correct for the modal
       // Auto-select template
 
       setBookingData({
@@ -403,9 +437,7 @@ export default function ReservationsPage() {
         specialReq: "",
         notificationType: customStartTime
           ? getTemplateTypeForSlot(date, customStartTime)
-          : selectedSlot
-            ? getTemplateTypeForSlot(date, selectedSlot.startTime)
-            : "RESERVATION_CONFIRMATION",
+          : getTemplateTypeForSlot(date, slot.startTime),
       });
       // Reset merge
       setSelectedMergeTables([]);
@@ -429,7 +461,12 @@ export default function ReservationsPage() {
   };
 
   // Derive mergeOptions from selected IDs
-  const mergeOptions = tables.filter((t) => selectedMergeTables.includes(t.id));
+  const mergeOptions = React.useMemo(() => {
+    if (!selectedSlot || !slotData[selectedSlot.id]) return [];
+    return slotData[selectedSlot.id].tables.filter((t) =>
+      selectedMergeTables.includes(t.id),
+    );
+  }, [selectedSlot, slotData, selectedMergeTables]);
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -447,17 +484,7 @@ export default function ReservationsPage() {
           selectedMergeTables.length > 0 ? selectedMergeTables : undefined,
       });
       setIsBookingModalOpen(false);
-      setIsBookingModalOpen(false);
-      setBookingData({
-        customerName: "",
-        contact: "",
-        adults: "",
-        kids: "0",
-        foodPref: "Regular",
-        specialReq: "",
-        notificationType: "RESERVATION_CONFIRMATION",
-      });
-      fetchTableData();
+      fetchSingleSlotData(selectedSlot.id, customStartTime);
     } catch (err) {
       console.error("Booking failed", err);
       // Explicit conflict message from backend
@@ -481,7 +508,7 @@ export default function ReservationsPage() {
       });
       setIsEditModalOpen(false);
       setEditingReservation(null);
-      fetchTableData();
+      fetchSingleSlotData(editingReservation.slotId);
     } catch (err) {
       console.error("Update failed", err);
       alert("Failed to update reservation");
@@ -513,7 +540,8 @@ export default function ReservationsPage() {
       setMovingReservation(null); // Clear moving reservation
       setCancelingReservation(null);
       setCancelReason("");
-      fetchTableData();
+      if (selectedSlot) fetchSingleSlotData(selectedSlot.id);
+      else fetchInitialData(true);
     } catch (err) {
       console.error("Cancel failed", err);
       alert("Failed to cancel reservation");
@@ -628,7 +656,7 @@ export default function ReservationsPage() {
       setIsMoveModalOpen(false);
       setMovingReservation(null);
       setMoveSelectedTables([]);
-      fetchTableData(); // Refresh current view
+      if (selectedSlot) fetchSingleSlotData(selectedSlot.id); // Refresh current view
     } catch (err) {
       console.error("Move failed", err);
       alert("Failed to move reservation. Targets might be taken.");
@@ -641,14 +669,16 @@ export default function ReservationsPage() {
   const handleTouchStart = (table: Table) => {
     if (role === "STAFF") return;
     const timer = setTimeout(() => {
-      // Trigger long press
-      const reservation = reservations.find((r) => r.tableId === table.id);
+      if (!selectedSlot || !slotData[selectedSlot.id]) return;
+      const reservation = slotData[selectedSlot.id].reservations.find(
+        (r: Reservation) => r.tableId === table.id,
+      );
       if (reservation) {
         setLongPressedTable(table);
         setMovingReservation(reservation);
         setIsLongPressModalOpen(true);
       }
-    }, 800); // 800ms for long press
+    }, 800);
     setLongPressTimer(timer);
   };
 
@@ -705,7 +735,7 @@ export default function ReservationsPage() {
         notificationType: "RESERVATION_CONFIRMATION",
       });
       setGroupSelectedTables([]);
-      fetchTableData();
+      if (selectedSlot) fetchSingleSlotData(selectedSlot.id);
     } catch (err) {
       console.error("Group booking failed", err);
       alert("Failed to create group booking");
@@ -775,60 +805,7 @@ export default function ReservationsPage() {
   const isCapacityExceeded = totalGuests > totalCapacity;
 
   // Group tables for display
-  const processedTables = React.useMemo(() => {
-    const handledTableIds = new Set<number>();
-    const result: { table: Table; reservation?: Reservation }[] = [];
-
-    // Sort tables by tableNumber first to ensure consistent order
-    const sortedTables = [...tables].sort(
-      (a, b) => Number(a.tableNumber) - Number(b.tableNumber),
-    );
-
-    sortedTables.forEach((table) => {
-      if (handledTableIds.has(table.id)) return;
-
-      const reservation = reservations.find((r) => r.tableId === table.id);
-
-      if (reservation && reservation.groupId) {
-        // Find all tables in this group
-        const groupReservations = reservations.filter(
-          (r) => r.groupId === reservation.groupId,
-        );
-        const groupTableIds = groupReservations.map((r) => r.tableId);
-        const groupTables = tables.filter((t) => groupTableIds.includes(t.id));
-
-        // Mark all as handled
-        groupTables.forEach((t) => handledTableIds.add(t.id));
-
-        // Create merged display table
-        const sortedGroupTables = groupTables.sort(
-          (a, b) => Number(a.tableNumber) - Number(b.tableNumber),
-        );
-        const mergedNumbers = sortedGroupTables
-          .map((t) => t.tableNumber)
-          .join(", ");
-        const totalCapacity = groupTables.reduce(
-          (sum, t) => sum + t.capacity,
-          0,
-        );
-
-        // Use the first table as base but override display props
-        result.push({
-          table: {
-            ...sortedGroupTables[0],
-            tableNumber: mergedNumbers,
-            capacity: totalCapacity,
-          },
-          reservation: reservation,
-        });
-      } else {
-        handledTableIds.add(table.id);
-        result.push({ table, reservation });
-      }
-    });
-
-    return result;
-  }, [tables, reservations]);
+  // capacity calculation moved locally
 
   if (loading)
     return <div className="text-white">Loading reservation system...</div>;
@@ -941,8 +918,9 @@ export default function ReservationsPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedSlot(slot);
-                    setCustomStartTime(null);
+                    document
+                      .getElementById(`slot-${slot.id}`)
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
                   onTouchStart={() => handleSlotTouchStart(slot)}
                   onTouchEnd={handleTouchEnd}
@@ -963,119 +941,206 @@ export default function ReservationsPage() {
         })}
       </div>
 
-      {/* Tables Grid */}
-      <Card className="bg-card border-border text-card-foreground min-h-[500px] shadow-sm">
-        <CardHeader>
-          <CardTitle>
-            Tables for {date.split("-").reverse().join("-")} (
-            {customStartTime
-              ? (() => {
-                  const [sh, sm] = customStartTime.split(":").map(Number);
-                  const endD = new Date();
-                  endD.setHours(sh, sm + 90, 0, 0);
-                  const endStr = `${endD.getHours().toString().padStart(2, "0")}:${endD.getMinutes().toString().padStart(2, "0")}`;
-                  return (
-                    <span className="text-amber-500 font-bold ml-1">
-                      {formatTo12Hour(customStartTime)} -{" "}
-                      {formatTo12Hour(endStr)}
-                    </span>
-                  );
-                })()
-              : selectedSlot
-                ? `${formatTo12Hour(selectedSlot.startTime)} - ${formatTo12Hour(selectedSlot.endTime)}`
-                : "Select Slot"}
-            )
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
-            {processedTables.map(({ table, reservation }) => {
-              const isBooked = !!reservation;
-
-              return (
-                <div
-                  key={table.id}
-                  onClick={() => handleTableClick(table)}
-                  onTouchStart={() => handleTouchStart(table)}
-                  onTouchEnd={handleTouchEnd}
-                  // Prevent default context menu on mobile long press
-                  onContextMenu={(e) => isBooked && e.preventDefault()}
-                  className={cn(
-                    "relative aspect-square rounded-xl flex flex-col items-center justify-center p-2 md:p-4 border transition-all cursor-pointer shadow-sm group select-none",
-                    isBooked
-                      ? "bg-red-100 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 opacity-95 shadow-[inset_0_0_12px_rgba(239,68,68,0.05)]"
-                      : "bg-slate-50 dark:bg-slate-50 border-slate-200 dark:border-slate-200 hover:bg-slate-100 dark:hover:bg-slate-100 transition-colors",
-                  )}
-                >
-                  <Armchair
-                    className={cn(
-                      "h-5 w-5 md:h-8 md:w-8 mb-1 md:mb-2",
-                      isBooked
-                        ? "text-red-600 dark:text-red-400"
-                        : "text-slate-900 dark:text-slate-900",
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      "font-bold text-base md:text-xl text-center leading-tight",
-                      isBooked
-                        ? "text-red-800 dark:text-red-300"
-                        : "text-slate-900 dark:text-slate-900 font-bold",
-                    )}
-                  >
-                    {table.tableNumber}
-                  </span>
-                  <div
-                    className={cn(
-                      "flex items-center text-[10px] md:text-xs mt-0.5 md:mt-1",
-                      isBooked
-                        ? "text-red-700/70 dark:text-red-400/60"
-                        : "text-slate-500 dark:text-slate-500 font-medium",
-                    )}
-                  >
-                    <Users className="h-2.5 w-2.5 md:h-3 md:w-3 mr-0.5 md:mr-1" />
-                    {isBooked && reservation
-                      ? `${
-                          (reservation.adults || 0) + (reservation.kids || 0)
-                        } / ${table.capacity}`
-                      : table.capacity}
-                  </div>
-                  {isBooked && (
-                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 dark:bg-red-400 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
-                  )}
-                  {isBooked && reservation && (
-                    <div className="mt-1 md:mt-2 text-[10px] md:text-xs font-semibold truncate max-w-[95%] text-center leading-none text-red-700 dark:text-red-300">
-                      {reservation.customerName.split(" ")[0]}
-                      {reservation.groupId && (
-                        <span className="text-[8px] md:text-[10px] ml-0.5 opacity-70 block">
-                          (Mrg)
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  {/* Desktop Move Icon */}
-                  {role === "ADMIN" && isBooked && reservation && (
-                    <div
-                      className="absolute top-2 right-2 hidden group-hover:block z-10 p-1 bg-background/80 rounded-full hover:bg-background border border-border shadow-sm transition-all"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMoveClick(reservation);
-                      }}
-                    >
-                      <ArrowLeftRight className="h-4 w-4 text-foreground" />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+      {/* Tables Sections */}
+      <div className="space-y-8 min-h-[500px]">
+        {loading && slotData && Object.keys(slotData).length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-card border border-border rounded-xl">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+            <p className="text-muted-foreground">
+              Loading reservation sections...
+            </p>
           </div>
-          {tables.length === 0 && (
-            <div className="text-center py-20 text-muted-foreground">
-              No tables found. Please add tables in the Tables section first.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        ) : (
+          slots.map((slot) => {
+            const data = slotData[slot.id];
+            if (!data) return null;
+
+            const { tables, reservations } = data;
+
+            // Group tables for display (Logic moved here)
+            const handledTableIds = new Set<number>();
+            const result: { table: Table; reservation?: Reservation }[] = [];
+
+            const sortedTables = [...tables].sort(
+              (a, b) => Number(a.tableNumber) - Number(b.tableNumber),
+            );
+
+            sortedTables.forEach((table) => {
+              if (handledTableIds.has(table.id)) return;
+
+              const reservation = reservations.find(
+                (r) => r.tableId === table.id,
+              );
+
+              if (reservation && reservation.groupId) {
+                const groupReservations = reservations.filter(
+                  (r) => r.groupId === reservation.groupId,
+                );
+                const groupTableIds = groupReservations.map((r) => r.tableId);
+                const groupTables = tables.filter((t) =>
+                  groupTableIds.includes(t.id),
+                );
+
+                groupTables.forEach((t) => handledTableIds.add(t.id));
+
+                const sortedGroupTables = groupTables.sort(
+                  (a, b) => Number(a.tableNumber) - Number(b.tableNumber),
+                );
+                const mergedNumbers = sortedGroupTables
+                  .map((t) => t.tableNumber)
+                  .join(", ");
+                const totalCapacity = groupTables.reduce(
+                  (sum, t) => sum + t.capacity,
+                  0,
+                );
+
+                result.push({
+                  table: {
+                    ...sortedGroupTables[0],
+                    tableNumber: mergedNumbers,
+                    capacity: totalCapacity,
+                  },
+                  reservation: reservation,
+                });
+              } else {
+                handledTableIds.add(table.id);
+                result.push({ table, reservation });
+              }
+            });
+
+            const isCustomActive =
+              selectedSlot?.id === slot.id && customStartTime;
+
+            return (
+              <Card
+                key={slot.id}
+                id={`slot-${slot.id}`}
+                className="bg-card border-border text-card-foreground shadow-sm scroll-mt-6"
+              >
+                <CardHeader className="pb-3 border-b border-border/50">
+                  <div className="flex items-center justify-between">
+                    <CardTitle
+                      className={cn(
+                        "text-lg md:text-xl flex items-center gap-2",
+                        isCustomActive && "text-amber-500",
+                      )}
+                    >
+                      <Clock
+                        className={cn(
+                          "h-5 w-5",
+                          isCustomActive ? "text-amber-500" : "text-primary",
+                        )}
+                      />
+                      Tables for{" "}
+                      {isCustomActive
+                        ? `${formatTo12Hour(customStartTime)} - ${(() => {
+                            const [h, m] = customStartTime
+                              .split(":")
+                              .map(Number);
+                            let endH = h + 1;
+                            let endM = m + 30;
+                            if (endM >= 60) {
+                              endH += 1;
+                              endM -= 60;
+                            }
+                            return formatTo12Hour(
+                              `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`,
+                            );
+                          })()}`
+                        : `${formatTo12Hour(slot.startTime)} - ${formatTo12Hour(slot.endTime)}`}
+                    </CardTitle>
+                    <div className="text-sm font-medium px-3 py-1 bg-muted rounded-full">
+                      {slot.reservedCount || 0} / {tables.length} Reservations
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 md:p-6">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-6">
+                    {result.map(({ table, reservation }) => {
+                      const isBooked = !!reservation;
+
+                      return (
+                        <div
+                          key={table.id}
+                          onClick={() => handleTableClick(table, slot)}
+                          onTouchStart={() => handleTouchStart(table)}
+                          onTouchEnd={handleTouchEnd}
+                          onContextMenu={(e) => isBooked && e.preventDefault()}
+                          className={cn(
+                            "relative aspect-square rounded-xl flex flex-col items-center justify-center p-2 md:p-4 border transition-all cursor-pointer shadow-sm group select-none",
+                            isBooked
+                              ? "bg-red-100 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 opacity-95 shadow-[inset_0_0_12px_rgba(239,68,68,0.05)]"
+                              : "bg-slate-50 dark:bg-slate-50 border-slate-200 dark:border-slate-200 hover:bg-slate-100 dark:hover:bg-slate-100 transition-colors",
+                          )}
+                        >
+                          <Armchair
+                            className={cn(
+                              "h-5 w-5 md:h-8 md:w-8 mb-1 md:mb-2",
+                              isBooked
+                                ? "text-red-600 dark:text-red-400"
+                                : "text-slate-900 dark:text-slate-900",
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              "font-bold text-base md:text-xl text-center leading-tight",
+                              isBooked
+                                ? "text-red-800 dark:text-red-300"
+                                : "text-slate-900 dark:text-slate-900 font-bold",
+                            )}
+                          >
+                            {table.tableNumber}
+                          </span>
+                          <div
+                            className={cn(
+                              "flex items-center text-[10px] md:text-xs mt-0.5 md:mt-1",
+                              isBooked
+                                ? "text-red-700/70 dark:text-red-400/60"
+                                : "text-slate-500 dark:text-slate-500 font-medium",
+                            )}
+                          >
+                            <Users className="h-2.5 w-2.5 md:h-3 md:w-3 mr-0.5 md:mr-1" />
+                            {isBooked && reservation
+                              ? `${
+                                  (reservation.adults || 0) +
+                                  (reservation.kids || 0)
+                                } / ${table.capacity}`
+                              : table.capacity}
+                          </div>
+                          {isBooked && (
+                            <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 dark:bg-red-400 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+                          )}
+                          {isBooked && reservation && (
+                            <div className="mt-1 md:mt-2 text-[10px] md:text-xs font-semibold truncate max-w-[95%] text-center leading-none text-red-700 dark:text-red-300">
+                              {reservation.customerName.split(" ")[0]}
+                              {reservation.groupId && (
+                                <span className="text-[8px] md:text-[10px] ml-0.5 opacity-70 block">
+                                  (Mrg)
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {role === "ADMIN" && isBooked && reservation && (
+                            <div
+                              className="absolute top-2 right-2 hidden group-hover:block z-10 p-1 bg-background/80 rounded-full hover:bg-background border border-border shadow-sm transition-all"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMoveClick(reservation);
+                              }}
+                            >
+                              <ArrowLeftRight className="h-4 w-4 text-foreground" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
 
       {/* Create Booking Modal */}
       <Modal
@@ -1176,38 +1241,43 @@ export default function ReservationsPage() {
                         ADD NEARBY TABLES
                       </p>
                       <div className="grid grid-cols-4 gap-2 max-h-[120px] overflow-y-auto pr-1">
-                        {tables
-                          .filter((t) => {
-                            if (t.id === selectedTable.id) return false;
-                            return !reservations.some(
-                              (r) => r.tableId === t.id,
-                            );
-                          })
-                          .sort((a, b) => b.capacity - a.capacity)
-                          .map((t) => {
-                            const isSelected = selectedMergeTables.includes(
-                              t.id,
-                            );
-                            return (
-                              <div
-                                key={t.id}
-                                onClick={() => toggleMergeTable(t)}
-                                className={cn(
-                                  "py-1.5 px-1 rounded text-center cursor-pointer transition-all border",
-                                  isSelected
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background border-border text-muted-foreground hover:bg-muted",
-                                )}
-                              >
-                                <div className="text-xs font-bold">
-                                  T{t.tableNumber}
+                        {selectedSlot &&
+                          slotData[selectedSlot.id]?.tables
+                            .filter((t: Table) => {
+                              if (t.id === selectedTable.id) return false;
+                              return !slotData[
+                                selectedSlot.id
+                              ].reservations.some(
+                                (r: Reservation) => r.tableId === t.id,
+                              );
+                            })
+                            .sort(
+                              (a: Table, b: Table) => b.capacity - a.capacity,
+                            )
+                            .map((t: Table) => {
+                              const isSelected = selectedMergeTables.includes(
+                                t.id,
+                              );
+                              return (
+                                <div
+                                  key={t.id}
+                                  onClick={() => toggleMergeTable(t)}
+                                  className={cn(
+                                    "py-1.5 px-1 rounded text-center cursor-pointer transition-all border",
+                                    isSelected
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background border-border text-muted-foreground hover:bg-muted",
+                                  )}
+                                >
+                                  <div className="text-xs font-bold">
+                                    T{t.tableNumber}
+                                  </div>
+                                  <div className="text-[10px] opacity-70">
+                                    +{t.capacity}
+                                  </div>
                                 </div>
-                                <div className="text-[10px] opacity-70">
-                                  +{t.capacity}
-                                </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
                       </div>
                     </div>
                   </div>
@@ -1391,30 +1461,43 @@ export default function ReservationsPage() {
                   (parseInt(editFormData.kids) || 0);
 
                 let currentCapacity = 0;
-                if (editingReservation.groupId) {
-                  const groupRes = reservations.filter(
-                    (r) => r.groupId === editingReservation.groupId,
+                if (
+                  editingReservation.groupId &&
+                  slotData[editingReservation.slotId]
+                ) {
+                  const groupRes = slotData[
+                    editingReservation.slotId
+                  ].reservations.filter(
+                    (r: Reservation) =>
+                      r.groupId === editingReservation.groupId,
                   );
-                  const groupTableIds = groupRes.map((r) => r.tableId);
-                  const groupTables = tables.filter((t) =>
-                    groupTableIds.includes(t.id),
+                  const groupTableIds = groupRes.map(
+                    (r: Reservation) => r.tableId,
                   );
+                  const groupTables = slotData[
+                    editingReservation.slotId
+                  ].tables.filter((t: Table) => groupTableIds.includes(t.id));
                   currentCapacity = groupTables.reduce(
                     (sum, t) => sum + t.capacity,
                     0,
                   );
-                } else {
-                  const currentTable = tables.find(
-                    (t) => t.id === editingReservation.tableId,
+                } else if (slotData[editingReservation.slotId]) {
+                  const currentTable = slotData[
+                    editingReservation.slotId
+                  ].tables.find(
+                    (t: Table) => t.id === editingReservation.tableId,
                   );
                   currentCapacity = currentTable ? currentTable.capacity : 0;
                 }
 
-                const addedTables = tables.filter((t) =>
-                  editMergeTables.includes(t.id),
-                );
+                const currentSlotData = slotData[editingReservation.slotId];
+                const addedTables = currentSlotData
+                  ? currentSlotData.tables.filter((t: Table) =>
+                      editMergeTables.includes(t.id),
+                    )
+                  : [];
                 const addedCapacity = addedTables.reduce(
-                  (sum, t) => sum + t.capacity,
+                  (sum: number, t: Table) => sum + t.capacity,
                   0,
                 );
                 const totalCapacity = currentCapacity + addedCapacity;
@@ -1457,14 +1540,22 @@ export default function ReservationsPage() {
                           ADD NEARBY TABLES
                         </p>
                         <div className="grid grid-cols-4 gap-2 max-h-[120px] overflow-y-auto pr-1">
-                          {tables
-                            .filter((t) => {
-                              if (reservations.some((r) => r.tableId === t.id))
+                          {slotData[editingReservation.slotId]?.tables
+                            .filter((t: Table) => {
+                              if (
+                                slotData[
+                                  editingReservation.slotId
+                                ].reservations.some(
+                                  (r: Reservation) => r.tableId === t.id,
+                                )
+                              )
                                 return false;
                               return true;
                             })
-                            .sort((a, b) => b.capacity - a.capacity)
-                            .map((t) => {
+                            .sort(
+                              (a: Table, b: Table) => b.capacity - a.capacity,
+                            )
+                            .map((t: Table) => {
                               const isSelected = editMergeTables.includes(t.id);
                               return (
                                 <div
@@ -1599,24 +1690,30 @@ export default function ReservationsPage() {
                     (parseInt(editFormData.adults) || 0) +
                     (parseInt(editFormData.kids) || 0);
 
+                  const currentSlotData = slotData[editingReservation.slotId];
+                  if (!currentSlotData) return false;
+
                   let currentCapacity = 0;
                   if (editingReservation.groupId) {
-                    const groupTableIds = reservations
-                      .filter((r) => r.groupId === editingReservation.groupId)
-                      .map((r) => r.tableId);
-                    currentCapacity = tables
-                      .filter((t) => groupTableIds.includes(t.id))
-                      .reduce((sum, t) => sum + t.capacity, 0);
+                    const groupTableIds = currentSlotData.reservations
+                      .filter(
+                        (r: Reservation) =>
+                          r.groupId === editingReservation.groupId,
+                      )
+                      .map((r: Reservation) => r.tableId);
+                    currentCapacity = currentSlotData.tables
+                      .filter((t: Table) => groupTableIds.includes(t.id))
+                      .reduce((sum: number, t: Table) => sum + t.capacity, 0);
                   } else {
-                    const t = tables.find(
-                      (t) => t.id === editingReservation.tableId,
+                    const t = currentSlotData.tables.find(
+                      (t: Table) => t.id === editingReservation.tableId,
                     );
                     currentCapacity = t ? t.capacity : 0;
                   }
 
-                  const addedCapacity = tables
-                    .filter((t) => editMergeTables.includes(t.id))
-                    .reduce((sum, t) => sum + t.capacity, 0);
+                  const addedCapacity = currentSlotData.tables
+                    .filter((t: Table) => editMergeTables.includes(t.id))
+                    .reduce((sum: number, t: Table) => sum + t.capacity, 0);
                   return totalGuests > currentCapacity + addedCapacity;
                 })()
               }
@@ -1978,11 +2075,14 @@ export default function ReservationsPage() {
                 (parseInt(groupBookingData.adults) || 0) +
                 (parseInt(groupBookingData.kids) || 0);
 
-              const selectedTablesList = tables.filter((t) =>
-                groupSelectedTables.includes(t.id),
+              if (!selectedSlot || !slotData[selectedSlot.id]) return null;
+              const currentSlotData = slotData[selectedSlot.id];
+
+              const selectedTablesList = currentSlotData.tables.filter(
+                (t: Table) => groupSelectedTables.includes(t.id),
               );
               const totalCapacity = selectedTablesList.reduce(
-                (acc, t) => acc + t.capacity,
+                (acc: number, t: Table) => acc + t.capacity,
                 0,
               );
 
@@ -2021,12 +2121,15 @@ export default function ReservationsPage() {
                       Select Tables ({groupSelectedTables.length})
                     </p>
                     <div className="grid grid-cols-4 gap-2 pr-1">
-                      {tables
+                      {currentSlotData.tables
                         .filter(
-                          (t) => !reservations.some((r) => r.tableId === t.id),
+                          (t: Table) =>
+                            !currentSlotData.reservations.some(
+                              (r: Reservation) => r.tableId === t.id,
+                            ),
                         )
-                        .sort((a, b) => b.capacity - a.capacity)
-                        .map((t) => {
+                        .sort((a: Table, b: Table) => b.capacity - a.capacity)
+                        .map((t: Table) => {
                           const isSelected = groupSelectedTables.includes(t.id);
                           return (
                             <div
@@ -2150,9 +2253,11 @@ export default function ReservationsPage() {
                   const totalGuests =
                     (parseInt(groupBookingData.adults) || 0) +
                     (parseInt(groupBookingData.kids) || 0);
-                  const totalCapacity = tables
-                    .filter((t) => groupSelectedTables.includes(t.id))
-                    .reduce((acc, t) => acc + t.capacity, 0);
+                  const totalCapacity = (
+                    slotData[selectedSlot!.id]?.tables || []
+                  )
+                    .filter((t: Table) => groupSelectedTables.includes(t.id))
+                    .reduce((acc: number, t: Table) => acc + t.capacity, 0);
                   return totalGuests > totalCapacity;
                 })()
               }
