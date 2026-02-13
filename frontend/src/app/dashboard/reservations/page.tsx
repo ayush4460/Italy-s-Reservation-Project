@@ -1004,7 +1004,7 @@ export default function ReservationsPage() {
                     "relative aspect-square rounded-xl flex flex-col items-center justify-center p-2 md:p-4 border transition-all cursor-pointer shadow-sm group select-none",
                     isBooked
                       ? "bg-red-100 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 opacity-95 shadow-[inset_0_0_12px_rgba(239,68,68,0.05)]"
-                      : "bg-black/3 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 transition-colors",
+                      : "bg-slate-50 dark:bg-slate-50 border-slate-200 dark:border-slate-200 hover:bg-slate-100 dark:hover:bg-slate-100 transition-colors",
                   )}
                 >
                   <Armchair
@@ -1012,7 +1012,7 @@ export default function ReservationsPage() {
                       "h-5 w-5 md:h-8 md:w-8 mb-1 md:mb-2",
                       isBooked
                         ? "text-red-600 dark:text-red-400"
-                        : "text-foreground",
+                        : "text-slate-900 dark:text-slate-900",
                     )}
                   />
                   <span
@@ -1020,7 +1020,7 @@ export default function ReservationsPage() {
                       "font-bold text-base md:text-xl text-center leading-tight",
                       isBooked
                         ? "text-red-800 dark:text-red-300"
-                        : "text-foreground font-bold",
+                        : "text-slate-900 dark:text-slate-900 font-bold",
                     )}
                   >
                     {table.tableNumber}
@@ -1030,7 +1030,7 @@ export default function ReservationsPage() {
                       "flex items-center text-[10px] md:text-xs mt-0.5 md:mt-1",
                       isBooked
                         ? "text-red-700/70 dark:text-red-400/60"
-                        : "text-foreground/60 font-medium",
+                        : "text-slate-500 dark:text-slate-500 font-medium",
                     )}
                   >
                     <Users className="h-2.5 w-2.5 md:h-3 md:w-3 mr-0.5 md:mr-1" />
