@@ -88,7 +88,7 @@ export const handleGupshupWebhook = async (req: Request, res: Response) => {
             include: { table: true } // to get restaurantId
         });
 
-        let restaurantId = 1; // Default fallback (e.g., Admin or Main Branch)
+        let restaurantId = parseInt(process.env.DEFAULT_RESTAURANT_ID || '1'); // Default fallback
         
         if (latestReservation && latestReservation.table.restaurantId) {
             restaurantId = latestReservation.table.restaurantId;

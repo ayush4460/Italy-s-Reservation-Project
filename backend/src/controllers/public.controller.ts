@@ -78,8 +78,8 @@ export const getPublicSlots = async (req: Request, res: Response) => {
     const { date } = req.query;
     if (!date) return res.status(400).json({ message: 'Date is required' });
 
-    // Assuming restaurant ID 1 for the project (Single Restaurant)
-    const restaurantId = 1;
+    // Use configurable Restaurant ID (defaults to 1)
+    const restaurantId = parseInt(process.env.DEFAULT_RESTAURANT_ID || '1');
 
     const dateObj = new Date(date as string);
     const dayOfWeek = dateObj.getDay();
