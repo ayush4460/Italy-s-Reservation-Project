@@ -1017,40 +1017,48 @@ export default function ReservationsPage() {
                 id={`slot-${slot.id}`}
                 className="bg-card border-border text-card-foreground shadow-sm scroll-mt-6"
               >
-                <CardHeader className="pb-3 border-b border-border/50">
-                  <div className="flex items-center justify-between">
+                <CardHeader className="p-3 md:p-4 md:pb-3 border-b border-border/50">
+                  <div className="flex items-center justify-between gap-2">
                     <CardTitle
                       className={cn(
-                        "text-lg md:text-xl flex items-center gap-2",
+                        "text-sm md:text-xl flex items-center gap-1.5 md:gap-2",
                         isCustomActive && "text-amber-500",
                       )}
                     >
                       <Clock
                         className={cn(
-                          "h-5 w-5",
+                          "h-3.5 w-3.5 md:h-5 md:w-5 shrink-0",
                           isCustomActive ? "text-amber-500" : "text-primary",
                         )}
                       />
-                      Tables for{" "}
-                      {isCustomActive
-                        ? `${formatTo12Hour(customStartTime)} - ${(() => {
-                            const [h, m] = customStartTime
-                              .split(":")
-                              .map(Number);
-                            let endH = h + 1;
-                            let endM = m + 30;
-                            if (endM >= 60) {
-                              endH += 1;
-                              endM -= 60;
-                            }
-                            return formatTo12Hour(
-                              `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`,
-                            );
-                          })()}`
-                        : `${formatTo12Hour(slot.startTime)} - ${formatTo12Hour(slot.endTime)}`}
+                      <span className="font-bold whitespace-nowrap">
+                        {isCustomActive
+                          ? `${formatTo12Hour(customStartTime)} - ${(() => {
+                              const [h, m] = customStartTime
+                                .split(":")
+                                .map(Number);
+                              let endH = h + 1;
+                              let endM = m + 30;
+                              if (endM >= 60) {
+                                endH += 1;
+                                endM -= 60;
+                              }
+                              return formatTo12Hour(
+                                `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`,
+                              );
+                            })()}`
+                          : `${formatTo12Hour(slot.startTime)} - ${formatTo12Hour(slot.endTime)}`}
+                      </span>
                     </CardTitle>
-                    <div className="text-sm font-medium px-3 py-1 bg-muted rounded-full">
-                      {slot.reservedCount || 0} / {tables.length} Reservations
+                    <div className="text-[10px] md:text-sm font-bold px-2 py-1 bg-muted/50 rounded-lg border border-border/50 flex items-center gap-1 whitespace-nowrap">
+                      <span className="text-foreground">
+                        {slot.reservedCount || 0}
+                      </span>
+                      <span className="text-muted-foreground">/</span>
+                      <span className="text-foreground">{tables.length}</span>
+                      <span className="hidden sm:inline text-muted-foreground ml-1">
+                        Reservations
+                      </span>
                     </div>
                   </div>
                 </CardHeader>
