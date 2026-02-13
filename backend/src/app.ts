@@ -10,6 +10,7 @@ import staffRoutes from './routes/staff.routes';
 import webhookRoutes from './routes/webhook.routes';
 import chatRoutes from './routes/chat.routes';
 import publicRoutes from './routes/public.routes';
+import slotAvailabilityRoutes from './routes/slot-availability.routes';
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/webhook', webhookRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/slot-availability', slotAvailabilityRoutes);
 
 
 

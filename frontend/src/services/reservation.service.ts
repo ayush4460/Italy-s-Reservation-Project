@@ -6,6 +6,8 @@ export interface Slot {
   endTime: string;
   dayOfWeek?: number;
   reservedCount?: number;
+  totalTables?: number;
+  isAutoDisabled?: boolean;
 }
 
 export interface Table {
@@ -61,8 +63,8 @@ export interface UpdateReservationDto {
 }
 
 class ReservationService {
-  async getSlots(date: string) {
-    const response = await api.get<Slot[]>("/reservations/slots", { params: { date } });
+  async getSlots(date: string, all?: boolean) {
+    const response = await api.get<Slot[]>("/reservations/slots", { params: { date, all } });
     return response.data;
   }
 

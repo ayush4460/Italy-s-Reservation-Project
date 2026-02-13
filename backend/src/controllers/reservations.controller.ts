@@ -25,62 +25,91 @@ export const getSlots = async (req: AuthRequest, res: Response) => {
 
     let whereClause: any = { restaurantId, isActive: true };
 
-    if (all === 'true') {
-        // Fetch all slots
-    } else if (date) {
+    if (date) {
         const dateObj = new Date(date as string);
         const dayOfWeek = dateObj.getDay(); 
+        
+        // If date is provided, we ALWAYS filter by day of week or specific date
+        // regardless of the 'all' flag. 'all' only determines if we show
+        // disabled ones (done in the mapping logic below)
         whereClause.OR = [
             { dayOfWeek: dayOfWeek },
             { date: dateObj }
         ];
-    } else {
+    } else if (all !== 'true') {
          return res.status(400).json({ message: 'Date or all=true required' });
     }
 
     const slots = await prisma.slot.findMany({
         where: whereClause,
         orderBy: [
-            { dayOfWeek: 'asc' },
             { startTime: 'asc' }
         ]
     });
 
-    if (date && all !== 'true') {
-        const startOfDay = new Date(date as string); startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(date as string); endOfDay.setHours(23, 59, 59, 999);
+    if (date) {
+        const startOfDay = new Date(date as string); startOfDay.setUTCHours(0, 0, 0, 0);
+        const endOfDay = new Date(date as string); endOfDay.setUTCHours(23, 59, 59, 999);
 
-        // Fetch all non-cancelled reservations for this day
-        const reservations = await prisma.reservation.findMany({
+        // Fetch all non-cancelled reservations, availabilities, AND total table count
+        const [reservations, availabilities, totalTables] = await Promise.all([
+          prisma.reservation.findMany({
+              where: {
+                  table: { restaurantId },
+                  date: {
+                      gte: startOfDay,
+                      lt: endOfDay,
+                  },
+                  status: { not: 'CANCELLED' }
+              },
+              select: { slotId: true, tableId: true, groupId: true, id: true }
+          }),
+          prisma.slotAvailability.findMany({
             where: {
-                table: { restaurantId },
-                date: {
-                    gte: startOfDay,
-                    lt: endOfDay,
-                },
-                status: { not: 'CANCELLED' }
-            },
-            select: { slotId: true, tableId: true, groupId: true, id: true }
-        });
+              restaurantId,
+              date: {
+                gte: startOfDay,
+                lte: endOfDay,
+              }
+            }
+          }),
+          prisma.table.count({ where: { restaurantId } })
+        ]);
 
-        // Map counts to slots
-        const slotsWithCounts = slots.map(slot => {
+        // Map counts and availability to slots
+        const slotsWithStatus = slots.map(slot => {
             const slotReservations = reservations.filter(r => r.slotId === slot.id);
-            
-            // Count unique bookings (Unified Group or Single Table)
-            const uniqueBookings = new Set();
-            slotReservations.forEach(r => {
-                if (r.groupId) {
-                    uniqueBookings.add(r.groupId);
-                } else {
-                    uniqueBookings.add(`RES-${r.id}`);
-                }
-            });
+            const availability = availabilities.find(a => a.slotId === slot.id);
 
-            return { ...slot, reservedCount: uniqueBookings.size };
+            // Count unique occupied tables in this slot
+            const occupiedTables = new Set(slotReservations.map(r => r.tableId));
+            const occupiedCount = occupiedTables.size;
+            
+            // Auto-disable if all tables are taken
+            const isAutoDisabled = occupiedCount >= totalTables && totalTables > 0;
+
+            return { 
+              ...slot, 
+              reservedCount: occupiedCount,
+              totalTables,
+              isAutoDisabled,
+              availability: availability || { 
+                isSlotDisabled: false, 
+                isIndoorDisabled: false, 
+                isOutdoorDisabled: false 
+              }
+            };
+        }).filter((slot: any) => {
+          // If all=true, we are in Manage Booking (settings), show EVERYTHING
+          if (all === 'true') return true;
+
+          // For the Reservations Dashboard and other Admin views, 
+          // we should ALWAYS show all active slots. Staff need to see where bookings are.
+          // Filtering should only happen on the customer-facing (public) controller.
+          return true; 
         });
 
-        return res.json(slotsWithCounts);
+        return res.json(slotsWithStatus);
     }
 
     res.json(slots);

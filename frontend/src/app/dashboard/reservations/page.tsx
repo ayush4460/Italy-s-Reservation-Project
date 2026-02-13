@@ -918,6 +918,7 @@ export default function ReservationsPage() {
                 <button
                   type="button"
                   onClick={() => {
+                    setSelectedSlot(slot);
                     document
                       .getElementById(`slot-${slot.id}`)
                       ?.scrollIntoView({ behavior: "smooth", block: "start" });

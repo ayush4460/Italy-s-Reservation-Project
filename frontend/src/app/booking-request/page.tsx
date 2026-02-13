@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, useWatch, type FieldValues } from "react-hook-form";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 import { Clock, Users, CheckCircle2, Phone, User } from "lucide-react";
 import { motion } from "framer-motion";
@@ -27,26 +28,19 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-// Slot Configurations
-const WEEKEND_SLOTS = [
-  "11:00 AM - 12:30 PM",
-  "12:30 PM - 02:00 PM",
-  "02:00 PM - 03:30 PM",
-  "07:00 PM - 08:30 PM",
-  "08:30 PM - 10:00 PM",
-  "10:00 PM - 11:30 PM",
-];
-
-const WEEKDAY_SLOTS = [
-  "12:00 PM - 01:30 PM",
-  "01:30 PM - 03:00 PM",
-  "07:00 PM - 08:30 PM",
-  "08:30 PM - 10:00 PM",
-  "10:00 PM - 11:30 PM",
-];
-
 const MENUS = ["Unlimited Dinner", "Brunch", "Menu Based Ordering"];
 const PREPARATIONS = ["Regular", "Jain", "Swaminarayan"];
+
+interface PublicSlot {
+  id: number;
+  startTime: string;
+  endTime: string;
+  availability: {
+    isSlotDisabled: boolean;
+    isIndoorDisabled: boolean;
+    isOutdoorDisabled: boolean;
+  };
+}
 
 export default function BookingRequestPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -66,32 +60,83 @@ export default function BookingRequestPage() {
     },
   });
 
-  // Dynamic Slot Logic
-  // Dynamic Slot Logic
+  const [realSlots, setRealSlots] = useState<PublicSlot[]>([]);
+
   const selectedDate = useWatch({
     control: form.control,
     name: "date",
   });
 
+  const selectedSlotValue = useWatch({
+    control: form.control,
+    name: "slot",
+  });
+
+  // Fetch slots from backend when date changes
+  useEffect(() => {
+    if (selectedDate) {
+      const fetchSlots = async () => {
+        try {
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/public/slots?date=${selectedDate}`,
+          );
+          if (res.ok) {
+            const data = await res.json();
+            setRealSlots(data);
+          }
+        } catch (error) {
+          console.error("Error fetching slots:", error);
+        } finally {
+        }
+      };
+      fetchSlots();
+      // Reset slot if date changes
+      form.setValue("slot", "");
+    }
+  }, [selectedDate, form]);
+
+  const formatTo12Hour = (time: string) => {
+    if (!time) return "";
+    const [hours, minutes] = time.split(":").map(Number);
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const h = hours % 12 || 12;
+    return `${h}:${minutes.toString().padStart(2, "0")} ${ampm}`;
+  };
+
+  const currentSlotData = realSlots.find(
+    (s) => s.id.toString() === selectedSlotValue,
+  );
+
+  // Auto-clear sitting if it becomes blocked after slot change
+  useEffect(() => {
+    if (currentSlotData) {
+      const sitting = form.getValues("sitting");
+      if (
+        sitting === "Indoor" &&
+        currentSlotData.availability.isIndoorDisabled
+      ) {
+        form.setValue("sitting", "");
+      } else if (
+        sitting === "Outdoor" &&
+        currentSlotData.availability.isOutdoorDisabled
+      ) {
+        form.setValue("sitting", "");
+      }
+    }
+  }, [selectedSlotValue, currentSlotData, form]);
+
   const getAvailableSlots = () => {
     if (!selectedDate) return [];
 
-    const date = new Date(selectedDate);
-    // Get day of week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
-    const day = date.getDay();
-    const isWeekend = day === 0 || day === 6; // Sunday or Saturday
-
-    const slots = isWeekend ? WEEKEND_SLOTS : WEEKDAY_SLOTS;
-
     // Filter by time if the date is TODAY
     const now = new Date();
-    // Convert current time to IST string to check date
     const istDateString = now.toLocaleDateString("en-CA", {
       timeZone: "Asia/Kolkata",
     });
 
+    const slotsToReturn = realSlots;
+
     if (selectedDate === istDateString) {
-      // It's today, filter passed slots
       const istTime = now.toLocaleTimeString("en-US", {
         timeZone: "Asia/Kolkata",
         hour12: false,
@@ -99,38 +144,45 @@ export default function BookingRequestPage() {
       const [currentHour, currentMinute] = istTime.split(":").map(Number);
       const currentTotalMinutes = currentHour * 60 + currentMinute;
 
-      return slots.filter((slot) => {
-        const startTime = slot.split(" - ")[0]; // e.g., "11:00 AM"
-
-        // Parse start time to minutes
-        const [time, modifier] = startTime.split(" ");
-        const [rawHours, minutes] = time.split(":").map(Number);
-        let hours = rawHours;
-
-        if (hours === 12) {
-          hours = modifier === "PM" ? 12 : 0;
-        } else if (modifier === "PM") {
-          hours += 12;
-        }
-
-        const slotStartMinutes = hours * 60 + minutes;
-
-        // Allow booking if slot hasn't started yet (or strictly passed)
-        // Adding a small buffer (e.g., 30 mins) could be good, but strict for now
+      return slotsToReturn.filter((slot) => {
+        const [rawHours, minutes] = slot.startTime.split(":").map(Number);
+        const slotStartMinutes = rawHours * 60 + minutes;
         return slotStartMinutes > currentTotalMinutes;
       });
     }
 
-    return slots;
+    return slotsToReturn;
   };
 
   const availableSlots = getAvailableSlots();
 
   const onSubmit = async (data: FieldValues) => {
+    // Basic Validation for Indoor/Outdoor blocking
+    if (
+      currentSlotData?.availability?.isIndoorDisabled &&
+      data.sitting === "Indoor"
+    ) {
+      toast.error("Indoor seating is fully booked for this slot");
+      return;
+    }
+    if (
+      currentSlotData?.availability?.isOutdoorDisabled &&
+      data.sitting === "Outdoor"
+    ) {
+      toast.error("Outdoor seating is fully booked for this slot");
+      return;
+    }
+
     try {
+      // Map slot ID back to time string for notification/backend
+      const slotTimeStr = currentSlotData
+        ? `${formatTo12Hour(currentSlotData.startTime)} - ${formatTo12Hour(currentSlotData.endTime)}`
+        : data.slot;
+
       const payload = {
         ...data,
         name: data.name?.trim(),
+        slot: slotTimeStr,
       };
 
       const res = await fetch(
@@ -360,11 +412,17 @@ export default function BookingRequestPage() {
                         </FormControl>
                         <SelectContent>
                           {availableSlots.length > 0 ? (
-                            availableSlots.map((time) => (
-                              <SelectItem key={time} value={time}>
-                                {time}
-                              </SelectItem>
-                            ))
+                            availableSlots.map((slot) => {
+                              const timeStr = `${formatTo12Hour(slot.startTime)} - ${formatTo12Hour(slot.endTime)}`;
+                              return (
+                                <SelectItem
+                                  key={slot.id}
+                                  value={slot.id.toString()}
+                                >
+                                  {timeStr}
+                                </SelectItem>
+                              );
+                            })
                           ) : (
                             <div className="p-2 text-sm text-zinc-400 text-center">
                               {selectedDate
@@ -504,103 +562,200 @@ export default function BookingRequestPage() {
                 control={form.control}
                 name="sitting"
                 rules={{ required: "Please select a sitting area" }}
-                render={({ field }) => (
-                  <FormItem className="space-y-3 pt-2">
-                    <FormLabel className="text-zinc-500 text-xs uppercase tracking-wider font-semibold pl-1">
-                      Ambience Preference
-                    </FormLabel>
-                    <FormControl>
-                      <div className="grid grid-cols-2 gap-4 sm:gap-6">
-                        {/* Indoor Card */}
-                        <div
-                          className={`group cursor-pointer transition-all duration-300 ${field.value === "Indoor" ? "scale-[1.02]" : "hover:scale-[1.01]"}`}
-                          onClick={() => field.onChange("Indoor")}
-                        >
-                          <div
-                            className={`relative aspect-4/3 sm:aspect-video w-full overflow-hidden rounded-2xl border bg-zinc-900 shadow-sm transition-all duration-500 ${
-                              field.value === "Indoor"
-                                ? "border-amber-500 shadow-lg shadow-amber-500/20 ring-1 ring-amber-500"
-                                : "border-white/5 group-hover:border-white/20 group-hover:shadow-lg group-hover:shadow-amber-500/5"
-                            }`}
-                          >
-                            <Image
-                              src="/Italys_Indoor.jpeg"
-                              alt="Indoor Dining"
-                              fill
-                              className={`object-cover transition-transform duration-700 ${
-                                field.value === "Indoor"
-                                  ? "scale-105 opacity-100"
-                                  : "scale-100 opacity-60 group-hover:scale-105 group-hover:opacity-90"
-                              }`}
-                            />
-                            {field.value === "Indoor" && (
-                              <div className="absolute top-2 right-2 bg-amber-500 text-black p-1 rounded-full shadow-lg animate-in fade-in zoom-in duration-300">
-                                <CheckCircle2 className="w-4 h-4" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="mt-3 flex items-center justify-center gap-2">
-                            <div
-                              className={`h-1 w-1 rounded-full transition-colors ${field.value === "Indoor" ? "bg-amber-500" : "bg-zinc-600 group-hover:bg-amber-500"}`}
-                            />
-                            <p
-                              className={`text-xs font-medium uppercase tracking-widest transition-colors ${field.value === "Indoor" ? "text-amber-500" : "text-zinc-400 group-hover:text-amber-500"}`}
-                            >
-                              Indoor
-                            </p>
-                            <div
-                              className={`h-1 w-1 rounded-full transition-colors ${field.value === "Indoor" ? "bg-amber-500" : "bg-zinc-600 group-hover:bg-amber-500"}`}
-                            />
-                          </div>
-                        </div>
+                render={({ field }) => {
+                  const isIndoorBlocked =
+                    currentSlotData?.availability?.isIndoorDisabled;
+                  const isOutdoorBlocked =
+                    currentSlotData?.availability?.isOutdoorDisabled;
 
-                        {/* Outdoor Card */}
-                        <div
-                          className={`group cursor-pointer transition-all duration-300 ${field.value === "Outdoor" ? "scale-[1.02]" : "hover:scale-[1.01]"}`}
-                          onClick={() => field.onChange("Outdoor")}
-                        >
+                  return (
+                    <FormItem className="space-y-3 pt-2">
+                      <FormLabel className="text-zinc-500 text-xs uppercase tracking-wider font-semibold pl-1">
+                        Ambience Preference
+                      </FormLabel>
+                      <FormControl>
+                        <div className="grid grid-cols-2 gap-4 sm:gap-6 relative">
+                          {!selectedSlotValue && (
+                            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-[1px] rounded-2xl">
+                              <p className="text-amber-500 font-medium text-sm animate-pulse">
+                                Select a time slot first
+                              </p>
+                            </div>
+                          )}
+                          {/* Indoor Card */}
                           <div
-                            className={`relative aspect-4/3 sm:aspect-video w-full overflow-hidden rounded-2xl border bg-zinc-900 shadow-sm transition-all duration-500 ${
-                              field.value === "Outdoor"
-                                ? "border-amber-500 shadow-lg shadow-amber-500/20 ring-1 ring-amber-500"
-                                : "border-white/5 group-hover:border-white/20 group-hover:shadow-lg group-hover:shadow-amber-500/5"
-                            }`}
-                          >
-                            <Image
-                              src="/Italys_Outdoor.jpeg"
-                              alt="Outdoor Garden"
-                              fill
-                              className={`object-cover transition-transform duration-700 ${
-                                field.value === "Outdoor"
-                                  ? "scale-105 opacity-100"
-                                  : "scale-100 opacity-60 group-hover:scale-105 group-hover:opacity-90"
-                              }`}
-                            />
-                            {field.value === "Outdoor" && (
-                              <div className="absolute top-2 right-2 bg-amber-500 text-black p-1 rounded-full shadow-lg animate-in fade-in zoom-in duration-300">
-                                <CheckCircle2 className="w-4 h-4" />
-                              </div>
+                            className={cn(
+                              "group transition-all duration-300",
+                              isIndoorBlocked
+                                ? "opacity-30 cursor-not-allowed grayscale"
+                                : "cursor-pointer",
+                              field.value === "Indoor"
+                                ? "scale-[1.02]"
+                                : "hover:scale-[1.01]",
                             )}
-                          </div>
-                          <div className="mt-3 flex items-center justify-center gap-2">
+                            onClick={() =>
+                              !isIndoorBlocked && field.onChange("Indoor")
+                            }
+                          >
                             <div
-                              className={`h-1 w-1 rounded-full transition-colors ${field.value === "Outdoor" ? "bg-amber-500" : "bg-zinc-600 group-hover:bg-amber-500"}`}
-                            />
-                            <p
-                              className={`text-xs font-medium uppercase tracking-widest transition-colors ${field.value === "Outdoor" ? "text-amber-500" : "text-zinc-400 group-hover:text-amber-500"}`}
+                              className={cn(
+                                "relative aspect-4/3 sm:aspect-video w-full overflow-hidden rounded-2xl border bg-zinc-900 shadow-sm transition-all duration-500",
+                                isIndoorBlocked && "border-red-500/20",
+                                !isIndoorBlocked && field.value === "Indoor"
+                                  ? "border-amber-500 shadow-lg shadow-amber-500/20 ring-1 ring-amber-500"
+                                  : "border-white/5 group-hover:border-white/20 group-hover:shadow-lg group-hover:shadow-amber-500/5",
+                              )}
                             >
-                              Outdoor
-                            </p>
+                              <Image
+                                src="/Italys_Indoor.jpeg"
+                                alt="Indoor Dining"
+                                fill
+                                className={cn(
+                                  "object-cover transition-transform duration-700",
+                                  field.value === "Indoor" && !isIndoorBlocked
+                                    ? "scale-105 opacity-100"
+                                    : "scale-100 opacity-60 group-hover:scale-105 group-hover:opacity-90",
+                                )}
+                              />
+                              {field.value === "Indoor" && !isIndoorBlocked && (
+                                <div className="absolute top-2 right-2 bg-amber-500 text-black p-1 rounded-full shadow-lg animate-in fade-in zoom-in duration-300">
+                                  <CheckCircle2 className="w-4 h-4" />
+                                </div>
+                              )}
+                              {isIndoorBlocked && (
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                  <span className="text-[10px] sm:text-[12px] font-bold text-white bg-red-600/80 px-2 py-1 rounded-full uppercase tracking-tighter">
+                                    Fully Booked
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="mt-3 flex items-center justify-center gap-2">
+                              <div
+                                className={cn(
+                                  "h-1 w-1 rounded-full transition-colors",
+                                  isIndoorBlocked
+                                    ? "bg-red-500/50"
+                                    : field.value === "Indoor"
+                                      ? "bg-amber-500"
+                                      : "bg-zinc-600 group-hover:bg-amber-500",
+                                )}
+                              />
+                              <p
+                                className={cn(
+                                  "text-xs font-medium uppercase tracking-widest transition-colors",
+                                  isIndoorBlocked
+                                    ? "text-red-500/50"
+                                    : field.value === "Indoor"
+                                      ? "text-amber-500"
+                                      : "text-zinc-400 group-hover:text-amber-500",
+                                )}
+                              >
+                                Indoor {isIndoorBlocked && "(Full)"}
+                              </p>
+                              <div
+                                className={cn(
+                                  "h-1 w-1 rounded-full transition-colors",
+                                  isIndoorBlocked
+                                    ? "bg-red-500/50"
+                                    : field.value === "Indoor"
+                                      ? "bg-amber-500"
+                                      : "bg-zinc-600 group-hover:bg-amber-500",
+                                )}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Outdoor Card */}
+                          <div
+                            className={cn(
+                              "group transition-all duration-300",
+                              isOutdoorBlocked
+                                ? "opacity-30 cursor-not-allowed grayscale"
+                                : "cursor-pointer",
+                              field.value === "Outdoor"
+                                ? "scale-[1.02]"
+                                : "hover:scale-[1.01]",
+                            )}
+                            onClick={() =>
+                              !isOutdoorBlocked && field.onChange("Outdoor")
+                            }
+                          >
                             <div
-                              className={`h-1 w-1 rounded-full transition-colors ${field.value === "Outdoor" ? "bg-amber-500" : "bg-zinc-600 group-hover:bg-amber-500"}`}
-                            />
+                              className={cn(
+                                "relative aspect-4/3 sm:aspect-video w-full overflow-hidden rounded-2xl border bg-zinc-900 shadow-sm transition-all duration-500",
+                                isOutdoorBlocked && "border-red-500/20",
+                                !isOutdoorBlocked && field.value === "Outdoor"
+                                  ? "border-amber-500 shadow-lg shadow-amber-500/20 ring-1 ring-amber-500"
+                                  : "border-white/5 group-hover:border-white/20 group-hover:shadow-lg group-hover:shadow-amber-500/5",
+                              )}
+                            >
+                              <Image
+                                src="/Italys_Outdoor.jpeg"
+                                alt="Outdoor Garden"
+                                fill
+                                className={cn(
+                                  "object-cover transition-transform duration-700",
+                                  field.value === "Outdoor" && !isOutdoorBlocked
+                                    ? "scale-105 opacity-100"
+                                    : "scale-100 opacity-60 group-hover:scale-105 group-hover:opacity-90",
+                                )}
+                              />
+                              {field.value === "Outdoor" &&
+                                !isOutdoorBlocked && (
+                                  <div className="absolute top-2 right-2 bg-amber-500 text-black p-1 rounded-full shadow-lg animate-in fade-in zoom-in duration-300">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  </div>
+                                )}
+                              {isOutdoorBlocked && (
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                  <span className="text-[10px] sm:text-[12px] font-bold text-white bg-red-600/80 px-2 py-1 rounded-full uppercase tracking-tighter">
+                                    Fully Booked
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="mt-3 flex items-center justify-center gap-2">
+                              <div
+                                className={cn(
+                                  "h-1 w-1 rounded-full transition-colors",
+                                  isOutdoorBlocked
+                                    ? "bg-red-500/50"
+                                    : field.value === "Outdoor"
+                                      ? "bg-amber-500"
+                                      : "bg-zinc-600 group-hover:bg-amber-500",
+                                )}
+                              />
+                              <p
+                                className={cn(
+                                  "text-xs font-medium uppercase tracking-widest transition-colors",
+                                  isOutdoorBlocked
+                                    ? "text-red-500/50"
+                                    : field.value === "Outdoor"
+                                      ? "text-amber-500"
+                                      : "text-zinc-400 group-hover:text-amber-500",
+                                )}
+                              >
+                                Outdoor {isOutdoorBlocked && "(Full)"}
+                              </p>
+                              <div
+                                className={cn(
+                                  "h-1 w-1 rounded-full transition-colors",
+                                  isOutdoorBlocked
+                                    ? "bg-red-500/50"
+                                    : field.value === "Outdoor"
+                                      ? "bg-amber-500"
+                                      : "bg-zinc-600 group-hover:bg-amber-500",
+                                )}
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               <FormField

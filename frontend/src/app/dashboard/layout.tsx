@@ -12,6 +12,7 @@ import {
   LogOut,
   MessageCircle,
   Users,
+  Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
@@ -186,6 +187,14 @@ function InnerDashboardLayout({ children }: { children: React.ReactNode }) {
                       >
                         <Users className="mr-2 h-4 w-4" />
                         <span>Manage Staff</span>
+                      </Link>
+                      <Link
+                        href="/dashboard/manage-booking"
+                        className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        <Settings2 className="mr-2 h-4 w-4" />
+                        <span>Manage Booking</span>
                       </Link>
                     </>
                   )}

@@ -22,6 +22,7 @@ model Restaurant {
   createdAt   DateTime @default(now())
   staff       Staff[]
   whatsAppMessages WhatsAppMessage[]
+  slotAvailability SlotAvailability[]
 }
 
 enum Role {
@@ -64,6 +65,7 @@ model Slot {
   isActive     Boolean  @default(true)
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
   reservations Reservation[]
+  availability SlotAvailability[]
 
   @@index([restaurantId])
 }
@@ -120,4 +122,22 @@ model WhatsAppMessage {
 
   @@index([phoneNumber])
   @@index([restaurantId])
+}
+
+model SlotAvailability {
+  id               Int        @id @default(autoincrement())
+  restaurantId     Int
+  slotId           Int
+  date             DateTime   // Specific date for the override
+  isSlotDisabled   Boolean    @default(false)
+  isIndoorDisabled Boolean    @default(false)
+  isOutdoorDisabled Boolean   @default(false)
+  
+  restaurant       Restaurant @relation(fields: [restaurantId], references: [id])
+  slot             Slot       @relation(fields: [slotId], references: [id])
+  updatedAt        DateTime   @updatedAt
+
+  @@unique([slotId, date])
+  @@index([restaurantId])
+  @@index([date])
 }
