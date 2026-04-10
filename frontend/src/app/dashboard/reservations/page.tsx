@@ -796,9 +796,33 @@ export default function ReservationsPage() {
     }
   };
 
+  // Helper to calculate total guests for a slot
+  const calculateTotalGuests = useCallback(
+    (slotId: number) => {
+      const data = slotData[slotId];
+      if (!data || !data.reservations) return 0;
+
+      const uniqueReservations = new Map();
+      data.reservations.forEach((r) => {
+        const key = r.groupId || `ID-${r.id}`;
+        if (!uniqueReservations.has(key)) {
+          uniqueReservations.set(key, r);
+        }
+      });
+
+      let total = 0;
+      uniqueReservations.forEach((r) => {
+        total += (r.adults || 0) + (r.kids || 0);
+      });
+      return total;
+    },
+    [slotData],
+  );
+
   // Capacity Validation Logic
   const totalGuests =
     (parseInt(bookingData.adults) || 0) + (parseInt(bookingData.kids) || 0);
+
   const totalCapacity =
     (selectedTable?.capacity || 0) +
     mergeOptions.reduce((acc, t) => acc + t.capacity, 0);
@@ -1049,15 +1073,39 @@ export default function ReservationsPage() {
                           : `${formatTo12Hour(slot.startTime)} - ${formatTo12Hour(slot.endTime)}`}
                       </span>
                     </CardTitle>
-                    <div className="text-[10px] md:text-sm font-bold px-2 py-1 bg-muted/50 rounded-lg border border-border/50 flex items-center gap-1 whitespace-nowrap">
-                      <span className="text-foreground">
-                        {slot.reservedCount || 0}
-                      </span>
-                      <span className="text-muted-foreground">/</span>
-                      <span className="text-foreground">{tables.length}</span>
-                      <span className="hidden sm:inline text-muted-foreground ml-1">
-                        Reservations
-                      </span>
+                    <div className="flex items-center gap-2">
+                      {/* Guest Count Indicator (Shows 0 by default) */}
+                      {(() => {
+                        const gCount = calculateTotalGuests(slot.id);
+                        return (
+                          <div
+                            className={cn(
+                              "flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-lg text-xs md:text-sm font-bold shadow-sm transition-all",
+                              isCustomActive &&
+                                "bg-amber-500/10 text-amber-500 border-amber-500/20",
+                            )}
+                          >
+                            <Users className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                            <span>
+                              {gCount}
+                              <span className="hidden sm:inline ml-1">
+                                guests
+                              </span>
+                            </span>
+                          </div>
+                        );
+                      })()}
+
+                      <div className="text-[10px] md:text-sm font-bold px-2 py-1 bg-muted/50 rounded-lg border border-border/50 flex items-center gap-1 whitespace-nowrap">
+                        <span className="text-foreground">
+                          {slot.reservedCount || 0}
+                        </span>
+                        <span className="text-muted-foreground">/</span>
+                        <span className="text-foreground">{tables.length}</span>
+                        <span className="hidden sm:inline text-muted-foreground ml-1">
+                          Reservations
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
