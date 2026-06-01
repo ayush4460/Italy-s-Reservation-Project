@@ -2,18 +2,24 @@ import axios from 'axios';
 import prisma from '../utils/prisma';
 import { getIO } from './socket';
 
-const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY || '';
-const GUPSHUP_APP_NAME = process.env.GUPSHUP_APP_NAME || '';
-const GUPSHUP_SRC_PHONE = process.env.GUPSHUP_SRC_PHONE || '';
+// Helper functions to get environment variables dynamically
+const getGupshupApiKey = () => process.env.GUPSHUP_API_KEY || '';
+const getGupshupAppName = () => process.env.GUPSHUP_APP_NAME || '';
+const getGupshupSrcPhone = () => process.env.GUPSHUP_SRC_PHONE || '';
 
 // Base axios instance for Gupshup V1 API
 const gupshupClient = axios.create({
   baseURL: 'https://api.gupshup.io/wa/api/v1',
   headers: {
     'Cache-Control': 'no-cache',
-    'Content-Type': 'application/x-www-form-urlencoded',
-    'apikey': GUPSHUP_API_KEY
+    'Content-Type': 'application/x-www-form-urlencoded'
   }
+});
+
+// Add a request interceptor to dynamically set the apikey header
+gupshupClient.interceptors.request.use((config) => {
+  config.headers['apikey'] = getGupshupApiKey();
+  return config;
 });
 
 // Helper to format phone number
@@ -61,9 +67,9 @@ export const sendTypingIndicator = async (phone: string) => {
     // or type="typing"
     const params = new URLSearchParams();
     params.append('channel', 'whatsapp');
-    params.append('source', GUPSHUP_SRC_PHONE);
+    params.append('source', getGupshupSrcPhone());
     params.append('destination', destination);
-    params.append('src.name', GUPSHUP_APP_NAME);
+    params.append('src.name', getGupshupAppName());
     // Some implementations use type='is_typing' with empty text
     params.append('message', JSON.stringify({ type: 'is_typing' }));
 
@@ -84,9 +90,9 @@ export const sendWhatsAppText = async (phone: string, text: string) => {
     const destination = formatPhone(phone);
     const params = new URLSearchParams();
     params.append('channel', 'whatsapp');
-    params.append('source', GUPSHUP_SRC_PHONE);
+    params.append('source', getGupshupSrcPhone());
     params.append('destination', destination);
-    params.append('src.name', GUPSHUP_APP_NAME);
+    params.append('src.name', getGupshupAppName());
     params.append('message', JSON.stringify({ type: 'text', text: text }));
 
     console.log(`[WhatsApp] Sending text to ${destination}`);
@@ -104,9 +110,9 @@ export const sendWhatsAppImage = async (phone: string, imageUrl: string) => {
     const destination = formatPhone(phone);
     const params = new URLSearchParams();
     params.append('channel', 'whatsapp');
-    params.append('source', GUPSHUP_SRC_PHONE);
+    params.append('source', getGupshupSrcPhone());
     params.append('destination', destination);
-    params.append('src.name', GUPSHUP_APP_NAME);
+    params.append('src.name', getGupshupAppName());
     
     const payload = {
       type: 'image',
@@ -131,9 +137,9 @@ export const sendTemplate = async (phone: string, templateId: string, params: st
     const destination = formatPhone(phone);
     const body = new URLSearchParams();
     body.append('channel', 'whatsapp');
-    body.append('source', GUPSHUP_SRC_PHONE);
+    body.append('source', getGupshupSrcPhone());
     body.append('destination', destination);
-    body.append('src.name', GUPSHUP_APP_NAME);
+    body.append('src.name', getGupshupAppName());
     
     // Construct template JSON object
     const templateData = {
@@ -208,9 +214,9 @@ export const sendTemplateV3 = async (
         // Endpoint: https://api.gupshup.io/wa/api/v1/msg
         const body = new URLSearchParams();
         body.append('channel', 'whatsapp');
-        body.append('source', GUPSHUP_SRC_PHONE);
+        body.append('source', getGupshupSrcPhone());
         body.append('destination', destination);
-        body.append('src.name', GUPSHUP_APP_NAME);
+        body.append('src.name', getGupshupAppName());
         body.append('message', JSON.stringify(cloudPayload));
 
         const res = await gupshupClient.post('/msg', body);
