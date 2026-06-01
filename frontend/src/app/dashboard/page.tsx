@@ -73,6 +73,8 @@ interface ReservationSummary {
   cancellationReason?: string;
   notificationType?: string;
   attendanceStatus?: "PENDING" | "SHOW" | "NO_SHOW";
+  startTime?: string;
+  endTime?: string;
 }
 
 const formatTemplateName = (type?: string) => {
@@ -768,7 +770,7 @@ export default function DashboardPage() {
                             Time
                           </span>
                           <span className="text-xs sm:text-sm font-medium text-foreground whitespace-nowrap">
-                            {res.slot.startTime} - {res.slot.endTime}
+                            {res.startTime && res.endTime ? `${res.startTime} - ${res.endTime}` : `${res.slot.startTime} - ${res.slot.endTime}`}
                           </span>
                         </div>
                         <div className="flex flex-col items-end">
@@ -847,7 +849,7 @@ export default function DashboardPage() {
                             Time
                           </div>
                           <div className="text-xs md:text-sm font-medium text-muted-foreground whitespace-nowrap">
-                            {res.slot.startTime} - {res.slot.endTime}
+                            {res.startTime && res.endTime ? `${res.startTime} - ${res.endTime}` : `${res.slot.startTime} - ${res.slot.endTime}`}
                           </div>
                         </div>
                         <div className="text-right min-w-[60px] md:min-w-[100px]">

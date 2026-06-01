@@ -100,6 +100,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
                     // @ts-ignore
                     cancellationReason: true,
                     groupId: true,
+                    startTime: true,
+                    endTime: true,
                     table: {
                         select: { tableNumber: true }
                     },
