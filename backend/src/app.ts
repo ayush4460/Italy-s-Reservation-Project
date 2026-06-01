@@ -16,18 +16,33 @@ const app = express();
 
 const allowedOrigins = [
   'http://localhost:3000',
-  process.env.FRONTEND_URL || 'https://italy-reservation.vercel.app',
-  process.env.APP_URL || 'https://reservation.theitalys.com' 
+  'http://localhost:4000',
+  'http://localhost:5000',
+  'https://italy-reservation.vercel.app',
+  'http://italy-reservation.vercel.app',
+  'https://reservation.theitalys.com',
+  'http://reservation.theitalys.com',
+  'https://www.reservation.theitalys.com',
+  'http://www.reservation.theitalys.com',
+  'https://susanne-lockable-forrest.ngrok-free.dev',
 ];
+
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+if (process.env.APP_URL) {
+  allowedOrigins.push(process.env.APP_URL);
+}
 
 app.use(cors({
   origin: (origin, callback) => {
     // allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.warn(`CORS blocked request from origin: ${origin}`);
+      callback(new Error(`Not allowed by CORS: ${origin}`));
     }
   },
   credentials: true,

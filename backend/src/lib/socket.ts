@@ -4,12 +4,29 @@ import { Server as HttpServer } from 'http';
 let io: Server;
 
 export const initializeSocket = (server: HttpServer) => {
+  const socketAllowedOrigins = [
+    "http://localhost:3000",
+    "http://localhost:4000",
+    "http://localhost:5000",
+    "https://italy-reservation.vercel.app",
+    "http://italy-reservation.vercel.app",
+    "https://reservation.theitalys.com",
+    "http://reservation.theitalys.com",
+    "https://www.reservation.theitalys.com",
+    "http://www.reservation.theitalys.com",
+    "https://susanne-lockable-forrest.ngrok-free.dev",
+  ];
+
+  if (process.env.FRONTEND_URL) {
+    socketAllowedOrigins.push(process.env.FRONTEND_URL);
+  }
+  if (process.env.APP_URL) {
+    socketAllowedOrigins.push(process.env.APP_URL);
+  }
+
   io = new Server(server, {
     cors: {
-      origin: [
-        "http://localhost:3000",
-        process.env.FRONTEND_URL || "https://italy-reservation.vercel.app"
-      ],
+      origin: socketAllowedOrigins,
       methods: ["GET", "POST"],
       credentials: true
     }
