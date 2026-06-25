@@ -655,34 +655,36 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Action Buttons Column */}
-                        {role === "ADMIN" && (
+                        {(role === "ADMIN" || role === "STAFF") && (
                           <div
                             className="flex flex-col items-end gap-1.5"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <div className="flex items-center gap-1.5">
-                              <WhatsAppTemplateSelector
-                                phone={res.contact}
-                                onSendSuccess={fetchStats}
-                                reservation={res}
-                                trigger={
-                                  <button className="text-[10px] bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded shadow-sm transition-colors uppercase font-bold tracking-wider">
-                                    WhatsApp
-                                  </button>
-                                }
-                              />
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCancelReservation(res.id);
-                                }}
-                                className="text-red-500 hover:text-red-600 transition-colors p-0.5"
-                                title="Cancel Reservation"
-                                type="button"
-                              >
-                                <XCircle className="h-5 w-5" />
-                              </button>
-                            </div>
+                            {role === "ADMIN" && (
+                              <div className="flex items-center gap-1.5">
+                                <WhatsAppTemplateSelector
+                                  phone={res.contact}
+                                  onSendSuccess={fetchStats}
+                                  reservation={res}
+                                  trigger={
+                                    <button className="text-[10px] bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded shadow-sm transition-colors uppercase font-bold tracking-wider">
+                                      WhatsApp
+                                    </button>
+                                  }
+                                />
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCancelReservation(res.id);
+                                  }}
+                                  className="text-red-500 hover:text-red-600 transition-colors p-0.5"
+                                  title="Cancel Reservation"
+                                  type="button"
+                                >
+                                  <XCircle className="h-5 w-5" />
+                                </button>
+                              </div>
+                            )}
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={async (e) => {
